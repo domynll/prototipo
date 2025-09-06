@@ -1,21 +1,24 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import TurtleWelcome from './TurtleWelcome.jsx';
-import './FormStyles.css';
+import { supabase } from './services/supabaseClient';
+
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
-import SuccessModal from './SuccessModal';
-import { supabase } from './services/supabaseClient'; 
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import DidaktikApp from './home'; // Aplicación principal
 
-// TypewriterText mantiene su implementación original
+import AdminPanel from './panel/AdminPanel';
+import TeacherPanel from './panel/TeacherPanel';
+import StudentPanel from './panel/StudentPanel';
+import VisitorPanel from './panel/VisitorPanel';
+import TurtleWelcome from './TurtleWelcome.jsx';
+import './App.css';
+import './FormStyles.css';
+
+// Tipowriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
     if (currentIndex < text.length) {
@@ -24,304 +27,104 @@ const TypewriterText = ({ text, speed = 50 }) => {
         setCurrentIndex(prev => prev + 1);
       }, speed);
       return () => clearTimeout(timeout);
-    } else {
-      setIsComplete(true);
     }
   }, [currentIndex, text, speed]);
 
-  return (
-    <span className="inline-block">
-      {displayedText}
-      {!isComplete && (
-        <motion.span
-          animate={{ opacity: [0, 1, 0] }}
-          transition={{ repeat: Infinity, duration: 0.8 }}
-          className="inline-block ml-1"
-        >
-          |
-        </motion.span>
-      )}
-    </span>
-  );
+  return <span>{displayedText}</span>;
 };
 
-// Confetti mantiene su implementación original
-const Confetti = ({ isVisible }) => {
-  const confettiCount = 50;
-  const colors = ["#10b981", "#065f46", "#047857", "#115e59", "#0d9488"];
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <>
-          {[...Array(confettiCount)].map((_, i) => {
-            const randomX = Math.random() * window.innerWidth;
-            const randomY = -20 - Math.random() * 100;
-            const randomSize = Math.random() * 8 + 4;
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            const randomDuration = Math.random() * 2 + 1;
-
-            return (
-              <motion.div
-                key={i}
-                style={{
-                  position: "fixed",
-                  width: randomSize,
-                  height: randomSize,
-                  borderRadius: "50%",
-                  backgroundColor: randomColor,
-                  left: randomX,
-                  top: randomY,
-                  zIndex: 50
-                }}
-                initial={{ y: randomY }}
-                animate={{
-                  y: window.innerHeight + 100,
-                  rotate: Math.random() * 360
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: randomDuration,
-                  ease: "linear",
-                }}
-              />
-            );
-          })}
-        </>
-      )}
-    </AnimatePresence>
-  );
-};
-
-// Componente principal de la aplicación
-function AppContent() {
-  const [currentPage, setCurrentPage] = useState('home'); // 'home', 'login', 'register'
-  const [loginClicked, setLoginClicked] = useState(false);
-  const [registerClicked, setRegisterClicked] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-  const [titleNeedsAnimation, setTitleNeedsAnimation] = useState(true);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+// Componente principal de bienvenida
+function Welcome() {
+  const [currentPage, setCurrentPage] = useState('home'); // home | login | register
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState('visitor');
+  const navigate = useNavigate();
 
   const titleRef = useRef(null);
-  const turtleRef = useRef(null);
-  const navigate = useNavigate(); // Hook de navegación
 
-  // Animaciones de contenedor y páginas
-  const containerAnimation = {
-    hidden: { opacity: 0, y: -100 },
-    visible: { opacity: 1, y: 0, transition: { duration: 1, ease: 'easeOut' } },
-  };
-
-  const pageTransition = {
-    hidden: { x: '100%', opacity: 0 },
-    visible: { x: 0, opacity: 1, transition: { type: 'spring', damping: 25, stiffness: 100 } },
-    exit: { x: '-100%', opacity: 0, transition: { ease: 'easeInOut', duration: 0.3 } },
-  };
-
-  const buttonAnimation = {
-    rest: { scale: 1 },
-    hover: { scale: 1.05, boxShadow: "0px 5px 15px rgba(0,0,0,0.1)", transition: { duration: 0.3, type: "spring", stiffness: 400 } },
-    tap: { scale: 0.95, boxShadow: "0px 2px 5px rgba(0,0,0,0.1)", transition: { duration: 0.2 } },
-  };
-
-  // Animación del título
+  // Revisar sesión al cargar
   useEffect(() => {
-    if (currentPage !== 'home' || !titleNeedsAnimation) return;
-    if (!titleRef.current) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        setRole(session.user.user_metadata?.role || 'visitor');
+        navigateToRole(session.user.user_metadata?.role || 'visitor');
+      }
+    });
 
-    titleRef.current.innerHTML = '';
-    titleRef.current.style.visibility = 'hidden';
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        setRole(session.user.user_metadata?.role || 'visitor');
+      } else {
+        setUser(null);
+        setRole('visitor');
+      }
+    });
 
-    const timer = setTimeout(() => {
-      const text = 'DIDACTIKAPP';
-      const letters = text.split('');
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
-      titleRef.current.innerHTML = '';
-      titleRef.current.style.visibility = 'visible';
-
-      letters.forEach((letter, index) => {
-        const span = document.createElement('span');
-        span.className = 'title-letter';
-        span.textContent = letter;
-        span.style.display = 'inline-block';
-        span.style.opacity = '0';
-        span.style.transform = 'translateY(20px)';
-        span.style.color = '#000000';
-        span.style.transition = `all 0.5s cubic-bezier(0.175,0.885,0.32,1.275) ${index * 0.1}s`;
-        titleRef.current.appendChild(span);
-      });
-
-      setTimeout(() => {
-        const letterElements = titleRef.current.querySelectorAll('.title-letter');
-        letterElements.forEach(letter => {
-          letter.style.opacity = '1';
-          letter.style.transform = 'translateY(0)';
-        });
-        setTitleNeedsAnimation(false);
-      }, 100);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [currentPage, titleNeedsAnimation]);
-
-  // Manejo de botones
-  const handleButtonClick = (buttonType) => {
-    if (buttonType === 'login') {
-      setLoginClicked(true);
-      setRegisterClicked(false);
-      setShowConfetti(true);
-      setTimeout(() => {
-        setShowConfetti(false);
-        setCurrentPage('login');
-      }, 800);
-    } else {
-      setLoginClicked(false);
-      setRegisterClicked(true);
-      setShowConfetti(true);
-      setTimeout(() => {
-        setShowConfetti(false);
-        setCurrentPage('register');
-      }, 800);
+  const navigateToRole = (role) => {
+    switch(role) {
+      case 'admin': navigate('/admin'); break;
+      case 'teacher': navigate('/teacher'); break;
+      case 'student': navigate('/student'); break;
+      default: navigate('/visitor'); break;
     }
   };
 
-  const handleBackToHome = () => {
-    setTitleNeedsAnimation(true);
-    setCurrentPage('home');
-    setLoginClicked(false);
-    setRegisterClicked(false);
-    if (titleRef.current) {
-      titleRef.current.innerHTML = '';
-      titleRef.current.style.visibility = 'hidden';
-    }
-  };
+  const handleButtonClick = (type) => setCurrentPage(type);
 
-  const handleRegisterSuccess = () => setShowSuccessModal(true);
-
-  const goToLoginAfterRegister = () => {
-    setShowSuccessModal(false);
-    setCurrentPage('login');
-  };
-
-  const goToHomeAfterRegister = () => {
-    setShowSuccessModal(false);
-    handleBackToHome();
-  };
+  if (currentPage === 'login') return <LoginForm supabase={supabase} />;
+  if (currentPage === 'register') return <RegisterForm supabase={supabase} />;
 
   return (
-    <div className="app-background">
-      <Confetti isVisible={showConfetti} />
-      <SuccessModal 
-        isOpen={showSuccessModal} 
-        onGoToLogin={goToLoginAfterRegister} 
-        onGoToHome={goToHomeAfterRegister} 
-      />
+    <div className="app-background flex flex-col items-center justify-center min-h-screen px-4">
+      <TurtleWelcome />
 
-      <AnimatePresence mode="wait">
-        {/* Home */}
-        {currentPage === 'home' && (
-          <motion.div
-            key="home"
-            className="white-box relative overflow-hidden"
-            variants={containerAnimation}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            <motion.div ref={turtleRef} className="cursor-pointer" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <TurtleWelcome />
-            </motion.div>
+      <h1 ref={titleRef} className="text-5xl font-bold mt-4">DIDACTIKAPP</h1>
+      <p className="text-center mt-2 text-gray-700">
+        <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
+      </p>
 
-            <div className="mt-2">
-              <h1 ref={titleRef} className="text-5xl font-bold text-center text-black">DIDACTIKAPP</h1>
-            </div>
-
-            <motion.p
-              className="text-center text-gray-800 text-base sm:text-lg custom-title mt-4 min-h-16"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 0.7 }}
-            >
-              <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
-            </motion.p>
-
-            <div className="w-full flex flex-col space-y-4 mt-8">
-              <motion.button
-                className={`font-semibold rounded-full shadow w-full px-6 py-3 ${loginClicked ? 'bg-green-500 text-white' : 'bg-emerald-700 text-white'}`}
-                variants={buttonAnimation}
-                initial="rest"
-                whileHover="hover"
-                whileTap="tap"
-                onClick={() => handleButtonClick('login')}
-                onMouseEnter={() => setIsHovering(true)}
-                onMouseLeave={() => setIsHovering(false)}
-              >
-                Iniciar sesión
-              </motion.button>
-
-              <motion.button
-                className={`font-semibold border rounded-full w-full px-6 py-3 transition ${registerClicked ? 'bg-green-500 text-white' : 'border-emerald-700 text-emerald-700 hover:bg-emerald-100'}`}
-                variants={buttonAnimation}
-                initial="rest"
-                whileHover="hover"
-                whileTap="tap"
-                onClick={() => handleButtonClick('register')}
-              >
-                Crear cuenta
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Login */}
-        {currentPage === 'login' && (
-          <motion.div key="login" className="white-box relative overflow-hidden" variants={pageTransition} initial="hidden" animate="visible" exit="exit">
-            <div className="mobile-app-view relative">
-              <motion.button onClick={handleBackToHome} className="flex items-center text-emerald-700 mb-4" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="ml-1">Volver</span>
-              </motion.button>
-
-              <LoginForm supabase={supabase} navigateToHome={() => navigate('/home')} />
-            </div>
-          </motion.div>
-        )}
-
-        {/* Register */}
-        {currentPage === 'register' && (
-          <motion.div key="register" className="white-box relative overflow-hidden" variants={pageTransition} initial="hidden" animate="visible" exit="exit">
-                        <div className="mobile-app-view relative">
-              <motion.button
-                onClick={handleBackToHome}
-                className="flex items-center text-emerald-700 mb-4"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="ml-1">Volver</span>
-              </motion.button>
-
-              <RegisterForm supabase={supabase} onRegisterSuccess={handleRegisterSuccess} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="mt-8 flex flex-col space-y-4 w-full max-w-xs">
+        <button
+          className="bg-emerald-700 text-white rounded-full py-3 font-semibold hover:bg-emerald-800 transition-colors"
+          onClick={() => handleButtonClick('login')}
+        >
+          Iniciar sesión
+        </button>
+        <button
+          className="border-emerald-700 text-emerald-700 border rounded-full py-3 font-semibold hover:bg-emerald-100 transition-colors"
+          onClick={() => handleButtonClick('register')}
+        >
+          Crear cuenta
+        </button>
+      </div>
     </div>
   );
 }
 
-// Componente App principal con Router
+// App.jsx principal con rutas
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<AppContent />} />
-        <Route path="/home" element={<DidaktikApp />} />
+        {/* Página de bienvenida */}
+        <Route path="/" element={<Welcome />} />
+
+        {/* Rutas de paneles por rol */}
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/teacher" element={<TeacherPanel />} />
+        <Route path="/student" element={<StudentPanel />} />
+        <Route path="/visitor" element={<VisitorPanel />} />
+
+        {/* Autenticación */}
+        <Route path="/login" element={<LoginForm supabase={supabase} />} />
+        <Route path="/register" element={<RegisterForm supabase={supabase} />} />
+
+        {/* Redirección de fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
