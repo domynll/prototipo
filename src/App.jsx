@@ -1,9 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './services/supabaseClient';
-
+import TurtleWelcome from './TurtleWelcome.jsx';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 
@@ -11,9 +10,7 @@ import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
-import TurtleWelcome from './TurtleWelcome.jsx';
 import './App.css';
-import './FormStyles.css';
 
 // Tipowriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
@@ -80,23 +77,32 @@ function Welcome() {
   if (currentPage === 'register') return <RegisterForm supabase={supabase} />;
 
   return (
-    <div className="app-background flex flex-col items-center justify-center min-h-screen px-4">
-      <TurtleWelcome />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
+      {/* Animación tortuga */}
+      <div className="w-40 h-40 mb-6">
+        <TurtleWelcome />
+      </div>
 
-      <h1 ref={titleRef} className="text-5xl font-bold mt-4">DIDACTIKAPP</h1>
-      <p className="text-center mt-2 text-gray-700">
+      {/* Título */}
+      <h1 ref={titleRef} className="text-5xl md:text-6xl font-bold text-center text-gray-800 mb-4">
+        DIDACTIKAPP
+      </h1>
+
+      {/* Descripción */}
+      <p className="text-center text-gray-600 text-lg md:text-xl max-w-xl mb-8">
         <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
       </p>
 
-      <div className="mt-8 flex flex-col space-y-4 w-full max-w-xs">
+      {/* Botones */}
+      <div className="flex flex-col md:flex-row gap-4 w-full max-w-sm">
         <button
-          className="bg-emerald-700 text-white rounded-full py-3 font-semibold hover:bg-emerald-800 transition-colors"
+          className="w-full md:w-auto px-6 py-3 bg-emerald-700 text-white rounded-full text-lg font-semibold hover:bg-emerald-800 transition-colors"
           onClick={() => handleButtonClick('login')}
         >
           Iniciar sesión
         </button>
         <button
-          className="border-emerald-700 text-emerald-700 border rounded-full py-3 font-semibold hover:bg-emerald-100 transition-colors"
+          className="w-full md:w-auto px-6 py-3 border-2 border-emerald-700 text-emerald-700 rounded-full text-lg font-semibold hover:bg-emerald-100 transition-colors"
           onClick={() => handleButtonClick('register')}
         >
           Crear cuenta
