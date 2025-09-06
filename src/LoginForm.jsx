@@ -4,7 +4,7 @@ import { supabase } from './services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import './FormStyles.css';
 
-const LoginForm = ({ navigateToHome }) => {
+const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -12,21 +12,45 @@ const LoginForm = ({ navigateToHome }) => {
 
   const navigate = useNavigate();
 
-  // Inicio de sesión
+  // Iniciar sesión
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
+      // Login con Supabase
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      console.log('Inicio de sesión exitoso:', data);
+      // Obtener el rol desde la tabla usuarios
+      const { data: userData, error: roleError } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', data.user.id)
+        .single();
+
+      if (roleError) throw roleError;
+
+      console.log('Usuario:', data.user);
+      console.log('Rol:', userData.rol);
+
       setLoading(false);
 
-      if (navigateToHome) navigateToHome();
-      else navigate('/home');
+      // Redirigir según rol
+      switch (userData.rol) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'docente':
+          navigate('/docente');
+          break;
+        case 'estudiante':
+          navigate('/estudiante');
+          break;
+        default:
+          navigate('/visitante');
+      }
 
     } catch (err) {
       console.error('Error al iniciar sesión:', err);
@@ -53,7 +77,7 @@ const LoginForm = ({ navigateToHome }) => {
   };
 
   return (
-    <form onSubmit={handleLogin} className="flex flex-col space-y-4">
+    <form onSubmit={handleLogin} className="flex flex-col space-y-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-white">
       <h2 className="text-2xl font-bold text-center text-emerald-700">Iniciar Sesión</h2>
 
       {/* Email */}
