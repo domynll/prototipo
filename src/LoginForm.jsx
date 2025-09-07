@@ -12,25 +12,35 @@ const LoginForm = () => {
 
   const navigate = useNavigate();
 
+  // Iniciar sesión
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      // 1️⃣ Login con Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) throw error;
 
+      // 2️⃣ Buscar el rol en la tabla usuarios usando supabase_id
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol')
-        .eq('supabase_id', data.user.id)
+        .eq('supabase_id', data.user.id) // 👈 cambio aquí
         .single();
 
       if (roleError) throw roleError;
 
+      console.log('Usuario:', data.user);
+      console.log('Rol:', userData.rol);
+
       setLoading(false);
 
+      // 3️⃣ Redirigir según rol
       switch (userData.rol) {
         case 'admin':
           navigate('/admin');
@@ -46,132 +56,124 @@ const LoginForm = () => {
       }
     } catch (err) {
       console.error('Error al iniciar sesión:', err);
-      setError(err?.message || JSON.stringify(err) || 'Error al iniciar sesión.');
+      setError(
+        err?.message || JSON.stringify(err) || 'Error al iniciar sesión.'
+      );
       setLoading(false);
     }
   };
 
+  // Reset de contraseña
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setError('Ingresa tu correo para restablecer la contraseña');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      alert('Se ha enviado un correo para restablecer la contraseña');
+    } catch (err) {
+      console.error('Error al enviar correo de recuperación:', err);
+      setError(
+        err?.message || JSON.stringify(err) || 'Error al enviar correo'
+      );
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 px-4 py-8">
-      <motion.form
-        onSubmit={handleLogin}
-        className="w-full max-w-lg bg-white p-8 md:p-10 rounded-2xl shadow-2xl space-y-6"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        {/* Título */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-emerald-700 mb-2">
-            Iniciar Sesión
-          </h2>
-          <p className="text-gray-600">Ingresa tus credenciales para continuar</p>
-        </div>
+    <form
+      onSubmit={handleLogin}
+      className="flex flex-col space-y-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-white"
+    >
+      <h2 className="text-2xl font-bold text-center text-emerald-700">
+        Iniciar Sesión
+      </h2>
 
-        {/* Campo Email */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Correo electrónico
-          </label>
-          <input
-            type="email"
-            placeholder="tu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="shadow-sm border border-gray-300 rounded-lg w-full py-4 px-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-          />
-        </div>
+      {/* Email */}
+      <input
+        type="email"
+        placeholder="Correo electrónico"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight 
+                   focus:outline-none focus:shadow-outline focus:border-emerald-500"
+      />
 
-        {/* Campo Contraseña */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Contraseña
-          </label>
-          <input
-            type="password"
-            placeholder="Tu contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="shadow-sm border border-gray-300 rounded-lg w-full py-4 px-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-          />
-        </div>
+      {/* Contraseña */}
+      <input
+        type="password"
+        placeholder="Contraseña"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight 
+                   focus:outline-none focus:shadow-outline focus:border-emerald-500"
+      />
 
-        {/* Mensaje de Error */}
-        {error && (
-          <motion.div
-            className="bg-red-50 border border-red-200 rounded-lg p-4"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <p className="text-red-600 text-sm text-center font-medium">
-              {error}
-            </p>
-          </motion.div>
-        )}
-
-        {/* Botón Ingresar */}
-        <motion.button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white font-bold py-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 flex items-center justify-center text-lg"
-          whileHover={{ scale: loading ? 1 : 1.02 }}
-          whileTap={{ scale: loading ? 1 : 0.98 }}
+      {/* Error */}
+      {error && (
+        <motion.p
+          className="text-red-500 text-sm text-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          {loading ? (
-            <div className="flex items-center justify-center space-x-3">
-              <svg
-                className="animate-spin h-6 w-6 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle 
-                  className="opacity-25" 
-                  cx="12" 
-                  cy="12" 
-                  r="10" 
-                  stroke="currentColor" 
-                  strokeWidth="4"
-                />
-                <path 
-                  className="opacity-75" 
-                  fill="currentColor" 
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              <span>Ingresando...</span>
-            </div>
-          ) : (
-            'Ingresar'
-          )}
-        </motion.button>
+          {error}
+        </motion.p>
+      )}
 
-        {/* Link de ayuda */}
-        <div className="text-center pt-4">
-          <button
-            type="button"
-            className="text-emerald-600 hover:text-emerald-700 text-sm font-medium transition-colors duration-200"
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center pt-6 border-t border-gray-200">
-          <p className="text-gray-500 text-sm">
-            ¿No tienes cuenta?{' '}
-            <button
-              type="button"
-              className="text-emerald-600 hover:text-emerald-700 font-medium"
+      {/* Botón Ingresar */}
+      <motion.button
+        type="submit"
+        disabled={loading}
+        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded 
+                   focus:outline-none focus:shadow-outline"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center">
+            <svg
+              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
             >
-              Crear cuenta
-            </button>
-          </p>
-        </div>
-      </motion.form>
-    </div>
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
+                3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Ingresando...
+          </div>
+        ) : (
+          'Ingresar'
+        )}
+      </motion.button>
+
+      {/* Reset password */}
+      <div className="text-center mt-4">
+        <button
+          type="button"
+          onClick={handleResetPassword}
+          className="text-sm text-emerald-700 hover:text-emerald-900 underline"
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+      </div>
+    </form>
   );
 };
 
