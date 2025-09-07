@@ -12,6 +12,14 @@ const LoginForm = () => {
 
   const navigate = useNavigate();
 
+  // Función helper para manejar errores correctamente
+  const getErrorMessage = (error) => {
+    if (error?.message) return error.message;
+    if (error?.error_description) return error.error_description;
+    if (typeof error === 'string') return error;
+    return 'Ha ocurrido un error inesperado';
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -58,20 +66,9 @@ const LoginForm = () => {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error completo:', err);
-      
-      // ✅ Manejo de errores mejorado - evita JSON.stringify
-      let errorMessage = 'Error al iniciar sesión';
-      
-      if (err?.message) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err?.error_description) {
-        errorMessage = err.error_description;
-      }
-      
-      setError(errorMessage);
+      console.error('Error al iniciar sesión:', err);
+      // ✅ CORRECCIÓN: Sin JSON.stringify para evitar el error
+      setError(getErrorMessage(err));
       setLoading(false);
     }
   };
@@ -81,23 +78,16 @@ const LoginForm = () => {
       setError('Ingresa tu correo para restablecer la contraseña');
       return;
     }
+    
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
       alert('Se ha enviado un correo para restablecer la contraseña');
+      setError(''); // Limpiar cualquier error previo
     } catch (err) {
       console.error('Error al enviar correo de recuperación:', err);
-      
-      // ✅ Mismo manejo mejorado de errores
-      let errorMessage = 'Error al enviar correo de recuperación';
-      
-      if (err?.message) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      
-      setError(errorMessage);
+      // ✅ CORRECCIÓN: Sin JSON.stringify para evitar el error
+      setError(getErrorMessage(err));
     }
   };
 
@@ -144,9 +134,9 @@ const LoginForm = () => {
         type="submit"
         disabled={loading}
         className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded 
-                   focus:outline-none focus:shadow-outline"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+                   focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
+        whileHover={{ scale: loading ? 1 : 1.05 }}
+        whileTap={{ scale: loading ? 1 : 0.95 }}
       >
         {loading ? (
           <div className="flex items-center justify-center">
@@ -182,7 +172,7 @@ const LoginForm = () => {
         <button
           type="button"
           onClick={handleResetPassword}
-          className="text-sm text-emerald-700 hover:text-emerald-900 underline"
+          className="text-sm text-emerald-700 hover:text-emerald-900 underline focus:outline-none"
         >
           ¿Olvidaste tu contraseña?
         </button>
