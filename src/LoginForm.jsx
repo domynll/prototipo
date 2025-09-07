@@ -34,7 +34,7 @@ const LoginForm = () => {
       if (roleError) throw roleError;
 
       if (!userData || userData.length === 0) {
-        setError('Usuario no registrado');
+        setError('Usuario no registrado en el sistema');
         setLoading(false);
         return;
       }
@@ -58,8 +58,20 @@ const LoginForm = () => {
 
       setLoading(false);
     } catch (err) {
-      console.error('Error al iniciar sesión:', err);
-      setError(err?.message || JSON.stringify(err) || 'Error al iniciar sesión.');
+      console.error('Error completo:', err);
+      
+      // ✅ Manejo de errores mejorado - evita JSON.stringify
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -75,7 +87,17 @@ const LoginForm = () => {
       alert('Se ha enviado un correo para restablecer la contraseña');
     } catch (err) {
       console.error('Error al enviar correo de recuperación:', err);
-      setError(err?.message || JSON.stringify(err) || 'Error al enviar correo');
+      
+      // ✅ Mismo manejo mejorado de errores
+      let errorMessage = 'Error al enviar correo de recuperación';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      setError(errorMessage);
     }
   };
 
