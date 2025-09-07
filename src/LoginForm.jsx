@@ -20,22 +20,24 @@ const LoginForm = () => {
 
     try {
       // 1️⃣ Login con Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
+      if (authError) throw authError;
+
+      const userId = authData.user.id;
 
       // 2️⃣ Buscar el rol en la tabla usuarios usando supabase_id
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol')
-        .eq('supabase_id', data.user.id) // 👈 cambio aquí
-        .single();
+        .eq('supabase_id', userId)
+        .single(); // ✅ asegura solo 1 fila
 
       if (roleError) throw roleError;
 
-      console.log('Usuario:', data.user);
+      console.log('Usuario:', authData.user);
       console.log('Rol:', userData.rol);
 
       setLoading(false);
@@ -56,9 +58,7 @@ const LoginForm = () => {
       }
     } catch (err) {
       console.error('Error al iniciar sesión:', err);
-      setError(
-        err?.message || JSON.stringify(err) || 'Error al iniciar sesión.'
-      );
+      setError(err?.message || 'Error al iniciar sesión.');
       setLoading(false);
     }
   };
@@ -76,20 +76,18 @@ const LoginForm = () => {
       alert('Se ha enviado un correo para restablecer la contraseña');
     } catch (err) {
       console.error('Error al enviar correo de recuperación:', err);
-      setError(
-        err?.message || JSON.stringify(err) || 'Error al enviar correo'
-      );
+      setError(err?.message || 'Error al enviar correo');
     }
   };
 
   return (
-    <form
+    <motion.form
       onSubmit={handleLogin}
-      className="flex flex-col space-y-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-white"
+      className="form-container"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
     >
-      <h2 className="text-2xl font-bold text-center text-emerald-700">
-        Iniciar Sesión
-      </h2>
+      <h2 className="form-title">Iniciar Sesión</h2>
 
       {/* Email */}
       <input
@@ -98,8 +96,7 @@ const LoginForm = () => {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
-        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight 
-                   focus:outline-none focus:shadow-outline focus:border-emerald-500"
+        className="form-input"
       />
 
       {/* Contraseña */}
@@ -109,14 +106,13 @@ const LoginForm = () => {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
-        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight 
-                   focus:outline-none focus:shadow-outline focus:border-emerald-500"
+        className="form-input"
       />
 
       {/* Error */}
       {error && (
         <motion.p
-          className="text-red-500 text-sm text-center"
+          className="form-error"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -128,52 +124,24 @@ const LoginForm = () => {
       <motion.button
         type="submit"
         disabled={loading}
-        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded 
-                   focus:outline-none focus:shadow-outline"
+        className="form-button"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        {loading ? (
-          <div className="flex items-center justify-center">
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
-                3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Ingresando...
-          </div>
-        ) : (
-          'Ingresar'
-        )}
+        {loading ? 'Ingresando...' : 'Ingresar'}
       </motion.button>
 
       {/* Reset password */}
-      <div className="text-center mt-4">
+      <div className="form-footer">
         <button
           type="button"
           onClick={handleResetPassword}
-          className="text-sm text-emerald-700 hover:text-emerald-900 underline"
+          className="form-link"
         >
           ¿Olvidaste tu contraseña?
         </button>
       </div>
-    </form>
+    </motion.form>
   );
 };
 
