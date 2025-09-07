@@ -18,31 +18,28 @@ const LoginForm = () => {
     setError('');
 
     try {
-      // 1️⃣ Login con Supabase
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      // 1️⃣ Iniciar sesión en Supabase
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      if (loginError) throw loginError;
 
-      if (signInError) throw signInError;
-
-      if (!authData.user) throw new Error('Usuario no encontrado');
-
-      // 2️⃣ Buscar rol en la tabla "usuarios"
+      // 2️⃣ Buscar el rol en la tabla "usuarios" usando supabase_id
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol')
-        .eq('supabase_id', authData.user.id)
-        .maybeSingle(); // 👈 evita el error si no hay un solo registro
+        .eq('supabase_id', data.user.id);
 
       if (roleError) throw roleError;
 
-      const rol = userData?.rol || 'visitante'; // 👈 rol por defecto visitante
+      if (!userData || userData.length === 0) {
+        setError('Usuario no registrado');
+        setLoading(false);
+        return;
+      }
 
-      console.log('Usuario:', authData.user);
-      console.log('Rol:', rol);
-
-      setLoading(false);
+      const rol = userData[0].rol || 'visitante'; // rol por defecto
 
       // 3️⃣ Redirigir según rol
       switch (rol) {
@@ -55,10 +52,11 @@ const LoginForm = () => {
         case 'estudiante':
           navigate('/estudiante');
           break;
-        case 'visitante':
         default:
           navigate('/visitante');
       }
+
+      setLoading(false);
     } catch (err) {
       console.error('Error al iniciar sesión:', err);
       setError(err?.message || JSON.stringify(err) || 'Error al iniciar sesión.');
@@ -71,7 +69,6 @@ const LoginForm = () => {
       setError('Ingresa tu correo para restablecer la contraseña');
       return;
     }
-
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
