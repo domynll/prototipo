@@ -12,42 +12,49 @@ const LoginForm = () => {
 
   const navigate = useNavigate();
 
-  // Función helper para manejar errores correctamente
-  const getErrorMessage = (error) => {
-    if (error?.message) return error.message;
-    if (error?.error_description) return error.error_description;
-    if (typeof error === 'string') return error;
-    return 'Ha ocurrido un error inesperado';
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    console.log('🔍 INICIO - handleLogin');
 
     try {
       // 1️⃣ Iniciar sesión en Supabase
+      console.log('🔍 PASO 1 - Intentando login con:', { email });
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (loginError) throw loginError;
+      
+      console.log('🔍 PASO 1 - Resultado login:', { data: !!data, error: loginError });
+      if (loginError) {
+        console.log('❌ ERROR EN LOGIN:', loginError);
+        throw loginError;
+      }
 
       // 2️⃣ Buscar el rol en la tabla "usuarios" usando supabase_id
+      console.log('🔍 PASO 2 - Buscando rol para user ID:', data.user.id);
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol')
         .eq('supabase_id', data.user.id);
 
-      if (roleError) throw roleError;
+      console.log('🔍 PASO 2 - Resultado búsqueda rol:', { userData, error: roleError });
+      if (roleError) {
+        console.log('❌ ERROR EN ROL:', roleError);
+        throw roleError;
+      }
 
       if (!userData || userData.length === 0) {
+        console.log('❌ Usuario no encontrado en tabla usuarios');
         setError('Usuario no registrado en el sistema');
         setLoading(false);
         return;
       }
 
-      const rol = userData[0].rol || 'visitante'; // rol por defecto
+      const rol = userData[0].rol || 'visitante';
+      console.log('🔍 PASO 3 - Rol encontrado:', rol);
 
       // 3️⃣ Redirigir según rol
       switch (rol) {
@@ -64,11 +71,33 @@ const LoginForm = () => {
           navigate('/visitante');
       }
 
+      console.log('✅ LOGIN EXITOSO - Redirigiendo a:', rol);
       setLoading(false);
+      
     } catch (err) {
-      console.error('Error al iniciar sesión:', err);
-      // ✅ CORRECCIÓN: Sin JSON.stringify para evitar el error
-      setError(getErrorMessage(err));
+      console.log('❌ ERROR CAPTURADO EN CATCH:');
+      console.log('   - Tipo:', typeof err);
+      console.log('   - Constructor:', err.constructor.name);
+      console.log('   - Message:', err?.message);
+      console.log('   - Error completo:', err);
+      
+      // Manejo seguro del error
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (err && typeof err === 'object') {
+        if (err.message) {
+          errorMessage = err.message;
+        } else if (err.error_description) {
+          errorMessage = err.error_description;
+        } else if (err.details) {
+          errorMessage = err.details;
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      console.log('🔍 Mensaje de error final:', errorMessage);
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -79,15 +108,40 @@ const LoginForm = () => {
       return;
     }
     
+    console.log('🔍 INICIO - handleResetPassword');
+    
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) throw error;
+      console.log('🔍 Resultado reset password:', { error });
+      
+      if (error) {
+        console.log('❌ ERROR EN RESET:', error);
+        throw error;
+      }
+      
       alert('Se ha enviado un correo para restablecer la contraseña');
-      setError(''); // Limpiar cualquier error previo
+      setError('');
+      
     } catch (err) {
-      console.error('Error al enviar correo de recuperación:', err);
-      // ✅ CORRECCIÓN: Sin JSON.stringify para evitar el error
-      setError(getErrorMessage(err));
+      console.log('❌ ERROR EN RESET PASSWORD:');
+      console.log('   - Tipo:', typeof err);
+      console.log('   - Message:', err?.message);
+      console.log('   - Error completo:', err);
+      
+      let errorMessage = 'Error al enviar correo de recuperación';
+      
+      if (err && typeof err === 'object') {
+        if (err.message) {
+          errorMessage = err.message;
+        } else if (err.error_description) {
+          errorMessage = err.error_description;
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      console.log('🔍 Mensaje de error reset final:', errorMessage);
+      setError(errorMessage);
     }
   };
 
