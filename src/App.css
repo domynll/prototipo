@@ -2,21 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Variables y tipografía global */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Enlaces */
 a {
   font-weight: 500;
   color: #646cff;
@@ -26,20 +26,25 @@ a:hover {
   color: #535bf2;
 }
 
+/* Body */
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-width: 320px;
   min-height: 100vh;
 }
 
+/* Encabezados */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
   color: #1a1a1a;
 }
 
+/* Botones generales */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -49,7 +54,7 @@ button {
   font-family: inherit;
   background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.25s ease;
 }
 button:hover {
   border-color: #646cff;
@@ -59,6 +64,48 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Inputs y formularios */
+input {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  width: 100%;
+}
+input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+}
+
+/* Contenedores */
+.white-box {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.app-background {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom right, #e0f2fe, #ede9fe, #f0fdf4);
+}
+
+/* Animación título */
+.title-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+
+/* Media queries para tema claro */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -69,5 +116,6 @@ button:focus-visible {
   }
   button {
     background-color: black;
+    color: white;
   }
 }
