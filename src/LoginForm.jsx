@@ -16,47 +16,61 @@ const LoginForm = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
-    console.log('🔍 INICIO - handleLogin');
 
     try {
       // 1️⃣ Iniciar sesión en Supabase
-      console.log('🔍 PASO 1 - Intentando login con:', { email });
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
-      console.log('🔍 PASO 1 - Resultado login:', { data: !!data, error: loginError });
-      if (loginError) {
-        console.log('❌ ERROR EN LOGIN:', loginError);
-        throw loginError;
-      }
+      if (loginError) throw loginError;
 
       // 2️⃣ Buscar el rol en la tabla "usuarios" usando supabase_id
-      console.log('🔍 PASO 2 - Buscando rol para user ID:', data.user.id);
+      // ✅ SOLUCIÓN: Manejar correctamente cuando no hay resultados
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
-        .select('rol')
-        .eq('supabase_id', data.user.id);
+        .select('rol, nombre')
+        .eq('supabase_id', data.user.id)
+        .maybeSingle(); // ✅ Esto permite que devuelva null si no encuentra nada
 
-      console.log('🔍 PASO 2 - Resultado búsqueda rol:', { userData, error: roleError });
       if (roleError) {
-        console.log('❌ ERROR EN ROL:', roleError);
-        throw roleError;
+        console.error('Error al buscar rol:', roleError);
+        throw new Error('Error al verificar permisos de usuario');
       }
 
-      if (!userData || userData.length === 0) {
-        console.log('❌ Usuario no encontrado en tabla usuarios');
-        setError('Usuario no registrado en el sistema');
-        setLoading(false);
-        return;
+      // 3️⃣ Si no existe en la tabla usuarios, crearlo automáticamente
+      let rol = 'visitante';
+      
+      if (!userData) {
+        console.log('Usuario no encontrado en tabla, creando registro...');
+        
+        // Crear usuario en la tabla con rol por defecto
+        const { data: newUser, error: insertError } = await supabase
+          .from('usuarios')
+          .insert({
+            supabase_id: data.user.id,
+            email: data.user.email,
+            nombre: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Usuario',
+            rol: 'visitante'
+          })
+          .select('rol')
+          .single();
+
+        if (insertError) {
+          console.error('Error al crear usuario:', insertError);
+          setError('Error al registrar usuario en el sistema');
+          setLoading(false);
+          return;
+        }
+        
+        rol = newUser.rol;
+        console.log('Usuario creado exitosamente con rol:', rol);
+      } else {
+        rol = userData.rol || 'visitante';
+        console.log('Usuario existente con rol:', rol);
       }
 
-      const rol = userData[0].rol || 'visitante';
-      console.log('🔍 PASO 3 - Rol encontrado:', rol);
-
-      // 3️⃣ Redirigir según rol
+      // 4️⃣ Redirigir según rol
       switch (rol) {
         case 'admin':
           navigate('/admin');
@@ -71,32 +85,19 @@ const LoginForm = () => {
           navigate('/visitante');
       }
 
-      console.log('✅ LOGIN EXITOSO - Redirigiendo a:', rol);
       setLoading(false);
       
     } catch (err) {
-      console.log('❌ ERROR CAPTURADO EN CATCH:');
-      console.log('   - Tipo:', typeof err);
-      console.log('   - Constructor:', err.constructor.name);
-      console.log('   - Message:', err?.message);
-      console.log('   - Error completo:', err);
+      console.error('Error en login:', err);
       
-      // Manejo seguro del error
       let errorMessage = 'Error al iniciar sesión';
       
-      if (err && typeof err === 'object') {
-        if (err.message) {
-          errorMessage = err.message;
-        } else if (err.error_description) {
-          errorMessage = err.error_description;
-        } else if (err.details) {
-          errorMessage = err.details;
-        }
-      } else if (typeof err === 'string') {
-        errorMessage = err;
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
       }
       
-      console.log('🔍 Mensaje de error final:', errorMessage);
       setError(errorMessage);
       setLoading(false);
     }
@@ -108,40 +109,16 @@ const LoginForm = () => {
       return;
     }
     
-    console.log('🔍 INICIO - handleResetPassword');
-    
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
-      console.log('🔍 Resultado reset password:', { error });
-      
-      if (error) {
-        console.log('❌ ERROR EN RESET:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       alert('Se ha enviado un correo para restablecer la contraseña');
       setError('');
       
     } catch (err) {
-      console.log('❌ ERROR EN RESET PASSWORD:');
-      console.log('   - Tipo:', typeof err);
-      console.log('   - Message:', err?.message);
-      console.log('   - Error completo:', err);
-      
-      let errorMessage = 'Error al enviar correo de recuperación';
-      
-      if (err && typeof err === 'object') {
-        if (err.message) {
-          errorMessage = err.message;
-        } else if (err.error_description) {
-          errorMessage = err.error_description;
-        }
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      }
-      
-      console.log('🔍 Mensaje de error reset final:', errorMessage);
-      setError(errorMessage);
+      console.error('Error al reset password:', err);
+      setError(err?.message || 'Error al enviar correo de recuperación');
     }
   };
 
