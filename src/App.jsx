@@ -34,9 +34,8 @@ const TypewriterText = ({ text, speed = 50 }) => {
 function Welcome() {
   const [currentPage, setCurrentPage] = useState('home'); // home | login | register
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState('visitor');
+  const [role, setRole] = useState('visitante');
   const navigate = useNavigate();
-
   const titleRef = useRef(null);
 
   // Revisar sesión al cargar
@@ -44,37 +43,55 @@ function Welcome() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        setRole(session.user.user_metadata?.role || 'visitor');
-        navigateToRole(session.user.user_metadata?.role || 'visitor');
+        // Traer rol desde la tabla usuarios
+        fetchUserRole(session.user.id);
       }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user);
-        setRole(session.user.user_metadata?.role || 'visitor');
+        fetchUserRole(session.user.id);
       } else {
         setUser(null);
-        setRole('visitor');
+        setRole('visitante');
       }
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const fetchUserRole = async (userId) => {
+    try {
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('supabase_id', userId)
+        .maybeSingle(); // devuelve null si no existe
+
+      let userRole = userData?.rol || 'visitante';
+      setRole(userRole);
+      navigateToRole(userRole);
+    } catch (err) {
+      console.error('Error al obtener rol:', err);
+      setRole('visitante');
+      navigateToRole('visitante');
+    }
+  };
+
   const navigateToRole = (role) => {
     switch(role) {
       case 'admin': navigate('/admin'); break;
-      case 'teacher': navigate('/teacher'); break;
-      case 'student': navigate('/student'); break;
+      case 'docente': navigate('/teacher'); break;
+      case 'estudiante': navigate('/student'); break;
       default: navigate('/visitor'); break;
     }
   };
 
   const handleButtonClick = (type) => setCurrentPage(type);
 
-  if (currentPage === 'login') return <LoginForm supabase={supabase} />;
-  if (currentPage === 'register') return <RegisterForm supabase={supabase} />;
+  if (currentPage === 'login') return <LoginForm supabase={supabase} navigateToRole={navigateToRole} />;
+  if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
