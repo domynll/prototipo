@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from './services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import {
   ArrowRight, Book, Medal, GraduationCap, Lock, Check,
   Star, Award, AlertCircle, Brain, Target, Trophy, Users, 
