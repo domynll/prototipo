@@ -18,44 +18,45 @@ const LoginForm = () => {
     setError('');
 
     try {
-      // 1️⃣ Iniciar sesión en Supabase
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+      // 1️⃣ Iniciar sesión con Supabase Auth
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (loginError) throw loginError;
 
-      // 2️⃣ Buscar rol en la tabla "usuarios"
+      if (loginError) throw loginError;
+      if (!loginData.user) throw new Error('Usuario no registrado');
+
+      // 2️⃣ Buscar rol en tabla "usuarios"
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol, nombre')
-        .eq('supabase_id', data.user.id)
-        .maybeSingle(); // Devuelve null si no encuentra nada
+        .eq('supabase_id', loginData.user.id)
+        .maybeSingle(); // devuelve null si no existe
 
       if (roleError) throw roleError;
 
-      // 3️⃣ Si no existe, crear registro con rol visitante
-      let rol = 'visitante';
+      let rol = 'visitante'; // rol por defecto
+
+      // 3️⃣ Si no existe en tabla usuarios, crearlo automáticamente
       if (!userData) {
         const { data: newUser, error: insertError } = await supabase
           .from('usuarios')
           .insert({
-            supabase_id: data.user.id,
-            email: data.user.email,
-            nombre: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Usuario',
-            rol: 'visitante'
+            supabase_id: loginData.user.id,
+            email: loginData.user.email,
+            nombre: loginData.user.user_metadata?.full_name || loginData.user.email?.split('@')[0] || 'Usuario',
+            rol: 'visitante',
           })
           .select('rol')
           .single();
 
-        if (insertError) {
-          setError('Error al registrar usuario en el sistema');
-          setLoading(false);
-          return;
-        }
+        if (insertError) throw insertError;
         rol = newUser.rol;
+        console.log('Usuario creado automáticamente con rol:', rol);
       } else {
         rol = userData.rol || 'visitante';
+        console.log('Usuario existente con rol:', rol);
       }
 
       // 4️⃣ Redirigir según rol
@@ -76,8 +77,8 @@ const LoginForm = () => {
       setLoading(false);
 
     } catch (err) {
-      console.error('Error en login:', err);
-      setError(err?.message || 'Error al iniciar sesión');
+      console.error('Error al iniciar sesión:', err);
+      setError(err?.message || 'Usuario no registrado o credenciales incorrectas');
       setLoading(false);
     }
   };
@@ -87,13 +88,14 @@ const LoginForm = () => {
       setError('Ingresa tu correo para restablecer la contraseña');
       return;
     }
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
       alert('Se ha enviado un correo para restablecer la contraseña');
       setError('');
     } catch (err) {
-      console.error('Error al enviar correo de recuperación:', err);
+      console.error('Error al reset password:', err);
       setError(err?.message || 'Error al enviar correo de recuperación');
     }
   };
@@ -126,7 +128,11 @@ const LoginForm = () => {
       />
 
       {error && (
-        <motion.p className="text-red-500 text-sm text-center" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.p
+          className="text-red-500 text-sm text-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           {error}
         </motion.p>
       )}
@@ -141,9 +147,26 @@ const LoginForm = () => {
       >
         {loading ? (
           <div className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
+                3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             Ingresando...
           </div>
