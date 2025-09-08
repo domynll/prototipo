@@ -25,26 +25,18 @@ const LoginForm = () => {
       });
       if (loginError) throw loginError;
 
-      // 2️⃣ Buscar el rol en la tabla "usuarios" usando supabase_id
-      // ✅ SOLUCIÓN: Manejar correctamente cuando no hay resultados
+      // 2️⃣ Buscar rol en la tabla "usuarios"
       const { data: userData, error: roleError } = await supabase
         .from('usuarios')
         .select('rol, nombre')
         .eq('supabase_id', data.user.id)
-        .maybeSingle(); // ✅ Esto permite que devuelva null si no encuentra nada
+        .maybeSingle(); // Devuelve null si no encuentra nada
 
-      if (roleError) {
-        console.error('Error al buscar rol:', roleError);
-        throw new Error('Error al verificar permisos de usuario');
-      }
+      if (roleError) throw roleError;
 
-      // 3️⃣ Si no existe en la tabla usuarios, crearlo automáticamente
+      // 3️⃣ Si no existe, crear registro con rol visitante
       let rol = 'visitante';
-      
       if (!userData) {
-        console.log('Usuario no encontrado en tabla, creando registro...');
-        
-        // Crear usuario en la tabla con rol por defecto
         const { data: newUser, error: insertError } = await supabase
           .from('usuarios')
           .insert({
@@ -57,17 +49,13 @@ const LoginForm = () => {
           .single();
 
         if (insertError) {
-          console.error('Error al crear usuario:', insertError);
           setError('Error al registrar usuario en el sistema');
           setLoading(false);
           return;
         }
-        
         rol = newUser.rol;
-        console.log('Usuario creado exitosamente con rol:', rol);
       } else {
         rol = userData.rol || 'visitante';
-        console.log('Usuario existente con rol:', rol);
       }
 
       // 4️⃣ Redirigir según rol
@@ -86,19 +74,10 @@ const LoginForm = () => {
       }
 
       setLoading(false);
-      
+
     } catch (err) {
       console.error('Error en login:', err);
-      
-      let errorMessage = 'Error al iniciar sesión';
-      
-      if (err?.message) {
-        errorMessage = err.message;
-      } else if (err?.error_description) {
-        errorMessage = err.error_description;
-      }
-      
-      setError(errorMessage);
+      setError(err?.message || 'Error al iniciar sesión');
       setLoading(false);
     }
   };
@@ -108,16 +87,13 @@ const LoginForm = () => {
       setError('Ingresa tu correo para restablecer la contraseña');
       return;
     }
-    
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
-      
       alert('Se ha enviado un correo para restablecer la contraseña');
       setError('');
-      
     } catch (err) {
-      console.error('Error al reset password:', err);
+      console.error('Error al enviar correo de recuperación:', err);
       setError(err?.message || 'Error al enviar correo de recuperación');
     }
   };
@@ -127,9 +103,7 @@ const LoginForm = () => {
       onSubmit={handleLogin}
       className="flex flex-col space-y-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-white"
     >
-      <h2 className="text-2xl font-bold text-center text-emerald-700">
-        Iniciar Sesión
-      </h2>
+      <h2 className="text-2xl font-bold text-center text-emerald-700">Iniciar Sesión</h2>
 
       <input
         type="email"
@@ -152,11 +126,7 @@ const LoginForm = () => {
       />
 
       {error && (
-        <motion.p
-          className="text-red-500 text-sm text-center"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.p className="text-red-500 text-sm text-center" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           {error}
         </motion.p>
       )}
@@ -171,26 +141,9 @@ const LoginForm = () => {
       >
         {loading ? (
           <div className="flex items-center justify-center">
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 
-                3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             Ingresando...
           </div>
