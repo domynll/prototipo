@@ -10,10 +10,10 @@ import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
-import styles from './App.css';
-import typewriterStyles from './TypewriterText.module.css';
-
-// Componente TypewriterText con CSS Modules
+import './App.css';
+import './FormStyles.css';
+import './home.css';
+// Tipowriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -28,28 +28,23 @@ const TypewriterText = ({ text, speed = 50 }) => {
     }
   }, [currentIndex, text, speed]);
 
-  return (
-    <span className={typewriterStyles.typewriterContainer}>
-      {displayedText}
-      {currentIndex < text.length && (
-        <span className={typewriterStyles.cursor}></span>
-      )}
-    </span>
-  );
+  return <span>{displayedText}</span>;
 };
 
 // Componente principal de bienvenida
 function Welcome() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState('home'); // home | login | register
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('visitante');
   const navigate = useNavigate();
+  const titleRef = useRef(null);
 
   // Revisar sesión al cargar
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
+        // Traer rol desde la tabla usuarios
         fetchUserRole(session.user.id);
       }
     });
@@ -73,7 +68,7 @@ function Welcome() {
         .from('usuarios')
         .select('rol')
         .eq('supabase_id', userId)
-        .maybeSingle();
+        .maybeSingle(); // devuelve null si no existe
 
       let userRole = userData?.rol || 'visitante';
       setRole(userRole);
@@ -100,39 +95,36 @@ function Welcome() {
   if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
 
   return (
-    <div className={styles.appBackground}>
-      <div className={styles.whiteBox}>
-        {/* Animación tortuga */}
-        <div className={styles.turtleContainer}>
-          <TurtleWelcome />
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
+      {/* Animación tortuga */}
+      <div className="w-40 h-40 mb-6">
+        <TurtleWelcome />
+      </div>
 
-        {/* Título */}
-        <h1 className={styles.title}>DIDACTIKAPP</h1>
+      {/* Título */}
+      <h1 ref={titleRef} className="text-5xl md:text-6xl font-bold text-center text-gray-800 mb-4">
+        DIDACTIKAPP
+      </h1>
 
-        {/* Descripción */}
-        <p className={styles.subtitle}>
-          <TypewriterText 
-            text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." 
-            speed={40} 
-          />
-        </p>
+      {/* Descripción */}
+      <p className="text-center text-gray-600 text-lg md:text-xl max-w-xl mb-8">
+        <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
+      </p>
 
-        {/* Botones */}
-        <div className={styles.buttonContainer}>
-          <button
-            className={styles.buttonPrimary}
-            onClick={() => handleButtonClick('login')}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            className={styles.buttonOutline}
-            onClick={() => handleButtonClick('register')}
-          >
-            Crear cuenta
-          </button>
-        </div>
+      {/* Botones */}
+      <div className="flex flex-col md:flex-row gap-4 w-full max-w-sm">
+        <button
+          className="w-full md:w-auto px-6 py-3 bg-emerald-700 text-white rounded-full text-lg font-semibold hover:bg-emerald-800 transition-colors"
+          onClick={() => handleButtonClick('login')}
+        >
+          Iniciar sesión
+        </button>
+        <button
+          className="w-full md:w-auto px-6 py-3 border-2 border-emerald-700 text-emerald-700 rounded-full text-lg font-semibold hover:bg-emerald-100 transition-colors"
+          onClick={() => handleButtonClick('register')}
+        >
+          Crear cuenta
+        </button>
       </div>
     </div>
   );
