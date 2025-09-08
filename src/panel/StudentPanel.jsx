@@ -6,7 +6,7 @@ import {
   Calculator, Palette, Globe, Heart, Zap, Play, Pause,
   Volume2, VolumeX, Settings, Home, BarChart3, Gift
 } from 'lucide-react';
-import './home.css';
+import '../home.css';
 import { useNavigate } from 'react-router-dom';
 
 const ElementaryLearningApp = () => {
