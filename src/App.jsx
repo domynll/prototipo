@@ -12,7 +12,7 @@ import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
 import './App.css';
 import './FormStyles.css';
-
+import './home.css';
 // Tipowriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
