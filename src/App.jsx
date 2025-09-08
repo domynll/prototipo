@@ -9,7 +9,7 @@ import RegisterForm from './RegisterForm';
 import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
-import VisitorPanel from './panel/VisitorDemo';
+import VisitorPanel from './panel/VisitorPanel';
 import './App.css';
 
 // Tipowriter para texto animado
