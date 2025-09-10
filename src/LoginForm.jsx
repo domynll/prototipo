@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from './services/supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './FormStyles.css';
 
 const LoginForm = () => {
@@ -84,7 +84,8 @@ const LoginForm = () => {
   };
 
   const handleGoBack = () => {
-    navigate('/'); // Redirige a la página Welcome
+    navigate(-1); // Navegar a la página anterior en el historial
+    // Alternativa: navigate('/', { replace: true }); 
   };
 
   return (
@@ -106,6 +107,7 @@ const LoginForm = () => {
           type="button" 
           className="back-button" 
           onClick={handleGoBack}
+          aria-label="Volver atrás"
         >
           ⬅
         </button>
@@ -147,6 +149,7 @@ const LoginForm = () => {
             className="password-toggle"
             onClick={togglePasswordVisibility}
             tabIndex="-1"
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
           >
             {showPassword ? '👁️' : '👁️‍🗨️'}
           </button>
@@ -176,16 +179,16 @@ const LoginForm = () => {
 
         {/* Enlaces adicionales */}
         <div className="form-links">
-          <a href="/forgot-password" className="form-link">
+          <Link to="/forgot-password" className="form-link">
             ¿Olvidaste tu contraseña?
-          </a>
+          </Link>
           <br />
           <span style={{ color: '#7f8c8d', fontSize: '0.9rem' }}>
             ¿No tienes cuenta?{' '}
           </span>
-          <a href="/register" className="form-link">
+          <Link to="/register" className="form-link">
             Regístrate
-          </a>
+          </Link>
         </div>
       </motion.form>
     </div>
