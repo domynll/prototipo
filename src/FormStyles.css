@@ -49,7 +49,7 @@
   justify-content: center;
   padding: 1rem;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* Previene overflow horizontal */
 }
 
 /* Formulario principal */
@@ -72,6 +72,45 @@
   box-shadow: var(--shadow-hover);
 }
 
+/* Botón de regreso */
+.back-button {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--light-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  z-index: 20;
+  color: var(--text-dark);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.back-button:hover {
+  background: var(--white);
+  border-color: var(--shell-green);
+  color: var(--shell-green);
+  transform: translateX(-3px);
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2);
+}
+
+.back-button:active {
+  transform: translateX(-1px) scale(0.95);
+}
+
+.back-button svg {
+  width: 20px;
+  height: 20px;
+  transition: var(--transition-smooth);
+}
+
 /* Título del formulario */
 .form-title {
   font-size: 2.25rem;
@@ -84,6 +123,7 @@
   -webkit-text-fill-color: transparent;
   animation: gradient-shift 4s ease infinite;
   margin-bottom: 2rem;
+  margin-top: 1rem; /* Espacio para el botón de regreso */
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
@@ -324,13 +364,13 @@
 /* Figuras geométricas de fondo (opcional) */
 .geometric-shape {
   position: absolute;
-  opacity: 0.15;
+  opacity: 0.1; /* Reducida la opacidad */
   pointer-events: none;
   animation: float 15s infinite ease-in-out;
+  z-index: 1;
 }
 
 @keyframes float {
-
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
@@ -381,24 +421,36 @@
 
   .form-title {
     font-size: 2rem;
+    margin-top: 2rem; /* Más espacio para el botón en móvil */
   }
 
   .btn {
     padding: 1rem 1.5rem;
     font-size: 1rem;
   }
+
+  .back-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .back-button svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 @media (max-width: 480px) {
   .login-form {
     padding: 1.5rem;
-    max-width: 340px;
+    max-width: calc(100% - 2rem);
     margin: 1rem;
   }
 
   .form-title {
     font-size: 1.75rem;
     margin-bottom: 1.5rem;
+    margin-top: 2.5rem;
   }
 
   .input-group {
@@ -417,5 +469,45 @@
   .btn {
     padding: 0.9rem 1.25rem;
     font-size: 0.95rem;
+  }
+
+  .back-button {
+    top: 0.75rem;
+    left: 0.75rem;
+    width: 34px;
+    height: 34px;
+  }
+
+  /* Ocultar figuras en móviles para mejor rendimiento */
+  .shape-2,
+  .shape-3 {
+    display: none;
+  }
+}
+
+/* Modo horizontal en móviles */
+@media (max-height: 600px) and (orientation: landscape) {
+  .login-form {
+    padding: 1.5rem 2rem;
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .input-group {
+    margin-bottom: 1.25rem;
+  }
+
+  .btn {
+    padding: 0.8rem 1.5rem;
+    margin-top: 1rem;
+  }
+
+  /* Ocultar todas las figuras en modo horizontal */
+  .geometric-shape {
+    display: none;
   }
 }

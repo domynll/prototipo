@@ -94,7 +94,17 @@ function Welcome() {
   if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} navigateBack={handleBackToHome} />;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
+    <div className="app-container">
+      {/* Figuras geométricas de fondo */}
+      <div className="geometric-bg">
+        <div className="shape shape-1"></div>
+        <div className="shape shape-2"></div>
+        <div className="shape shape-3"></div>
+        <div className="shape shape-4"></div>
+        <div className="shape shape-5"></div>
+        <div className="shape shape-6"></div>
+      </div>
+
       <div className="welcome-card">
         <div className="turtle-container">
           <TurtleWelcome />
@@ -107,8 +117,12 @@ function Welcome() {
         </p>
 
         <div className="buttons-container">
-          <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>Iniciar sesión</button>
-          <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>Crear cuenta</button>
+          <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>
+            <span>Iniciar sesión</span>
+          </button>
+          <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>
+            <span>Crear cuenta</span>
+          </button>
         </div>
       </div>
     </div>
