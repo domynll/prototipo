@@ -10,7 +10,7 @@ import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
-import './App.css';
+import './App.html';
 
 
 // Typewriter para texto animado
