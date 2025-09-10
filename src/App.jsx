@@ -90,30 +90,35 @@ function Welcome() {
 
   return (
     <div className="app-container">
-      <div className="welcome-layout">
-        {/* Tortuga */}
-        <div className="turtle-wrapper">
-          <TurtleWelcome />
-        </div>
-
-        {/* Contenido principal */}
-        <div className="welcome-card">
-          <h1 className="main-title">DIDACTIKAPP</h1>
-          <p className="description">
-            <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
-          </p>
-
-          <div className="buttons-container">
-            <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>
-              <span>Iniciar sesión</span>
-            </button>
-            <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>
-              <span>Crear cuenta</span>
-            </button>
-          </div>
-        </div>
-      </div>
+  <div className="welcome-card">
+    {/* Tortuga encima del título */}
+    <div className="turtle-wrapper">
+      <TurtleWelcome />
     </div>
+
+    {/* Título */}
+    <h1 className="main-title">DIDACTIKAPP</h1>
+
+    {/* Descripción */}
+    <p className="description">
+      <TypewriterText
+        text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas."
+        speed={40}
+      />
+    </p>
+
+    {/* Botones */}
+    <div className="buttons-container">
+      <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>
+        Iniciar sesión
+      </button>
+      <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>
+        Crear cuenta
+      </button>
+    </div>
+  </div>
+</div>
+
   );
 }
 

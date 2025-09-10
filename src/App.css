@@ -1,120 +1,107 @@
-/* Contenedor general */
+/* Fondo principal */
 .app-container {
   min-height: 100vh;
   width: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  background: var(--gradient-primary);
+  align-items: center;
   padding: 1rem;
-  box-sizing: border-box;
+  background: linear-gradient(135deg, #eafaf1, #c3f0e6);
 }
 
-/* Layout principal: tortuga + tarjeta */
-.welcome-layout {
+/* Card principal */
+.welcome-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
-  max-width: 1200px;
-  width: 100%;
-}
-
-/* Tortuga */
-.turtle-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: clamp(140px, 35vw, 300px);
-  height: clamp(140px, 35vw, 300px);
-  animation: pulse 3s ease-in-out infinite;
-}
-
-/* Tarjeta */
-.welcome-card {
-  background: var(--gradient-card);
-  backdrop-filter: blur(20px);
-  border-radius: var(--border-radius-lg);
-  padding: clamp(1.5rem, 4vw, 3rem);
-  box-shadow: var(--shadow-medium);
-  max-width: 500px;
+  background: white;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
   width: 100%;
   text-align: center;
-  z-index: 10;
 }
 
-/* Título principal */
-.main-title {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--shell-dark-green), var(--shell-green), var(--accent-orange));
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-shift 4s ease infinite;
+/* Tortuga encima del título */
+.turtle-wrapper {
+  width: clamp(100px, 25vw, 150px);
+  height: clamp(100px, 25vw, 150px);
   margin-bottom: 1rem;
 }
 
-/* Texto descriptivo */
-.description {
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  color: var(--text-light);
-  margin-bottom: 2rem;
+/* Título */
+.main-title {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: bold;
+  background: linear-gradient(90deg, #00b35c, #8fdc84);
+
+  /* Compatibilidad completa */
+  -webkit-background-clip: text;
+  background-clip: text; 
+
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+
+  margin-bottom: 0.8rem;
 }
 
-/* Botones */
+/* Descripción */
+.description {
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+/* Contenedor botones */
 .buttons-container {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
 }
 
+/* Botones */
 .btn {
   width: 100%;
-  padding: clamp(0.8rem, 2vw, 1rem);
-  border: none;
-  border-radius: var(--border-radius-full);
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  font-weight: 700;
+  padding: 0.9rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: bold;
   cursor: pointer;
-  transition: var(--transition-bounce);
+  transition: all 0.3s ease;
 }
 
 /* Botón principal */
 .btn-primary {
-  background: linear-gradient(135deg, var(--shell-green), var(--shell-dark-green));
+  background: #00b35c;
   color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #00994f;
 }
 
 /* Botón secundario */
 .btn-secondary {
   background: white;
-  border: 2px solid var(--shell-green);
-  color: var(--shell-dark-green);
+  border: 2px solid #00b35c;
+  color: #00b35c;
 }
 
-/* Layout responsivo en tablets y PC */
-@media (min-width: 768px) {
-  .welcome-layout {
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 4rem;
+.btn-secondary:hover {
+  background: #eafaf1;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+  .welcome-card {
+    padding: 1.5rem;
   }
 
   .turtle-wrapper {
-    flex: 1;
-  }
-
-  .welcome-card {
-    flex: 1;
-  }
-}
-
-/* Pantallas grandes */
-@media (min-width: 1200px) {
-  .welcome-layout {
-    gap: 6rem;
+    width: 100px;
+    height: 100px;
   }
 }
