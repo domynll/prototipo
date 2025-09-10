@@ -9,7 +9,7 @@ const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -18,7 +18,11 @@ const LoginForm = () => {
     setError('');
 
     try {
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+
       if (loginError) throw loginError;
       if (!loginData.user) throw new Error('Usuario no registrado');
 
@@ -54,10 +58,17 @@ const LoginForm = () => {
 
       // Redirigir según rol
       switch (rol) {
-        case 'admin': navigate('/admin'); break;
-        case 'docente': navigate('/docente'); break;
-        case 'estudiante': navigate('/estudiante'); break;
-        default: navigate('/visitante');
+        case 'admin': 
+          navigate('/admin'); 
+          break;
+        case 'docente': 
+          navigate('/docente'); 
+          break;
+        case 'estudiante': 
+          navigate('/estudiante'); 
+          break;
+        default: 
+          navigate('/visitante');
       }
 
       setLoading(false);
@@ -68,19 +79,103 @@ const LoginForm = () => {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
-    <form onSubmit={handleLogin} className="flex flex-col space-y-4 max-w-md mx-auto mt-10 p-6 shadow-lg rounded-lg bg-white">
-      <h2 className="text-2xl font-bold text-center text-emerald-700">Iniciar Sesión</h2>
+    <div className="login-form-container">
+      {/* Figuras geométricas de fondo opcional */}
+      <div className="geometric-shape shape-1"></div>
+      <div className="geometric-shape shape-2"></div>
+      <div className="geometric-shape shape-3"></div>
 
-      <input type="email" placeholder="Correo electrónico" value={email} onChange={e => setEmail(e.target.value)} required className="input" />
-      <input type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)} required className="input" />
+      <motion.form 
+        onSubmit={handleLogin} 
+        className="login-form"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <h2 className="form-title">Iniciar Sesión</h2>
+        
+        {/* Campo de email con etiqueta flotante */}
+        <div className="input-group">
+          <input 
+            type="email" 
+            id="email"
+            className={`input ${error ? 'error' : ''}`}
+            placeholder=" "
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+          />
+          <label htmlFor="email" className="floating-label">
+            Correo electrónico
+          </label>
+        </div>
 
-      {error && <motion.p className="text-red-500 text-sm text-center" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>{error}</motion.p>}
+        {/* Campo de contraseña con etiqueta flotante */}
+        <div className="input-group">
+          <input 
+            type={showPassword ? "text" : "password"}
+            id="password"
+            className={`input ${error ? 'error' : ''}`}
+            placeholder=" "
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required 
+          />
+          <label htmlFor="password" className="floating-label">
+            Contraseña
+          </label>
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={togglePasswordVisibility}
+            tabIndex="-1"
+          >
+            {showPassword ? '👁️' : '👁️‍🗨️'}
+          </button>
+        </div>
 
-      <motion.button type="submit" disabled={loading} className="btn">
-        {loading ? 'Ingresando...' : 'Ingresar'}
-      </motion.button>
-    </form>
+        {/* Mensaje de error */}
+        {error && (
+          <motion.p 
+            className="error-message" 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {error}
+          </motion.p>
+        )}
+
+        {/* Botón de submit */}
+        <motion.button 
+          type="submit" 
+          disabled={loading} 
+          className={`btn ${loading ? 'loading' : ''}`}
+          whileHover={{ scale: loading ? 1 : 1.02 }}
+          whileTap={{ scale: loading ? 1 : 0.98 }}
+        >
+          {loading ? 'Ingresando...' : 'Ingresar'}
+        </motion.button>
+
+        {/* Enlaces adicionales */}
+        <div className="form-links">
+          <a href="/forgot-password" className="form-link">
+            ¿Olvidaste tu contraseña?
+          </a>
+          <br />
+          <span style={{ color: '#7f8c8d', fontSize: '0.9rem' }}>
+            ¿No tienes cuenta?{' '}
+          </span>
+          <a href="/register" className="form-link">
+            Regístrate
+          </a>
+        </div>
+      </motion.form>
+    </div>
   );
 };
 
