@@ -1,44 +1,70 @@
-import React, { useState } from 'react';
-import { Users, Settings, FilePlus, HelpCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Users, Settings, FilePlus, HelpCircle, LogOut } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminPanel() {
-  const [users, setUsers] = useState([
-    { id: 1, name: 'Juan Pérez', role: 'student' },
-    { id: 2, name: 'María López', role: 'teacher' },
-  ]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const [showMenu, setShowMenu] = useState(false);
+  // 🔹 Cargar usuarios
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) console.error('Error cargando usuarios:', error);
+    else setUsers(data);
+    setLoading(false);
+  };
+
+  const updateRole = async (id, newRole) => {
+    const { error } = await supabase
+      .from('users')
+      .update({ role: newRole })
+      .eq('id', id);
+
+    if (error) console.error('Error actualizando rol:', error);
+    else fetchUsers();
+  };
+
+// Logout
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  navigate('/welcome'); // Ahora redirige a la página de bienvenida
+};
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Barra superior */}
+      {/* Header */}
       <header className="bg-white shadow px-6 py-3 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-700">Panel de Administrador</h1>
 
-        {/* Usuario */}
+        {/* Menú Usuario */}
         <div className="relative">
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center gap-2 focus:outline-none"
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 bg-gray-200 px-3 py-1 rounded-full"
           >
             <img
-              src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff"
-              alt="Usuario"
-              className="w-10 h-10 rounded-full border"
+              src="https://i.pravatar.cc/40"
+              alt="User Avatar"
+              className="w-8 h-8 rounded-full"
             />
-            <span className="font-medium text-gray-700">Admin</span>
+            <span className="font-medium">Admin</span>
           </button>
 
-          {showMenu && (
-            <div className="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg">
-              <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
-                Perfil
-              </button>
-              <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
-                Ajustes
-              </button>
-              <button className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">
-                Salir
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-40 bg-white shadow rounded-lg p-2">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-3 py-2 text-red-600 hover:bg-gray-100 rounded"
+              >
+                <LogOut className="w-4 h-4" /> Salir
               </button>
             </div>
           )}
