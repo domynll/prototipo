@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from './services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import './FormStyles.css';
+import { ArrowLeft } from 'lucide-react'; // Ícono de flecha
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -85,7 +86,19 @@ const LoginForm = () => {
 
   return (
     <div className="login-form-container">
-      {/* Figuras geométricas de fondo opcional */}
+      {/* Botón para volver */}
+      <motion.button
+        className="back-button"
+        onClick={() => navigate('/')}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <ArrowLeft size={22} />
+      </motion.button>
+
+      {/* Figuras geométricas */}
       <div className="geometric-shape shape-1"></div>
       <div className="geometric-shape shape-2"></div>
       <div className="geometric-shape shape-3"></div>
@@ -99,7 +112,7 @@ const LoginForm = () => {
       >
         <h2 className="form-title">Iniciar Sesión</h2>
         
-        {/* Campo de email con etiqueta flotante */}
+        {/* Campo de email */}
         <div className="input-group">
           <input 
             type="email" 
@@ -115,7 +128,7 @@ const LoginForm = () => {
           </label>
         </div>
 
-        {/* Campo de contraseña con etiqueta flotante */}
+        {/* Campo de contraseña */}
         <div className="input-group">
           <input 
             type={showPassword ? "text" : "password"}
@@ -150,7 +163,7 @@ const LoginForm = () => {
           </motion.p>
         )}
 
-        {/* Botón de submit */}
+        {/* Botón de login */}
         <motion.button 
           type="submit" 
           disabled={loading} 
