@@ -68,10 +68,33 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* Fondo principal con figuras geométricas */
+/* Fondo principal con figuras geométricas integradas */
 .min-h-screen {
     min-height: 100vh;
-    background: var(--gradient-primary);
+    background: 
+        /* Figura 1 - Círculo verde */
+        radial-gradient(circle 30px at 15% 20%, var(--shell-green) 50%, transparent 50%),
+        /* Figura 2 - Triángulo naranja */
+        radial-gradient(circle 20px at 20% 75%, var(--accent-orange) 50%, transparent 50%),
+        /* Figura 3 - Cuadrado azul */
+        radial-gradient(circle 25px at 85% 30%, var(--shell-blue) 50%, transparent 50%),
+        /* Figura 4 - Rombo púrpura */
+        radial-gradient(circle 35px at 85% 80%, var(--accent-purple) 50%, transparent 50%),
+        /* Figura 5 - Estrella amarilla */
+        radial-gradient(circle 22px at 75% 15%, var(--accent-yellow) 50%, transparent 50%),
+        /* Figura 6 - Hexágono marrón */
+        radial-gradient(circle 27px at 30% 70%, var(--shell-brown) 50%, transparent 50%),
+        /* Gradiente principal */
+        var(--gradient-primary);
+    background-size: 
+        120px 120px,
+        80px 80px,
+        100px 100px,
+        140px 140px,
+        90px 90px,
+        110px 110px,
+        100% 100%;
+    animation: floating-shapes 20s ease-in-out infinite;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -80,7 +103,71 @@ body {
     padding: 1rem;
 }
 
-/* Figuras geométricas flotantes */
+/* Figuras geométricas flotantes con pseudo-elementos */
+.min-h-screen::before,
+.min-h-screen::after {
+    content: '';
+    position: absolute;
+    opacity: 0.3;
+    animation: float 15s infinite ease-in-out;
+    pointer-events: none;
+}
+
+.min-h-screen::before {
+    top: 15%;
+    left: 10%;
+    width: 60px;
+    height: 60px;
+    background-color: var(--shell-green);
+    border-radius: 50%;
+    animation-duration: 18s;
+}
+
+.min-h-screen::after {
+    top: 70%;
+    left: 15%;
+    width: 40px;
+    height: 40px;
+    background-color: var(--accent-orange);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    animation-duration: 15s;
+    animation-delay: 2s;
+}
+
+/* Figuras adicionales usando la tarjeta de bienvenida como contenedor */
+.welcome-card::before,
+.welcome-card::after {
+    content: '';
+    position: fixed;
+    opacity: 0.3;
+    animation: float 15s infinite ease-in-out;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.welcome-card::before {
+    top: 25%;
+    right: 15%;
+    width: 50px;
+    height: 50px;
+    background-color: var(--shell-blue);
+    clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 0%);
+    animation-duration: 20s;
+    animation-delay: 1s;
+}
+
+.welcome-card::after {
+    bottom: 20%;
+    right: 10%;
+    width: 70px;
+    height: 70px;
+    background-color: var(--accent-purple);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    animation-duration: 17s;
+    animation-delay: 3s;
+}
+
+/* Figuras geométricas flotantes (para uso con HTML) */
 .geometric-shapes {
     position: absolute;
     width: 100%;
