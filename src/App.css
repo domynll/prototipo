@@ -1,5 +1,7 @@
+/* Estilos CSS Unificados para App.css */
+
 :root {
-    /* Nueva paleta de colores inspirada en una tortuga */
+    /* Paleta de colores inspirada en tortuga */
     --shell-green: #2ecc71;
     --shell-dark-green: #27ae60;
     --shell-light: #f1f2f6;
@@ -22,11 +24,13 @@
     /* Gradientes */
     --gradient-primary: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 50%, #f1f8e9 100%);
     --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+    --gradient-green: linear-gradient(135deg, var(--shell-green), var(--shell-dark-green));
     
     /* Sombras */
     --shadow-soft: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-medium: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     --shadow-hover: 0 25px 50px -12px rgba(46, 204, 113, 0.25);
+    --shadow-focus: 0 0 0 3px rgba(46, 204, 113, 0.15);
     
     /* Bordes */
     --border-radius: 20px;
@@ -51,7 +55,7 @@ body {
     overflow-x: hidden;
 }
 
-/* Animaciones para figuras geométricas */
+/* Animaciones globales */
 @keyframes float {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     33% { transform: translateY(-20px) rotate(5deg); }
@@ -63,12 +67,24 @@ body {
     50% { transform: scale(1.1); opacity: 0.9; }
 }
 
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+@keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
-/* Fondo principal con figuras geométricas */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Contenedor principal - Welcome Screen */
 .min-h-screen {
     min-height: 100vh;
     background: var(--gradient-primary);
@@ -96,8 +112,8 @@ body {
 }
 
 .shape:nth-child(1) {
-    top: 15%;
-    left: 10%;
+    top: 10%;
+    left: 5%;
     width: 60px;
     height: 60px;
     background-color: var(--shell-green);
@@ -107,7 +123,7 @@ body {
 
 .shape:nth-child(2) {
     top: 70%;
-    left: 15%;
+    left: 10%;
     width: 40px;
     height: 40px;
     background-color: var(--accent-orange);
@@ -118,18 +134,18 @@ body {
 
 .shape:nth-child(3) {
     top: 25%;
-    right: 15%;
+    right: 10%;
     width: 50px;
     height: 50px;
     background-color: var(--shell-blue);
-    clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 0%);
+    transform: rotate(45deg);
     animation-duration: 20s;
     animation-delay: 1s;
 }
 
 .shape:nth-child(4) {
     bottom: 20%;
-    right: 10%;
+    right: 15%;
     width: 70px;
     height: 70px;
     background-color: var(--accent-purple);
@@ -139,8 +155,8 @@ body {
 }
 
 .shape:nth-child(5) {
-    top: 10%;
-    right: 25%;
+    top: 50%;
+    left: 25%;
     width: 45px;
     height: 45px;
     background-color: var(--accent-yellow);
@@ -150,8 +166,8 @@ body {
 }
 
 .shape:nth-child(6) {
-    bottom: 30%;
-    left: 25%;
+    bottom: 15%;
+    left: 30%;
     width: 55px;
     height: 55px;
     background-color: var(--shell-brown);
@@ -182,7 +198,7 @@ body {
     box-shadow: var(--shadow-hover);
 }
 
-/* Contenedor de la tortuga - más grande y con menos espacio alrededor */
+/* Contenedor de la tortuga */
 .turtle-container {
     width: 200px;
     height: 200px;
@@ -202,7 +218,6 @@ body {
     filter: drop-shadow(0 12px 20px rgba(46, 204, 113, 0.3));
 }
 
-/* Imagen de la tortuga ocupando casi todo el espacio */
 .turtle-image {
     max-width: 100%;
     max-height: 100%;
@@ -223,12 +238,6 @@ body {
     margin-bottom: 1.25rem;
     letter-spacing: -0.02em;
     line-height: 1.1;
-}
-
-@keyframes gradient-shift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
 }
 
 /* Descripción */
@@ -274,13 +283,13 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--shell-green), var(--shell-dark-green));
+    background: var(--gradient-green);
     color: white;
     box-shadow: var(--shadow-soft);
     border: 2px solid transparent;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     transform: translateY(-3px);
     box-shadow: 0 15px 30px -5px rgba(46, 204, 113, 0.4);
 }
@@ -300,7 +309,18 @@ body {
     border-color: var(--accent-orange);
 }
 
-/* Responsive */
+.btn:active:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablets y pantallas medianas */
 @media (max-width: 768px) {
     .welcome-card {
         padding: 2rem;
@@ -308,36 +328,203 @@ body {
     }
     
     .main-title {
-        font-size: 2.5rem;
+        font-size: 2.25rem;
     }
     
     .turtle-container {
         width: 180px;
         height: 180px;
     }
-}
-
-@media (max-width: 480px) {
-    .welcome-card {
-        padding: 1.75rem;
+    
+    .description {
+        font-size: 1.05rem;
         max-width: 340px;
     }
     
+    /* Ajustar tamaño de figuras geométricas */
+    .shape:nth-child(1) { width: 50px; height: 50px; }
+    .shape:nth-child(2) { width: 35px; height: 35px; }
+    .shape:nth-child(3) { width: 40px; height: 40px; }
+    .shape:nth-child(4) { width: 55px; height: 55px; }
+    .shape:nth-child(5) { width: 38px; height: 38px; }
+    .shape:nth-child(6) { width: 45px; height: 45px; }
+}
+
+/* Móviles grandes */
+@media (max-width: 480px) {
+    .min-h-screen {
+        padding: 0.75rem;
+    }
+    
+    .welcome-card {
+        padding: 1.75rem;
+        max-width: 95%;
+        border-radius: var(--border-radius);
+    }
+    
     .main-title {
-        font-size: 2.25rem;
+        font-size: 2rem;
+        margin-bottom: 1rem;
     }
     
     .turtle-container {
         width: 160px;
         height: 160px;
+        margin-bottom: 1.25rem;
     }
     
     .description {
         font-size: 1rem;
+        margin-bottom: 2rem;
+        max-width: 100%;
     }
     
     .btn {
         padding: 1rem 1.5rem;
         font-size: 1rem;
+    }
+    
+    /* Reducir más el tamaño de figuras */
+    .shape:nth-child(1) { width: 40px; height: 40px; }
+    .shape:nth-child(2) { width: 30px; height: 30px; }
+    .shape:nth-child(3) { width: 35px; height: 35px; }
+    .shape:nth-child(4) { width: 45px; height: 45px; }
+    .shape:nth-child(5) { width: 32px; height: 32px; }
+    .shape:nth-child(6) { width: 38px; height: 38px; }
+}
+
+/* Móviles pequeños */
+@media (max-width: 360px) {
+    .welcome-card {
+        padding: 1.5rem;
+    }
+    
+    .main-title {
+        font-size: 1.75rem;
+    }
+    
+    .turtle-container {
+        width: 140px;
+        height: 140px;
+    }
+    
+    .description {
+        font-size: 0.95rem;
+    }
+    
+    .btn {
+        padding: 0.9rem 1.25rem;
+        font-size: 0.95rem;
+    }
+    
+    .buttons-container {
+        gap: 0.75rem;
+    }
+}
+
+/* Pantallas muy pequeñas */
+@media (max-width: 320px) {
+    .welcome-card {
+        padding: 1.25rem;
+    }
+    
+    .main-title {
+        font-size: 1.5rem;
+    }
+    
+    .turtle-container {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .description {
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    /* Ocultar algunas figuras en pantallas muy pequeñas */
+    .shape:nth-child(5),
+    .shape:nth-child(6) {
+        display: none;
+    }
+}
+
+/* Ajustes para orientación horizontal en móviles */
+@media (max-height: 600px) and (orientation: landscape) {
+    .min-h-screen {
+        padding: 0.5rem;
+    }
+    
+    .welcome-card {
+        padding: 1.5rem;
+        max-width: 400px;
+    }
+    
+    .turtle-container {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 1rem;
+    }
+    
+    .main-title {
+        font-size: 1.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .description {
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn {
+        padding: 0.8rem 1.25rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* Pantallas grandes y muy grandes */
+@media (min-width: 1024px) {
+    .welcome-card {
+        padding: 3rem;
+        max-width: 550px;
+    }
+    
+    .main-title {
+        font-size: 3rem;
+    }
+    
+    .turtle-container {
+        width: 220px;
+        height: 220px;
+    }
+    
+    .description {
+        font-size: 1.15rem;
+    }
+}
+
+@media (min-width: 1440px) {
+    .welcome-card {
+        padding: 3.5rem;
+        max-width: 600px;
+    }
+    
+    .main-title {
+        font-size: 3.25rem;
+    }
+    
+    .turtle-container {
+        width: 240px;
+        height: 240px;
+    }
+    
+    .btn {
+        padding: 1.25rem 2.25rem;
+        font-size: 1.15rem;
     }
 }
