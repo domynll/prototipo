@@ -1,59 +1,97 @@
-/* Fondo principal */
+/* =======================
+   VARIABLES GLOBALES
+======================= */
+:root {
+  /* Colores principales */
+  --primary-color: #00b35c;
+  --primary-hover: #00994f;
+  --secondary-color: #eafaf1;
+  --text-color: #555;
+
+  /* Tipografía */
+  --font-main: system-ui, Avenir, Helvetica, Arial, sans-serif;
+
+  /* Sombras y bordes */
+  --card-radius: 1.5rem;
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.15);
+
+  /* Breakpoints */
+  --max-width-card: 400px;
+  --font-title: clamp(1.8rem, 4vw, 2.5rem);
+  --font-description: clamp(0.9rem, 2vw, 1.1rem);
+  --turtle-size: clamp(100px, 25vw, 150px);
+}
+
+/* =======================
+   FONDO PRINCIPAL
+======================= */
 .app-container {
   min-height: 100vh;
-  width: 100%;
+  width: 100vw;
+
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 1rem;
+
   background: linear-gradient(135deg, #eafaf1, #c3f0e6);
+  overflow-x: hidden;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: var(--font-main);
 }
 
-/* Card principal */
+/* =======================
+   CARD PRINCIPAL
+======================= */
 .welcome-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   background: white;
   padding: 2rem;
-  border-radius: 1.5rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-md);
+  max-width: var(--max-width-card);
   width: 100%;
   text-align: center;
 }
 
-/* Tortuga encima del título */
+/* =======================
+   TORTUGA ENCIMA DEL TÍTULO
+======================= */
 .turtle-wrapper {
-  width: clamp(100px, 25vw, 150px);
-  height: clamp(100px, 25vw, 150px);
+  width: var(--turtle-size);
+  height: var(--turtle-size);
   margin-bottom: 1rem;
 }
 
-/* Título */
+/* =======================
+   TÍTULO PRINCIPAL
+======================= */
 .main-title {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-size: var(--font-title);
   font-weight: bold;
-  background: linear-gradient(90deg, #00b35c, #8fdc84);
-
-  /* Compatibilidad completa */
+  background: linear-gradient(90deg, var(--primary-color), #8fdc84);
   -webkit-background-clip: text;
-  background-clip: text; 
-
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-
   margin-bottom: 0.8rem;
 }
 
-/* Descripción */
+/* =======================
+   DESCRIPCIÓN
+======================= */
 .description {
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  color: #555;
+  font-size: var(--font-description);
+  color: var(--text-color);
   margin-bottom: 1.5rem;
 }
 
-/* Contenedor botones */
+/* =======================
+   BOTONES
+======================= */
 .buttons-container {
   display: flex;
   flex-direction: column;
@@ -61,7 +99,6 @@
   width: 100%;
 }
 
-/* Botones */
 .btn {
   width: 100%;
   padding: 0.9rem;
@@ -72,32 +109,31 @@
   transition: all 0.3s ease;
 }
 
-/* Botón principal */
 .btn-primary {
-  background: #00b35c;
+  background: var(--primary-color);
   color: white;
   border: none;
 }
-
 .btn-primary:hover {
-  background: #00994f;
+  background: var(--primary-hover);
 }
 
-/* Botón secundario */
 .btn-secondary {
   background: white;
-  border: 2px solid #00b35c;
-  color: #00b35c;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
 }
-
 .btn-secondary:hover {
-  background: #eafaf1;
+  background: var(--secondary-color);
 }
 
-/* Responsividad */
+/* =======================
+   RESPONSIVIDAD
+======================= */
 @media (max-width: 768px) {
   .welcome-card {
     padding: 1.5rem;
+    max-width: 90%;
   }
 
   .turtle-wrapper {
