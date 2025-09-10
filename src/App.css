@@ -1,4 +1,248 @@
-/* DIDACTIKAPP - CSS Animado y Tecnológico */
+/* Responsive Design Mejorado */
+
+/* Tablets */
+@media (max-width: 768px) {
+  .min-h-screen {
+    padding: 1.5rem;
+  }
+  
+  .welcome-card {
+    padding: 2.5rem 2rem;
+    max-width: 380px;
+  }
+  
+  .main-title {
+    font-size: 2.25rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .description {
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+  }
+  
+  .turtle-container {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .btn {
+    padding: 0.875rem 1.75rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Móviles */
+@media (max-width: 480px) {
+  .min-h-screen {
+    padding: 1rem;
+  }
+  
+  .welcome-card {
+    padding: 2rem 1.5rem;
+    max-width: 340px;
+    border-radius: 20px;
+  }
+  
+  .main-title {
+    font-size: 1.875rem;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+  }
+  
+  .description {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    max-width: 280px;
+  }
+  
+  .turtle-container {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1.25rem;
+  }
+  
+  .btn {
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .buttons-container {
+    gap: 0.75rem;
+  }
+}
+
+/* Móviles pequeños */
+@media (max-width: 360px) {
+  .welcome-card {
+    padding: 1.5rem 1.25rem;
+    max-width: 300px;
+  }
+  
+  .main-title {
+    font-size: 1.625rem;
+  }
+  
+  .description {
+    font-size: 0.85rem;
+    max-width: 260px;
+  }
+  
+  .turtle-container {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .btn {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Efectos hover mejorados para desktop */
+@media (hover: hover) and (pointer: fine) {
+  .welcome-card:hover .turtle-container {
+    animation-duration: 2s;
+  }
+  
+  .btn:hover {
+    cursor: pointer;
+  }
+}
+
+/* Animaciones adicionales para interactividad */
+@media (prefers-reduced-motion: no-preference) {
+  .min-h-screen {
+    animation: gradient-shift 10s ease infinite;
+  }
+  
+  .welcome-card {
+    animation: card-entrance 1s ease-out, pulse-glow 8s ease-in-out infinite 2s;
+  }
+  
+  /* Efecto parallax sutil */
+  .min-h-screen::after {
+    animation: float 25s linear infinite;
+  }
+}
+
+/* Reducir animaciones si el usuario prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .welcome-card {
+    transform: none !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-dark: #f9fafb;
+    --text-light: #d1d5db;
+    --card-bg: rgba(17, 24, 39, 0.95);
+    --gradient-emerald-bg: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+  }
+  
+  .welcome-card {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Efectos especiales adicionales */
+@keyframes card-float {
+  0%, 100% {
+    transform: translateY(0px) rotateX(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotateX(2deg);
+  }
+}
+
+.welcome-card {
+  animation: 
+    card-entrance 1s ease-out,
+    pulse-glow 8s ease-in-out infinite 2s,
+    card-float 6s ease-in-out infinite 3s;
+}
+
+/* Mejoras de accesibilidad */
+.btn:focus {
+  outline: 3px solid var(--accent-sky);
+  outline-offset: 2px;
+}
+
+.btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .welcome-card {
+    border-width: 2px;
+    border-color: var(--text-dark);
+  }
+  
+  .btn {
+    border-width: 2px;
+  }
+  
+  .main-title {
+    color: var(--text-dark);
+    text-shadow: none;
+  }
+}
+
+/* Clases utilitarias para usar en React */
+.fade-in {
+  animation: slide-in-up 0.6s ease-out both;
+}
+
+.bounce-in-delayed {
+  animation: bounce-in 0.8s ease-out 0.3s both;
+}
+
+.float-continuous {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Estados de loading */
+.loading-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.3) 50%, 
+    rgba(255, 255, 255, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: button-hover-effect 1.5s ease infinite;
+}
+
+/* Efectos de partículas mejorados */
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-10px) translateX(5px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-5px) translateX(-5px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-15px) translateX(3px);
+    opacity: 0.7;
+  }
+}/* DIDACTIKAPP - CSS Animado y Tecnológico */
 
 /* Variables CSS para consistencia */
 :root {
