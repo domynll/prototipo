@@ -5,14 +5,12 @@ import { supabase } from './services/supabaseClient';
 import TurtleWelcome from './TurtleWelcome.jsx';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
-
 import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
 import './App.css';
 
-// Typewriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -30,15 +28,12 @@ const TypewriterText = ({ text, speed = 50 }) => {
   return <span>{displayedText}</span>;
 };
 
-// Componente principal de bienvenida
 function Welcome() {
-  const [currentPage, setCurrentPage] = useState('home'); // home | login | register
+  const [currentPage, setCurrentPage] = useState('home');
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('visitante');
   const navigate = useNavigate();
-  const titleRef = useRef(null);
 
-  // Revisar sesión al cargar
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -95,41 +90,33 @@ function Welcome() {
 
   return (
     <div className="app-container">
-      {/* Figuras geométricas de fondo */}
-      <div className="geometric-bg">
-        <div className="shape shape-1"></div>
-        <div className="shape shape-2"></div>
-        <div className="shape shape-3"></div>
-        <div className="shape shape-4"></div>
-        <div className="shape shape-5"></div>
-        <div className="shape shape-6"></div>
-      </div>
-
-      <div className="welcome-card">
-        <div className="turtle-container">
+      <div className="welcome-layout">
+        {/* Tortuga */}
+        <div className="turtle-wrapper">
           <TurtleWelcome />
         </div>
 
-        <h1 className="main-title">DIDACTIKAPP</h1>
+        {/* Contenido principal */}
+        <div className="welcome-card">
+          <h1 className="main-title">DIDACTIKAPP</h1>
+          <p className="description">
+            <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
+          </p>
 
-        <p className="description">
-          <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
-        </p>
-
-        <div className="buttons-container">
-          <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>
-            <span>Iniciar sesión</span>
-          </button>
-          <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>
-            <span>Crear cuenta</span>
-          </button>
+          <div className="buttons-container">
+            <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>
+              <span>Iniciar sesión</span>
+            </button>
+            <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>
+              <span>Crear cuenta</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// App.jsx principal con rutas
 export default function App() {
   return (
     <Router>
