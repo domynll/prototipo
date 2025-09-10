@@ -26,6 +26,8 @@ import {
   Upload
 } from 'lucide-react';
 
+import '../home.css';
+
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [users, setUsers] = useState([
