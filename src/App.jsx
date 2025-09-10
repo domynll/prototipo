@@ -10,12 +10,9 @@ import AdminPanel from './panel/AdminPanel';
 import TeacherPanel from './panel/TeacherPanel';
 import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
-
 import './App.css';
 
-// ========================
-// Texto animado Typewriter
-// ========================
+// Typewriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -33,9 +30,7 @@ const TypewriterText = ({ text, speed = 50 }) => {
   return <span>{displayedText}</span>;
 };
 
-// ========================
-// Pantalla de bienvenida
-// ========================
+// Componente principal de bienvenida
 function Welcome() {
   const [currentPage, setCurrentPage] = useState('home'); // home | login | register
   const [user, setUser] = useState(null);
@@ -43,11 +38,12 @@ function Welcome() {
   const navigate = useNavigate();
   const titleRef = useRef(null);
 
-  // Verificar sesión activa al cargar la app
+  // Revisar sesión al cargar
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
+        // Traer rol desde la tabla usuarios
         fetchUserRole(session.user.id);
       }
     });
@@ -65,14 +61,13 @@ function Welcome() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Obtener el rol del usuario desde la BD
   const fetchUserRole = async (userId) => {
     try {
       const { data: userData } = await supabase
         .from('usuarios')
         .select('rol')
         .eq('supabase_id', userId)
-        .maybeSingle();
+        .maybeSingle(); // devuelve null si no existe
 
       let userRole = userData?.rol || 'visitante';
       setRole(userRole);
@@ -84,37 +79,23 @@ function Welcome() {
     }
   };
 
-  // Redirigir al panel correspondiente según el rol
   const navigateToRole = (role) => {
-    switch (role) {
-      case 'admin':
-        navigate('/admin');
-        break;
-      case 'docente':
-        navigate('/teacher');
-        break;
-      case 'estudiante':
-        navigate('/student');
-        break;
-      default:
-        navigate('/visitor');
-        break;
+    switch(role) {
+      case 'admin': navigate('/admin'); break;
+      case 'docente': navigate('/teacher'); break;
+      case 'estudiante': navigate('/student'); break;
+      default: navigate('/visitor'); break;
     }
   };
 
   const handleButtonClick = (type) => setCurrentPage(type);
 
-  // Mostrar formulario de login
-  if (currentPage === 'login')
-    return <LoginForm supabase={supabase} navigateToRole={navigateToRole} />;
-
-  // Mostrar formulario de registro
-  if (currentPage === 'register')
-    return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
+  if (currentPage === 'login') return <LoginForm supabase={supabase} navigateToRole={navigateToRole} />;
+  if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
 
   return (
     <div className="min-h-screen">
-      {/* Figuras geométricas flotantes */}
+      {/* Figuras geométricas flotantes de fondo */}
       <div className="geometric-shapes">
         <div className="shape"></div>
         <div className="shape"></div>
@@ -123,23 +104,23 @@ function Welcome() {
         <div className="shape"></div>
         <div className="shape"></div>
       </div>
-
-      {/* Tarjeta principal */}
+      
+      {/* Tarjeta principal que contiene todo */}
       <div className="welcome-card">
+        
         {/* Animación tortuga */}
         <div className="turtle-container">
           <TurtleWelcome />
         </div>
 
         {/* Título */}
-        <h1 className="main-title">DIDACTIKAPP</h1>
+        <h1 className="main-title">
+          DIDACTIKAPP
+        </h1>
 
         {/* Descripción */}
         <p className="description">
-          <TypewriterText
-            text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas."
-            speed={40}
-          />
+          <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
         </p>
 
         {/* Botones */}
@@ -157,14 +138,13 @@ function Welcome() {
             Crear cuenta
           </button>
         </div>
+        
       </div>
     </div>
   );
 }
 
-// ========================
-// App principal con rutas
-// ========================
+// App.jsx principal con rutas
 export default function App() {
   return (
     <Router>
@@ -172,7 +152,7 @@ export default function App() {
         {/* Página de bienvenida */}
         <Route path="/" element={<Welcome />} />
 
-        {/* Paneles por rol */}
+        {/* Rutas de paneles por rol */}
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/teacher" element={<TeacherPanel />} />
         <Route path="/student" element={<StudentPanel />} />
