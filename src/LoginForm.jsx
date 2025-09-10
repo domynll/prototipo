@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './FormStyles.css';
 import { ArrowLeft } from 'lucide-react'; // Ícono de flecha
 
-const LoginForm = () => {
+const LoginForm = ({ navigateToRole }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -58,18 +58,15 @@ const LoginForm = () => {
       }
 
       // Redirigir según rol
-      switch (rol) {
-        case 'admin': 
-          navigate('/admin'); 
-          break;
-        case 'docente': 
-          navigate('/docente'); 
-          break;
-        case 'estudiante': 
-          navigate('/estudiante'); 
-          break;
-        default: 
-          navigate('/visitante');
+      if (navigateToRole) {
+        navigateToRole(rol);
+      } else {
+        switch (rol) {
+          case 'admin': navigate('/admin'); break;
+          case 'docente': navigate('/teacher'); break;
+          case 'estudiante': navigate('/student'); break;
+          default: navigate('/visitor');
+        }
       }
 
       setLoading(false);
@@ -86,13 +83,13 @@ const LoginForm = () => {
 
   return (
     <div className="login-form-container">
-      {/* Botón para volver */}
+      {/* Botón para volver al Welcome */}
       <motion.button
         className="back-button"
         onClick={() => navigate('/')}
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.1 }}
+        whileHover={{ scale: 1.1, rotate: -10 }}
         whileTap={{ scale: 0.95 }}
       >
         <ArrowLeft size={22} />
