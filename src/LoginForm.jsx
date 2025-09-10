@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { supabase } from './services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import './FormStyles.css';
-import { ArrowLeft } from 'lucide-react'; // Ícono de flecha
 
-const LoginForm = ({ navigateToRole }) => {
+const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -58,15 +57,18 @@ const LoginForm = ({ navigateToRole }) => {
       }
 
       // Redirigir según rol
-      if (navigateToRole) {
-        navigateToRole(rol);
-      } else {
-        switch (rol) {
-          case 'admin': navigate('/admin'); break;
-          case 'docente': navigate('/teacher'); break;
-          case 'estudiante': navigate('/student'); break;
-          default: navigate('/visitor');
-        }
+      switch (rol) {
+        case 'admin': 
+          navigate('/admin'); 
+          break;
+        case 'docente': 
+          navigate('/teacher'); 
+          break;
+        case 'estudiante': 
+          navigate('/student'); 
+          break;
+        default: 
+          navigate('/visitor');
       }
 
       setLoading(false);
@@ -81,21 +83,13 @@ const LoginForm = ({ navigateToRole }) => {
     setShowPassword(!showPassword);
   };
 
+  const handleGoBack = () => {
+    navigate('/'); // Redirige a la página Welcome
+  };
+
   return (
     <div className="login-form-container">
-      {/* Botón para volver al Welcome */}
-      <motion.button
-        className="back-button"
-        onClick={() => navigate('/')}
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.1, rotate: -10 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <ArrowLeft size={22} />
-      </motion.button>
-
-      {/* Figuras geométricas */}
+      {/* Figuras geométricas de fondo opcional */}
       <div className="geometric-shape shape-1"></div>
       <div className="geometric-shape shape-2"></div>
       <div className="geometric-shape shape-3"></div>
@@ -107,6 +101,15 @@ const LoginForm = ({ navigateToRole }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
+        {/* Botón de retroceso en la esquina */}
+        <button 
+          type="button" 
+          className="back-button" 
+          onClick={handleGoBack}
+        >
+          ⬅
+        </button>
+
         <h2 className="form-title">Iniciar Sesión</h2>
         
         {/* Campo de email */}
@@ -160,7 +163,7 @@ const LoginForm = ({ navigateToRole }) => {
           </motion.p>
         )}
 
-        {/* Botón de login */}
+        {/* Botón de submit */}
         <motion.button 
           type="submit" 
           disabled={loading} 
