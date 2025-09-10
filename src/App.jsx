@@ -12,7 +12,6 @@ import StudentPanel from './panel/StudentPanel';
 import VisitorPanel from './panel/VisitorPanel';
 import './App.css';
 
-
 // Typewriter para texto animado
 const TypewriterText = ({ text, speed = 50 }) => {
   const [displayedText, setDisplayedText] = useState('');
@@ -95,7 +94,16 @@ function Welcome() {
   if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
+    <div className="min-h-screen">
+      {/* Figuras geométricas flotantes de fondo */}
+      <div className="geometric-shapes">
+        <div className="shape"></div>
+        <div className="shape"></div>
+        <div className="shape"></div>
+        <div className="shape"></div>
+        <div className="shape"></div>
+        <div className="shape"></div>
+      </div>
       
       {/* Tarjeta principal que contiene todo */}
       <div className="welcome-card">
