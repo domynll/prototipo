@@ -43,7 +43,6 @@ function Welcome() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        // Traer rol desde la tabla usuarios
         fetchUserRole(session.user.id);
       }
     });
@@ -67,9 +66,9 @@ function Welcome() {
         .from('usuarios')
         .select('rol')
         .eq('supabase_id', userId)
-        .maybeSingle(); // devuelve null si no existe
+        .maybeSingle();
 
-      let userRole = userData?.rol || 'visitante';
+      const userRole = userData?.rol || 'visitante';
       setRole(userRole);
       navigateToRole(userRole);
     } catch (err) {
@@ -89,56 +88,28 @@ function Welcome() {
   };
 
   const handleButtonClick = (type) => setCurrentPage(type);
+  const handleBackToHome = () => setCurrentPage('home');
 
-  if (currentPage === 'login') return <LoginForm supabase={supabase} navigateToRole={navigateToRole} />;
-  if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} />;
+  if (currentPage === 'login') return <LoginForm supabase={supabase} navigateBack={handleBackToHome} />;
+  if (currentPage === 'register') return <RegisterForm supabase={supabase} onRegisterSuccess={() => setCurrentPage('login')} navigateBack={handleBackToHome} />;
 
   return (
-    <div className="min-h-screen">
-      {/* Figuras geométricas flotantes de fondo */}
-      <div className="geometric-shapes">
-        <div className="shape"></div>
-        <div className="shape"></div>
-        <div className="shape"></div>
-        <div className="shape"></div>
-        <div className="shape"></div>
-        <div className="shape"></div>
-      </div>
-      
-      {/* Tarjeta principal que contiene todo */}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-sky-100 via-indigo-50 to-purple-100 px-4">
       <div className="welcome-card">
-        
-        {/* Animación tortuga */}
         <div className="turtle-container">
           <TurtleWelcome />
         </div>
 
-        {/* Título */}
-        <h1 className="main-title">
-          DIDACTIKAPP
-        </h1>
+        <h1 className="main-title">DIDACTIKAPP</h1>
 
-        {/* Descripción */}
         <p className="description">
           <TypewriterText text="Aprendé didáctica de forma interactiva, con simulaciones y herramientas pedagógicas." speed={40} />
         </p>
 
-        {/* Botones */}
         <div className="buttons-container">
-          <button
-            className="btn btn-primary"
-            onClick={() => handleButtonClick('login')}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => handleButtonClick('register')}
-          >
-            Crear cuenta
-          </button>
+          <button className="btn btn-primary" onClick={() => handleButtonClick('login')}>Iniciar sesión</button>
+          <button className="btn btn-secondary" onClick={() => handleButtonClick('register')}>Crear cuenta</button>
         </div>
-        
       </div>
     </div>
   );
@@ -149,20 +120,13 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Página de bienvenida */}
         <Route path="/" element={<Welcome />} />
-
-        {/* Rutas de paneles por rol */}
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/teacher" element={<TeacherPanel />} />
         <Route path="/student" element={<StudentPanel />} />
         <Route path="/visitor" element={<VisitorPanel />} />
-
-        {/* Autenticación */}
         <Route path="/login" element={<LoginForm supabase={supabase} />} />
         <Route path="/register" element={<RegisterForm supabase={supabase} />} />
-
-        {/* Redirección de fallback */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
