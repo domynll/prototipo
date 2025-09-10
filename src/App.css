@@ -758,8 +758,8 @@ button:focus {
 
 /* Contenedor de la tortuga dentro de la tarjeta */
 .turtle-container {
-  width: 120px;
-  height: 120px;
+  width: 12px;
+  height: 12px;
   margin: 0 auto 2rem auto;
   position: relative;
   animation: bounce-in 1s ease-out, float 6s ease-in-out infinite 1s;
