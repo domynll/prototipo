@@ -184,8 +184,8 @@ body {
 
 /* Contenedor de la tortuga - más grande y con menos espacio alrededor */
 .turtle-container {
-    width: 100px;
-    height: 100px;
+    width: 200px;
+    height: 200px;
     margin: 0 auto 1.5rem;
     position: relative;
     animation: pulse 3s ease-in-out infinite;
