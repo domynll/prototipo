@@ -3,10 +3,8 @@
 @tailwind utilities;
 
 /* =========================================
-   SISTEMA DE RESPONSIVIDAD AVANZADO
+   VARIABLES Y BASES
    ========================================= */
-
-/* Variables fundamentales para mantener consistencia */
 :root {
   --primary: #047857;
   --primary-hover: #065f46;
@@ -15,26 +13,25 @@
   --text: #374151;
   --shadow: rgba(0, 0, 0, 0.1);
   --focus-shadow: rgba(16, 185, 129, 0.15);
-  
-  /* Espaciado flexible */
+
   --space-xs: clamp(0.25rem, 1vw, 0.5rem);
   --space-sm: clamp(0.5rem, 1.5vw, 0.75rem);
   --space-md: clamp(0.75rem, 2vw, 1rem);
   --space-lg: clamp(1rem, 3vw, 1.25rem);
   --space-xl: clamp(1.25rem, 4vw, 1.5rem);
-  
-  /* Tipografía responsiva */
+
   --text-xs: clamp(0.75rem, 3vw, 0.875rem);
   --text-sm: clamp(0.875rem, 3.5vw, 1rem);
   --text-md: clamp(1rem, 4vw, 1.125rem);
   --text-lg: clamp(1.25rem, 5vw, 1.5rem);
   --text-xl: clamp(1.5rem, 6vw, 2rem);
-  
-  /* Márgenes horizontales simétricos */
+
   --margin-horizontal: clamp(1rem, 5vw, 2.5rem);
 }
 
-/* Reseteo universal */
+/* =========================================
+   RESET Y BASE
+   ========================================= */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -42,42 +39,39 @@
 }
 
 html {
-  font-size: 16px; /* Base para cálculos rem */
-  -webkit-text-size-adjust: 100%; /* Previene ajuste de texto en iOS al girar */
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  overflow-x: hidden; /* Previene scroll horizontal */
+  overflow-x: hidden;
 }
 
 body {
   width: 100%;
   min-height: 100vh;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-right: 0 !important; /* Fuerza eliminar padding derecho indeseado */
+  overflow-x: hidden;
 }
 
-/* ------------- CONTENEDOR PRINCIPAL ------------- */
+/* =========================================
+   CONTENEDOR PRINCIPAL
+   ========================================= */
 .mobile-app-view {
   width: 100%;
   max-width: 100%;
-  padding: var(--space-lg) var(--margin-horizontal); /* Padding horizontal simétrico */
+  padding: var(--space-lg) var(--margin-horizontal);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  box-sizing: border-box; /* Garantiza que padding no añade ancho */
-  
-  /* Previene desbordamiento en dispositivos pequeños */
-  overflow-x: hidden;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  hyphens: auto;
   position: relative;
-  }
+  overflow-x: hidden;
+}
 
-/* ------------- TÍTULOS ------------- */
+/* =========================================
+   TITULOS
+   ========================================= */
 .text-2xl.font-bold.text-center.text-emerald-700 {
   background: linear-gradient(90deg, var(--primary), var(--primary-light));
   -webkit-background-clip: text;
@@ -85,110 +79,68 @@ body {
   color: transparent;
   font-size: var(--text-xl);
   margin-bottom: var(--space-xl);
-  width: 100%;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.01em;
-  font-weight: 700;
-  text-rendering: optimizeLegibility;
   padding-left: var(--space-sm);
   padding-right: var(--space-sm);
 }
 
-/* ------------- GRUPOS DE FORMULARIO ------------- */
-.mb-4, .mb-6 {
-  margin-bottom: var(--space-lg);
+/* =========================================
+   INPUTS
+   ========================================= */
+input {
   width: 100%;
-  text-align: left;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* ------------- ETIQUETAS ------------- */
-.block.text-gray-700.text-sm.font-bold.mb-2 {
-  display: block;
-  color: var(--text);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  margin-bottom: var(--space-xs);
-  transition: color 0.3s ease;
-  width: 100%;
-  padding-right: 0;
-}
-
-/* ------------- CAMPOS DE ENTRADA ------------- */
-.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
-  width: 100%;
-  height: clamp(2.5rem, 12vw, 3rem); /* Altura adaptable pero límite min/max */
+  height: clamp(2.5rem, 12vw, 3rem);
   padding: 0 var(--space-md);
   border: 2px solid var(--border);
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   background-color: #fff;
   color: var(--text);
   font-size: var(--text-sm);
   line-height: 1.5;
-  transition: all 0.2s ease;
   box-shadow: 0 1px 3px var(--shadow);
-  box-sizing: border-box;
-  
-  /* Optimizaciones para dispositivos móviles */
-  -webkit-appearance: none;
-  appearance: none;
-  touch-action: manipulation;
-  
-  /* Previene zoom en inputs de iOS */
-  font-size: 16px;
+  transition: all 0.2s ease;
 }
 
-/* Estado focus optimizado */
-.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500:focus,
-.shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500:focus {
+input:focus {
   border-color: var(--primary-light);
   box-shadow: 0 0 0 3px var(--focus-shadow);
   outline: none;
 }
 
-/* ------------- BOTONES ------------- */
-.bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
+/* =========================================
+   BOTONES
+   ========================================= */
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: clamp(2.75rem, 14vw, 3.5rem); /* Altura adaptable pero con límites */
+  height: clamp(2.75rem, 14vw, 3.5rem);
   padding: var(--space-sm) var(--space-lg);
   border-radius: 9999px;
   background-color: var(--primary);
   color: white;
   font-size: var(--text-sm);
   font-weight: 700;
-  text-align: center;
-  margin-top: var(--space-lg);
+  cursor: pointer;
   position: relative;
   overflow: hidden;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  transform: translateZ(0); /* Hardware acceleration */
-  -webkit-tap-highlight-color: transparent;
-  
-  /* Accesibilidad y usabilidad */
-  user-select: none;
-  touch-action: manipulation;
-  
-  /* Evita parpadeos en taps móviles */
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.3s ease;
 }
 
-/* Hover y estados activos */
-.bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline:hover {
+.btn:hover {
   background-color: var(--primary-hover);
+  transform: scale(1.02);
 }
 
-.bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline:active {
+.btn:active {
   transform: scale(0.98);
 }
 
-/* Efecto ripple mejorado */
-.bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline::after {
+/* Ripple effect */
+.btn::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -199,35 +151,26 @@ body {
   opacity: 0;
   border-radius: 100%;
   transform: translate(-50%, -50%) scale(1);
-  transform-origin: center;
 }
 
-.bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline:focus:not(:active)::after {
+.btn:focus:not(:active)::after {
   animation: ripple 0.8s ease-out;
 }
 
 @keyframes ripple {
-  0% {
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0.6;
-  }
-  60% {
-    transform: translate(-50%, -50%) scale(25);
-    opacity: 0.4;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(40);
-    opacity: 0;
-  }
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.6; }
+  60% { transform: translate(-50%, -50%) scale(25); opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(40); opacity: 0; }
 }
 
-/* ------------- ENLACES ------------- */
+/* =========================================
+   ENLACES
+   ========================================= */
 .text-sm.text-emerald-700.hover\:text-emerald-900 {
   color: var(--primary);
   font-size: var(--text-xs);
   transition: color 0.2s ease, transform 0.2s ease;
   text-decoration: none;
-  display: inline-block;
 }
 
 .text-sm.text-emerald-700.hover\:text-emerald-900:hover {
@@ -239,596 +182,78 @@ body {
   transform: translateY(0);
 }
 
-/* ------------- CONTENEDORES DE ENLACES ------------- */
-.text-center.mt-4 {
-  width: 100%;
-  text-align: center;
-  margin-top: var(--space-lg);
-}
-
-/* ------------- BOTÓN VOLVER (SOLO FLECHA) ------------- */
-.flex.items-center.text-emerald-700 {
-  position: absolute;
-  top: var(--space-md);
-  left: var(--space-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  font-size: 1.25rem; /* Tamaño de la flecha */
-  line-height: 1;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: white;
-  box-shadow: 0 1px 3px var(--shadow);
-  transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
-  cursor: pointer;
-  padding: 0;
-  z-index: 10;
-}
-
-/* Quita cualquier texto que pueda estar junto a la flecha */
-.flex.items-center.text-emerald-700 span {
-  display: none;
-}
-
-/* Mantén solo el icono de flecha */
-.flex.items-center.text-emerald-700 svg {
-  width: 20px;
-  height: 20px;
-}
-
-.flex.items-center.text-emerald-700:hover {
-  color: var(--primary-hover);
-  background-color: #f3f4f6;
-  transform: translateX(-2px);
-}
-
-.flex.items-center.text-emerald-700:active {
-  transform: translateX(0);
-}
-
-/* Ajuste para modo oscuro */
-@media (prefers-color-scheme: dark) {
-  .flex.items-center.text-emerald-700 {
-    background-color: #ffffff;
-  }
-  
-  .flex.items-center.text-emerald-700:hover {
-    background-color: #4b5563;
-  }
-}
-/* ==========================================
-   SISTEMA DE GRID RESPONSIVO AVANZADO
-   ========================================== */
-
-/* Grid container para formularios */
+/* =========================================
+   FORM GRID RESPONSIVO
+   ========================================= */
 .form-grid-container {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-md);
   width: 100%;
   max-width: 100%;
-  box-sizing: border-box;
-  padding-right: 0;
-  padding-left: 0;
 }
 
-/* Media queries optimizados con puntos de quiebre estratégicos */
-
-/* Teléfonos pequeños (menor a 360px) */
-@media screen and (max-width: 359px) {
-  :root {
-    --space-xs: 0.25rem;
-    --space-sm: 0.375rem;
-    --space-md: 0.5rem;
-    --space-lg: 0.75rem;
-    --space-xl: 1rem;
-    --margin-horizontal: 0.5rem;
-  }
-  
+/* Responsive adjustments */
+@media screen and (max-width: 767px) {
   .mobile-app-view {
-    padding: 0.75rem 0.5rem;
-    width: 100%;
-    margin: 0;
+    padding: 1rem var(--margin-horizontal);
   }
-  
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    font-size: 1.25rem;
-    margin-bottom: 0.75rem;
-  }
-  
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
-    height: 2.25rem;
-    padding: 0 0.5rem;
-  }
-  
-  .bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
+
+  input {
     height: 2.5rem;
-    padding: 0.375rem 0.75rem;
-  }
-  
-  .mb-4, .mb-6 {
-    margin-bottom: 0.5rem;
-  }
-}
-
-/* Teléfonos estándar (360px-480px) */
-@media screen and (min-width: 360px) and (max-width: 480px) {
-  :root {
-    --margin-horizontal: 0.75rem;
   }
 
-  .mobile-app-view {
-    padding: 1rem 0.75rem;
-    width: 100%;
-    margin: 0;
-  }
-  
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    font-size: 1.5rem;
-  }
-  
-  /* Ajuste para inputs más cómodos en pantallas pequeñas */
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
+  .btn {
     height: 2.5rem;
   }
 }
 
-/* Teléfonos grandes (481-767px) */
-@media screen and (min-width: 481px) and (max-width: 767px) {
-  :root {
-    --margin-horizontal: 1rem;
-  }
-
-  .mobile-app-view {
-    max-width: 90%;
-    width: 90%;
-    padding: 1.5rem var(--margin-horizontal);
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  .form-grid-container {
-    gap: 1rem;
-  }
-  
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    font-size: 1.75rem;
-  }
-  
-  .mb-4, .mb-6 {
-    margin-bottom: 1rem;
-  }
-}
-
-/* Tablets (768px-1023px) */
-@media screen and (min-width: 768px) and (max-width: 1023px) {
-  :root {
-    --margin-horizontal: 1.5rem;
-  }
-
+@media screen and (min-width: 768px) {
   .mobile-app-view {
     max-width: 85%;
-    width: 85%;
     padding: 2rem var(--margin-horizontal);
-    margin-left: auto;
-    margin-right: auto;
   }
-  
-  .form-grid-container {
-    gap: 1.25rem;
-  }
-  
-  /* Ajustes específicos para tablets */
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    font-size: 1.875rem;
-  }
-  
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
+
+  input {
     height: 2.75rem;
-    font-size: 1rem;
   }
-  
-  .bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
+
+  .btn {
     height: 3rem;
-    font-size: 1rem;
   }
 }
 
-/* Escritorio (1024px y mayor) */
 @media screen and (min-width: 1024px) {
-  :root {
-    --margin-horizontal: 2rem;
-  }
-
   .mobile-app-view {
     max-width: 75%;
-    width: 75%;
     padding: 2.5rem var(--margin-horizontal);
-    margin-left: auto;
-    margin-right: auto;
   }
-  
-  .form-grid-container {
-    gap: 1.5rem;
-  }
-  
-  /* Ajustes para desktop */
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    font-size: 2rem;
-  }
-  
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
+
+  input {
     height: 3rem;
   }
-  
-  .bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
+
+  .btn {
     height: 3.25rem;
   }
 }
 
-/* ==========================================
-   OPTIMIZACIONES PARA CASOS ESPECÍFICOS
-   ========================================== */
-
-/* Orientación específica para teléfonos móviles */
-@media screen and (max-width: 767px) and (orientation: landscape) {
-  :root {
-    --margin-horizontal: 1.5rem;
-  }
-
-  .mobile-app-view {
-    padding: 1rem 3rem;
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  .form-grid-container {
-    grid-template-columns: repeat(2, 1fr);
-    padding-right: 0;
-    padding-left: 0;
-  }
-  
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    margin-bottom: 1rem;
-  }
-  
-  .mb-4, .mb-6 {
-    margin-bottom: 0.75rem;
-    padding-right: 0;
-  }
-  
-  /* Botones más anchos en landscape */
-  .bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
-    max-width: 60%;
-    margin-left: auto;
-    margin-right: auto;
-    height: 2.5rem;
-  }
-}
-
-/* Ajustes para dispositivos con pantallas altas (relación de aspecto) */
-@media screen and (max-width: 767px) and (min-aspect-ratio: 2/3) {
-  .mobile-app-view {
-    padding-top: 3vh;
-    padding-bottom: 3vh;
-  }
-}
-
-/* Correcciones específicas para iOS Safari */
-@supports (-webkit-touch-callout: none) {
-  /* Previene zoom en inputs */
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-  
-  /* Corrige el cálculo de altura en iOS */
-  html, body {
-    height: -webkit-fill-available;
-    width: 100%;
-    max-width: 100vw; /* Asegura que no haya desbordamiento */
-    margin: 0;
-    padding: 0;
-  }
-  
-  .mobile-app-view {
-    min-height: -webkit-fill-available;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  /* Mejora el comportamiento de los botones en iOS */
-  .bg-emerald-700.hover\:bg-emerald-800.text-white.font-bold.py-2.px-4.rounded.focus\:outline-none.focus\:shadow-outline {
-    -webkit-touch-callout: none;
-    cursor: pointer;
-  }
-}
-
-/* Soporte para dispositivos con notch (iPhone X en adelante) */
-@supports (padding: max(0px)) {
-  .mobile-app-view {
-    padding-left: max(var(--margin-horizontal), env(safe-area-inset-left));
-    padding-right: max(var(--margin-horizontal), env(safe-area-inset-right));
-    padding-top: max(var(--space-lg), env(safe-area-inset-top));
-    padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
-    box-sizing: border-box;
-  }
-}
-
-/* Modo de alto contraste para accesibilidad */
-@media (prefers-contrast: more) {
-  :root {
-    --primary: #036143;
-    --primary-hover: #024731;
-    --primary-light: #0d926a;
-    --border: #222222;
-    --text: #000000;
-  }
-  
-  .text-2xl.font-bold.text-center.text-emerald-700 {
-    background: none;
-    -webkit-background-clip: initial;
-    background-clip: initial;
-    color: var(--primary);
-  }
-}
-
-/* Modo de movimiento reducido para accesibilidad */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Modo oscuro automático */
+/* =========================================
+   MODO OSCURO
+   ========================================= */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #10b981;
-    --primary-hover: #059669;
-    --primary-light: #34d399;
-    --border: #4b5563;
-    --text: #e5e7eb;
-    --shadow: rgba(0, 0, 0, 0.25);
-  }
-  
-  /* Cambios para el modo oscuro */
   body {
     background-color: #1f2937;
     color: #f9fafb;
   }
-  
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500,
-  .shadow.appearance-none.border.rounded.w-full.py-2.px-3.text-gray-700.mb-3.leading-tight.focus\:outline-none.focus\:shadow-outline.focus\:border-emerald-500 {
+
+  input {
     background-color: #374151;
     color: #f9fafb;
     border-color: var(--border);
   }
-  
-  .block.text-gray-700.text-sm.font-bold.mb-2 {
-    color: #70757c;
-  }
-}
 
-/* Corrección para el overflow horizontal */
-html, body, #app, #root {
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-/* Asegura que ningún elemento cause scroll horizontal */
-* {
-  max-width: 100%;
-}
-
-/* Previene problemas de espacio en elementos dentro de .mobile-app-view */
-.mobile-app-view > * {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding-right: 0;
-  padding-left: 0;
-}
-
-/* Estilos para el modal de éxito con temática verde y efecto de transparencia */
-.fixed.inset-0.flex.items-center.justify-center.bg-black.bg-opacity-50.z-50 {
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  -moz-backdrop-filter: blur(5px);
-  -o-backdrop-filter: blur(5px);
-  -ms-backdrop-filter: blur(5px);
-  background-color: rgba(4, 120, 87, 0.15); /* Color primario con transparencia */
-  transition: all 0.3s ease;
-}
-
-/* Modal con efecto de cristal/transparencia */
-.bg-white.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4 {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  -moz-backdrop-filter: blur(10px);
-  -o-backdrop-filter: blur(10px);
-  -ms-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px rgba(4, 120, 87, 0.15);
-  border-radius: 16px;
-  padding: var(--space-xl);
-  transition: all 0.3s ease;
-}
-
-/* Círculo de checkmark con gradiente */
-.w-16.h-16.bg-emerald-100.rounded-full.flex.items-center.justify-center.mb-4 {
-  background: linear-gradient(135deg, var(--primary-light), var(--primary));
-  width: 70px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  margin-bottom: var(--space-lg);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-}
-
-/* Icono de checkmark */
-.h-10.w-10.text-emerald-700 {
-  color: white;
-  width: 40px;
-  height: 40px;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
-}
-
-/* Título del modal */
-.text-xl.font-bold.text-gray-900.mb-2 {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--primary);
-  margin-bottom: var(--space-sm);
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Texto del modal */
-.text-gray-600.text-center.mb-6 {
-  font-size: var(--text-sm);
-  color: var(--text);
-  margin-bottom: var(--space-xl);
-  line-height: 1.5;
-  max-width: 90%;
-  text-align: center;
-}
-
-/* Contenedor de botones */
-.flex.space-x-4.w-full.justify-center {
-  display: flex;
-  gap: var(--space-md);
-  width: 100%;
-  justify-content: center;
-  margin-top: var(--space-md);
-}
-
-/* Botón primario (Iniciar sesión) */
-.bg-emerald-700.text-white.px-4.py-2.rounded-md.font-medium {
-  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-  color: white;
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: 9999px;
-  font-weight: 600;
-  font-size: var(--text-sm);
-  box-shadow: 0 4px 10px rgba(4, 120, 87, 0.2);
-  border: none;
-  transition: all 0.3s ease;
-  min-width: 120px;
-  text-align: center;
-}
-
-.bg-emerald-700.text-white.px-4.py-2.rounded-md.font-medium:hover {
-  background: linear-gradient(135deg, var(--primary-hover), var(--primary-hover));
-  box-shadow: 0 6px 15px rgba(4, 120, 87, 0.3);
-  transform: translateY(-2px);
-}
-
-.bg-emerald-700.text-white.px-4.py-2.rounded-md.font-medium:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(4, 120, 87, 0.2);
-}
-
-/* Botón secundario (Volver al inicio) */
-.border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium {
-  background: transparent;
-  border: 2px solid var(--primary);
-  color: var(--primary);
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: 9999px;
-  font-weight: 600;
-  font-size: var(--text-sm);
-  transition: all 0.3s ease;
-  min-width: 140px;
-  text-align: center;
-}
-
-.border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium:hover {
-  background-color: rgba(4, 120, 87, 0.1);
-  transform: translateY(-2px);
-}
-
-.border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium:active {
-  transform: translateY(0);
-}
-
-/* Fallback para navegadores que no soportan backdrop-filter */
-@supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
-  .fixed.inset-0.flex.items-center.justify-center.bg-black.bg-opacity-50.z-50 {
-    background-color: rgba(4, 120, 87, 0.5);
-  }
-  
-  .bg-white.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4 {
-    background: rgba(255, 255, 255, 0.95);
-  }
-}
-
-/* Modo oscuro */
-@media (prefers-color-scheme: dark) {
-  .fixed.inset-0.flex.items-center.justify-center.bg-black.bg-opacity-50.z-50 {
-    background-color: rgba(4, 120, 87, 0.25);
-  }
-  
-  .bg-white.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4 {
-    background: rgba(31, 41, 55, 0.85);
-    border: 1px solid rgba(75, 85, 99, 0.6);
-  }
-  
-  .text-gray-600.text-center.mb-6 {
-    color: #d1d5db;
-  }
-  
-  .border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium {
-    border: 2px solid var(--primary-light);
-    color: var(--primary-light);
-  }
-  
-  .border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium:hover {
-    background-color: rgba(16, 185, 129, 0.2);
-  }
-  
-  /* Fallback para navegadores que no soportan backdrop-filter en modo oscuro */
-  @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
-    .fixed.inset-0.flex.items-center.justify-center.bg-black.bg-opacity-50.z-50 {
-      background-color: rgba(4, 120, 87, 0.6);
-    }
-    
-    .bg-white.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4 {
-      background: rgba(31, 41, 55, 0.95);
-    }
-  }
-}
-
-/* Media queries para diferentes tamaños de dispositivos */
-@media screen and (max-width: 480px) {
-  .bg-white.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4 {
-    padding: var(--space-lg);
-    width: 85%;
-  }
-  
-  .flex.space-x-4.w-full.justify-center {
-    flex-direction: column;
-    gap: var(--space-sm);
-    align-items: center;
-  }
-  
-  .bg-emerald-700.text-white.px-4.py-2.rounded-md.font-medium,
-  .border.border-emerald-700.text-emerald-700.px-4.py-2.rounded-md.font-medium {
-    width: 100%;
-    min-width: unset;
+  .btn {
+    background-color: var(--primary);
   }
 }
