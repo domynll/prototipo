@@ -1,513 +1,919 @@
-/* FormStyles.css - Estilos para el formulario de login */
+/* Variables CSS matching the main app */
 :root {
-  /* Paleta de colores inspirada en tortuga */
-  --shell-green: #2ecc71;
-  --shell-dark-green: #27ae60;
-  --shell-light: #f1f2f6;
-  --shell-brown: #d35400;
-  --shell-dark: #34495e;
-  --shell-blue: #3498db;
-  /* Colores complementarios */
-  --accent-orange: #e67e22;
-  --accent-yellow: #f1c40f;
-  --accent-purple: #9b59b6;
-  /* Colores neutros */
-  --text-dark: #2c3e50;
-  --text-light: #7f8c8d;
+  /* Colores vibrantes para educación */
+  --primary: #00d26a;
+  --primary-dark: #00b85a;
+  --primary-light: #33db7a;
+  --secondary: #ff6b6b;
+  --accent: #4ecdc4;
+  --accent-warm: #ffe66d;
+  --accent-purple: #a8e6cf;
+  --accent-blue: #74b9ff;
+  
+  /* Colores de texto brillantes */
+  --text-dark: #2d3748;
+  --text-medium: #4a5568;
+  --text-light: #718096;
   --white: #ffffff;
-  --off-white: #f9fafb;
-  --light-gray: #ecf0f1;
-  /* Gradientes */
-  --gradient-primary: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 50%, #f1f8e9 100%);
-  --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
-  --gradient-green: linear-gradient(135deg, var(--shell-green), var(--shell-dark-green));
-  /* Sombras */
-  --shadow-soft: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-medium: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 25px 50px -12px rgba(46, 204, 113, 0.25);
-  --shadow-focus: 0 0 0 3px rgba(46, 204, 113, 0.15);
-  /* Bordes */
-  --border-radius: 20px;
-  --border-radius-lg: 28px;
-  --border-radius-full: 50px;
-  /* Transiciones */
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-bounce: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /* Sombras coloridas */
+  --shadow-primary: 0 4px 20px rgba(0, 210, 106, 0.25);
+  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 30px rgba(0, 210, 106, 0.3);
+  --shadow-input: 0 4px 15px rgba(0, 0, 0, 0.08);
+  
+  /* Otros */
+  --border-radius: 16px;
+  --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reset básico */
-* {
-  box-sizing: border-box;
+/* Variables para modo oscuro */
+[data-theme="dark"] {
+  --primary: #00f570;
+  --primary-dark: #00d26a;
+  --primary-light: #33f77f;
+  --secondary: #ff7979;
+  --accent: #74b9ff;
+  --accent-warm: #fdcb6e;
+  --accent-purple: #a29bfe;
+  --accent-blue: #6c5ce7;
+  
+  --text-dark: #e2e8f0;
+  --text-medium: #cbd5e0;
+  --text-light: #a0aec0;
+  --white: #1a202c;
+  
+  --shadow-primary: 0 4px 20px rgba(0, 245, 112, 0.3);
+  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 30px rgba(0, 245, 112, 0.4);
+  --shadow-input: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* Contenedor del formulario */
-.login-form-container {
+/* Animaciones */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-15px) rotate(2deg); }
+  66% { transform: translateY(-8px) rotate(-1deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes focusPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Container principal con fondo vibrante */
+.modern-form-container {
   min-height: 100vh;
-  background: var(--gradient-primary);
+  width: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 1rem;
-  position: relative;
-  overflow: hidden; /* Previene overflow horizontal */
-}
-
-/* Formulario principal */
-.login-form {
-  background: var(--gradient-card);
-  backdrop-filter: blur(20px);
-  border-radius: var(--border-radius-lg);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-medium);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  max-width: 450px;
-  width: 100%;
-  position: relative;
-  z-index: 10;
-  transition: var(--transition-smooth);
-}
-
-.login-form:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
-}
-
-/* Botón de regreso */
-.back-button {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 2px solid var(--light-gray);
-  display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition-smooth);
-  z-index: 20;
-  color: var(--text-dark);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.back-button:hover {
-  background: var(--white);
-  border-color: var(--shell-green);
-  color: var(--shell-green);
-  transform: translateX(-3px);
-  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2);
-}
-
-.back-button:active {
-  transform: translateX(-1px) scale(0.95);
-}
-
-.back-button svg {
-  width: 20px;
-  height: 20px;
-  transition: var(--transition-smooth);
-}
-
-/* Título del formulario */
-.form-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  text-align: center;
-  background: linear-gradient(135deg, var(--shell-dark-green), var(--shell-green), var(--accent-orange));
-  background-size: 200% 200%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-shift 4s ease infinite;
-  margin-bottom: 2rem;
-  margin-top: 1rem; /* Espacio para el botón de regreso */
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-@keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* Contenedor de input con etiqueta flotante */
-.input-group {
-  position: relative;
-  margin-bottom: 1.75rem;
-}
-
-/* Input base */
-.input {
-  width: 100%;
-  padding: 1.25rem 1rem 0.75rem 1rem;
-  border: 2px solid var(--light-gray);
-  border-radius: 12px;
-  background-color: var(--white);
-  color: var(--text-dark);
-  font-size: 1rem;
-  font-family: inherit;
-  transition: var(--transition-smooth);
-  outline: none;
-}
-
-/* Etiqueta flotante */
-.floating-label {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-light);
-  font-size: 1rem;
-  font-weight: 500;
-  pointer-events: none;
-  transition: var(--transition-smooth);
-  background-color: transparent;
-  padding: 0 0.25rem;
-  z-index: 1;
-}
-
-/* Estados del input */
-.input:focus {
-  border-color: var(--shell-green);
-  box-shadow: var(--shadow-focus);
-}
-
-.input:hover:not(:focus) {
-  border-color: #c5c7c9;
-}
-
-/* Etiqueta flotante cuando el input está enfocado o tiene contenido */
-.input:focus~.floating-label,
-.input:not(:placeholder-shown)~.floating-label {
-  top: -0.5rem;
-  left: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--shell-green);
-  background-color: var(--white);
-  padding: 0 0.5rem;
-}
-
-/* Para que funcione el efecto, el input necesita un placeholder vacío */
-.input::placeholder {
-  color: transparent;
-}
-
-/* Input con valor válido */
-.input:valid:not(:placeholder-shown) {
-  border-color: var(--shell-green);
-}
-
-/* Input con error */
-.input.error {
-  border-color: #ef4444;
-}
-
-.input.error:focus {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
-}
-
-.input.error~.floating-label {
-  color: #ef4444;
-}
-
-/* Mensaje de error */
-.error-message {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-  text-align: center;
-  font-weight: 500;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Botón principal */
-.btn {
-  width: 100%;
-  padding: 1.1rem 2rem;
-  border: none;
-  border-radius: var(--border-radius-full);
-  font-size: 1.1rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  transition: var(--transition-bounce);
+  padding: 1.5rem;
+  /* Mismo gradiente que la app principal */
+  background: linear-gradient(-45deg, 
+    #ff9a9e, #fecfef, #fecfef, #ff9a9e,
+    #a8edea, #fed6e3, #d299c2, #fef9d7
+  );
+  background-size: 600% 600%;
+  animation: gradientShift 12s ease infinite;
   position: relative;
   overflow: hidden;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: var(--gradient-green);
-  color: white;
-  box-shadow: var(--shadow-soft);
-  margin-top: 1.5rem;
 }
 
-.btn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 30px -5px rgba(46, 204, 113, 0.4);
+/* Modo oscuro para el fondo */
+[data-theme="dark"] .modern-form-container {
+  background: linear-gradient(-45deg, 
+    #1e3c72, #2a5298, #667eea, #764ba2,
+    #f093fb, #f5576c, #4facfe, #00f2fe
+  );
 }
 
-.btn:active:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Estado de carga del botón */
-.btn.loading {
-  color: transparent;
-}
-
-.btn.loading::after {
-  content: "";
+/* Partículas brillantes */
+.modern-form-container::before {
+  content: '';
   position: absolute;
-  width: 20px;
-  height: 20px;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  margin: auto;
-  border: 2px solid transparent;
-  border-top-color: #ffffff;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(0, 210, 106, 0.4) 2px, transparent 2px),
+    radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.4) 1px, transparent 1px),
+    radial-gradient(circle at 40% 40%, rgba(116, 185, 255, 0.4) 1px, transparent 1px);
+  background-size: 100px 100px, 150px 150px, 200px 200px;
+  animation: sparkle 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Toggle de tema en formularios */
+.theme-toggle-form {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  animation: button-loading-spinner 1s ease infinite;
+  border: none;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--white);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: var(--shadow-primary);
 }
 
-@keyframes button-loading-spinner {
-  from {
-    transform: rotate(0turn);
-  }
-
-  to {
-    transform: rotate(1turn);
-  }
+.theme-toggle-form:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow);
 }
 
-/* Enlaces adicionales */
-.form-links {
-  text-align: center;
-  margin-top: 1.5rem;
-}
-
-.form-link {
-  color: var(--shell-green);
-  text-decoration: none;
-  font-size: 0.95rem;
+/* BOTÓN DE VOLVER CORREGIDO - SIN DESPLAZAMIENTO HORIZONTAL */
+.modern-back-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(15px);
+  border: 2px solid var(--primary);
+  border-radius: 50px;
+  color: var(--primary);
   font-weight: 600;
-  transition: var(--transition-smooth);
-  display: inline-block;
-  margin: 0.25rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-input);
 }
 
-.form-link:hover {
-  color: var(--shell-dark-green);
-  text-decoration: underline;
+[data-theme="dark"] .modern-back-button {
+  background: linear-gradient(135deg, rgba(26, 32, 44, 0.95), rgba(26, 32, 44, 0.8));
+  border-color: var(--primary);
 }
 
-/* Toggle de contraseña */
-.password-toggle {
+/* HOVER SIN DESPLAZAMIENTO - Solo efectos de color y elevación */
+.modern-back-button:hover {
+  background: linear-gradient(135deg, var(--accent-purple), rgba(255, 255, 255, 0.9));
+  border-color: var(--accent);
+  color: var(--primary-dark);
+  transform: translateY(-2px); /* Solo movimiento vertical */
+  box-shadow: var(--shadow-glow);
+}
+
+[data-theme="dark"] .modern-back-button:hover {
+  background: linear-gradient(135deg, var(--accent-purple), rgba(26, 32, 44, 0.9));
+}
+
+.back-icon {
+  width: 18px;
+  height: 18px;
+  transition: var(--transition);
+}
+
+/* Card del formulario - SIN MARGEN TOP EXTRA */
+.modern-form-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 
+    var(--shadow-heavy),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  max-width: 420px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Modo oscuro para la card */
+[data-theme="dark"] .modern-form-card {
+  background: rgba(26, 32, 44, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Header del formulario - SIN BOTÓN DE REGRESO INTERNO */
+.modern-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+/* Título del formulario */
+.modern-form-title {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(
+    135deg, 
+    var(--primary) 0%, 
+    var(--secondary) 25%,
+    var(--accent) 50%,
+    var(--accent-warm) 75%,
+    var(--primary) 100%
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+  margin: 0;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+/* Grupos de input */
+.modern-input-group {
+  position: relative;
+  margin-bottom: 1.8rem;
+}
+
+/* Inputs modernos */
+.modern-input {
+  width: 100%;
+  padding: 1.2rem 1rem 0.8rem;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: var(--text-dark);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: var(--transition);
+  outline: none;
+  border: 2px solid transparent;
+  box-shadow: var(--shadow-input);
+}
+
+[data-theme="dark"] .modern-input {
+  background: rgba(45, 55, 72, 0.8);
+  color: var(--text-dark);
+}
+
+.modern-input::placeholder {
+  color: transparent;
+}
+
+.modern-input:focus {
+  border-color: var(--primary);
+  box-shadow: 
+    var(--shadow-input),
+    0 0 0 4px rgba(0, 210, 106, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  animation: focusPulse 0.3s ease-out;
+}
+
+[data-theme="dark"] .modern-input:focus {
+  background: rgba(45, 55, 72, 0.95);
+}
+
+/* Labels flotantes con emojis */
+.modern-floating-label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  font-size: 1rem;
+  font-weight: 500;
+  pointer-events: none;
+  transition: var(--transition);
+  background: transparent;
+  padding: 0 0.25rem;
+  z-index: 1;
+}
+
+.modern-input:focus ~ .modern-floating-label,
+.modern-input:not(:placeholder-shown) ~ .modern-floating-label {
+  top: -8px;
+  left: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--white);
+  padding: 0 0.5rem;
+  border-radius: 20px;
+}
+
+[data-theme="dark"] .modern-input:focus ~ .modern-floating-label,
+[data-theme="dark"] .modern-input:not(:placeholder-shown) ~ .modern-floating-label {
+  background: var(--white);
+  color: var(--primary);
+}
+
+/* Borde animado */
+.modern-input-border {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: var(--transition);
+  transform: translateX(-50%);
+  border-radius: 2px;
+}
+
+.modern-input:focus ~ .modern-input-border {
+  width: 100%;
+}
+
+/* Estados de error */
+.modern-input.error {
+  border-color: var(--secondary);
+  animation: bounce 0.5s ease-in-out;
+}
+
+.modern-input.error ~ .modern-floating-label {
+  color: var(--secondary);
+}
+
+.modern-input.error ~ .modern-input-border {
+  background: var(--secondary);
+}
+
+/* TOGGLE DE CONTRASEÑA - COMPLETAMENTE ESTÁTICO */
+.modern-password-toggle {
   position: absolute;
   right: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
+  background: transparent;
   border: none;
   color: var(--text-light);
   cursor: pointer;
-  padding: 0.5rem;
-  transition: var(--transition-smooth);
+  padding: 0;
   z-index: 2;
+  font-size: 1.2rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
 }
 
-.password-toggle:hover {
-  color: var(--shell-green);
+.modern-password-toggle:hover {
+  color: var(--primary);
 }
 
-/* Cuando la etiqueta está arriba, ajustar posición del toggle */
-.input:focus~.password-toggle,
-.input:not(:placeholder-shown)~.password-toggle {
-  top: 55%;
+/* Mensaje de error moderno */
+.modern-error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 107, 107, 0.05));
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem 0;
+  color: var(--secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  animation-delay: 0.3s;
 }
 
-/* Figuras geométricas de fondo (opcional) */
-.geometric-shape {
+.error-icon {
+  font-size: 1.2rem;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* BOTÓN DE SUBMIT CENTRADO */
+.modern-btn-submit {
+  width: 100%;
+  max-width: 280px;
+  margin: 1.5rem auto 0;
+  display: block;
+  padding: 1.1rem 2rem;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--white);
+  box-shadow: var(--shadow-primary);
+  transition: var(--transition);
+  text-align: center;
+  letter-spacing: 0.5px;
+  animation-delay: 0.4s;
+}
+
+.modern-btn-submit:hover:not(.loading) {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 10px 30px rgba(0, 210, 106, 0.4),
+    0 5px 15px rgba(78, 205, 196, 0.2);
+  background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
+}
+
+.modern-btn-submit:active:not(.loading) {
+  transform: translateY(-1px);
+}
+
+/* Efecto de brillo en el botón */
+.btn-shine {
   position: absolute;
-  opacity: 0.1; /* Reducida la opacidad */
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.8s ease-in-out;
+}
+
+.modern-btn-submit:hover .btn-shine {
+  left: 100%;
+}
+
+/* Estados de carga */
+.modern-btn-submit.loading {
   pointer-events: none;
-  animation: float 15s infinite ease-in-out;
-  z-index: 1;
+  opacity: 0.8;
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-
-  33% {
-    transform: translateY(-20px) rotate(5deg);
-  }
-
-  66% {
-    transform: translateY(-10px) rotate(-3deg);
-  }
-}
-
-.shape-1 {
-  top: 10%;
-  left: 5%;
-  width: 60px;
-  height: 60px;
-  background: var(--shell-green);
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid var(--white);
   border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
 }
 
-.shape-2 {
-  bottom: 10%;
-  right: 5%;
-  width: 80px;
-  height: 80px;
-  background: var(--accent-orange);
-  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+/* Enlaces adicionales del formulario */
+.modern-form-links {
+  text-align: center;
+  margin-top: 1.5rem;
+  animation-delay: 0.5s;
 }
 
-.shape-3 {
-  top: 50%;
-  right: 10%;
-  width: 50px;
-  height: 50px;
-  background: var(--shell-blue);
-  transform: rotate(45deg);
+.modern-form-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: var(--transition);
+  display: inline-block;
+  margin: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 20px;
 }
 
-/* Responsivo */
+.modern-form-link:hover {
+  color: var(--primary-dark);
+  background: rgba(0, 210, 106, 0.1);
+  transform: translateY(-1px);
+}
+
+.modern-register-prompt {
+  margin-top: 1rem;
+  color: var(--text-medium);
+  font-size: 0.9rem;
+}
+
+.modern-register-prompt .modern-form-link.primary {
+  color: var(--secondary);
+  font-weight: 700;
+}
+
+.modern-register-prompt .modern-form-link.primary:hover {
+  color: var(--secondary);
+  background: rgba(255, 107, 107, 0.1);
+}
+
+/* Estados de validación visual */
+.modern-input:valid:not(:placeholder-shown) {
+  border-color: var(--primary);
+  box-shadow: 
+    var(--shadow-input),
+    0 0 0 2px rgba(0, 210, 106, 0.1);
+}
+
+.modern-input:valid:not(:placeholder-shown) ~ .modern-floating-label::after {
+  content: " ✓";
+  color: var(--primary);
+}
+
+/* Animación de entrada escalonada */
+.modern-input-group:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.modern-input-group:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+/* Responsividad */
 @media (max-width: 768px) {
-  .login-form {
-    padding: 2rem;
-    max-width: 400px;
+  .modern-form-container {
+    padding: 1rem;
   }
-
-  .form-title {
-    font-size: 2rem;
-    margin-top: 2rem; /* Más espacio para el botón en móvil */
+  
+  .modern-form-card {
+    padding: 2rem 1.8rem;
+    max-width: 380px;
+    border-radius: 20px;
   }
-
-  .btn {
-    padding: 1rem 1.5rem;
-    font-size: 1rem;
+  
+  .modern-form-title {
+    font-size: 1.8rem;
   }
-
-  .back-button {
-    width: 36px;
-    height: 36px;
+  
+  .modern-back-button {
+    top: 15px;
+    left: 15px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
   }
-
-  .back-button svg {
-    width: 18px;
-    height: 18px;
+  
+  .back-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .modern-btn-submit {
+    max-width: 100%;
+  }
+  
+  .theme-toggle-form {
+    top: 15px;
+    right: 15px;
+    width: 45px;
+    height: 45px;
   }
 }
 
 @media (max-width: 480px) {
-  .login-form {
-    padding: 1.5rem;
-    max-width: calc(100% - 2rem);
-    margin: 1rem;
+  .modern-form-card {
+    padding: 1.8rem 1.5rem;
+    max-width: 320px;
+    margin: 0.5rem;
   }
-
-  .form-title {
-    font-size: 1.75rem;
-    margin-bottom: 1.5rem;
-    margin-top: 2.5rem;
-  }
-
-  .input-group {
+  
+  .modern-form-title {
+    font-size: 1.6rem;
     margin-bottom: 1.5rem;
   }
-
-  .input {
-    padding: 1.1rem 0.9rem 0.65rem 0.9rem;
-    font-size: 0.95rem;
+  
+  .modern-back-button {
+    top: 10px;
+    left: 10px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8rem;
   }
-
-  .floating-label {
-    font-size: 0.95rem;
+  
+  .modern-input {
+    padding: 1.1rem 0.9rem 0.7rem;
   }
-
-  .btn {
-    padding: 0.9rem 1.25rem;
-    font-size: 0.95rem;
-  }
-
-  .back-button {
-    top: 0.75rem;
-    left: 0.75rem;
-    width: 34px;
-    height: 34px;
-  }
-
-  /* Ocultar figuras en móviles para mejor rendimiento */
-  .shape-2,
-  .shape-3 {
-    display: none;
+  
+  .theme-toggle-form {
+    width: 40px;
+    height: 40px;
+    top: 10px;
+    right: 10px;
   }
 }
 
-/* Modo horizontal en móviles */
+/* Orientación horizontal */
 @media (max-height: 600px) and (orientation: landscape) {
-  .login-form {
-    padding: 1.5rem 2rem;
+  .modern-form-container {
+    padding: 0.5rem;
   }
-
-  .form-title {
-    font-size: 1.5rem;
-    margin-top: 1.5rem;
+  
+  .modern-form-card {
+    padding: 1.5rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .modern-form-header {
     margin-bottom: 1rem;
   }
-
-  .input-group {
-    margin-bottom: 1.25rem;
+  
+  .modern-form-title {
+    font-size: 1.4rem;
   }
-
-  .btn {
-    padding: 0.8rem 1.5rem;
+  
+  .modern-input-group {
+    margin-bottom: 1.2rem;
+  }
+  
+  .modern-btn-submit {
+    padding: 0.9rem 1.5rem;
     margin-top: 1rem;
   }
-
-  /* Ocultar todas las figuras en modo horizontal */
-  .geometric-shape {
-    display: none;
+  
+  .modern-form-links {
+    margin-top: 1rem;
   }
+  
+  .modern-back-button {
+    top: 10px;
+    left: 10px;
+  }
+}
+
+/* Soporte para dispositivos con notch */
+@supports (padding: max(0px)) {
+  .modern-form-container {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  
+  .theme-toggle-form {
+    right: max(20px, env(safe-area-inset-right) + 10px);
+    top: max(20px, env(safe-area-inset-top) + 10px);
+  }
+  
+  .modern-back-button {
+    left: max(20px, env(safe-area-inset-left) + 10px);
+    top: max(20px, env(safe-area-inset-top) + 10px);
+  }
+}
+
+/* Efectos adicionales para mejorar la experiencia */
+.modern-form-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent, 
+    rgba(0, 210, 106, 0.03), 
+    transparent, 
+    rgba(255, 107, 107, 0.03), 
+    transparent, 
+    rgba(78, 205, 196, 0.03), 
+    transparent
+  );
+  animation: rotate 20s linear infinite;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Efectos de hover mejorados para accesibilidad */
+.modern-back-button:focus-visible,
+.modern-btn-submit:focus-visible,
+.modern-password-toggle:focus-visible {
+  outline: 3px solid rgba(0, 210, 106, 0.3);
+  outline-offset: 3px;
+}
+
+/* optimizaciones de rendimiento */
+.modern-form-card,
+.modern-input,
+.modern-btn-submit,
+.theme-toggle-form,
+.modern-back-button {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+/* Transiciones suaves para cambio de tema */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ===== SUCCESS MODAL STYLES ===== */
+.success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  background: linear-gradient(-45deg, 
+    rgba(var(--primary-rgb), 0.95), 
+    rgba(var(--accent-rgb), 0.85), 
+    rgba(var(--secondary-rgb), 0.9));
+  backdrop-filter: blur(10px);
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+.success-modal-card {
+  max-width: 420px;
+  width: 100%;
+  margin: 1rem;
+  position: relative;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(20px);
+}
+
+.success-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 20%, var(--primary) 2px, transparent 2px),
+    radial-gradient(circle at 80% 80%, var(--accent) 1px, transparent 1px),
+    radial-gradient(circle at 40% 60%, var(--secondary) 1px, transparent 1px);
+  background-size: 80px 80px, 120px 120px, 60px 60px;
+  animation: sparkle 4s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.success-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+  padding: 2rem;
+}
+
+.success-icon {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: var(--shadow-glow);
+}
+
+.checkmark {
+  height: 3rem;
+  width: 3rem;
+  color: var(--white);
+}
+
+.success-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.success-message {
+  color: var(--text-medium);
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.success-highlight {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.success-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .success-buttons {
+    flex-direction: row;
+  }
+}
+
+.success-btn {
+  max-width: 180px;
+  margin: 0;
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.success-btn.primary {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--white);
+  box-shadow: var(--shadow-glow);
+}
+
+.success-btn.secondary {
+  background: transparent;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  box-shadow: var(--shadow-input);
+}
+
+.success-btn.secondary:hover {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.success-footer {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  background: rgba(var(--primary-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  font-size: 0.85rem;
+  color: var(--primary);
+  text-align: center;
+}
+
+.success-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    transparent, 
+    rgba(var(--primary-rgb), 0.08), 
+    transparent, 
+    rgba(var(--accent-rgb), 0.08), 
+    transparent
+  );
+  animation: rotate 15s linear infinite;
+  pointer-events: none;
+}
+
+/* Animaciones */
+@keyframes sparkle {
+  0%, 100% { opacity: 0.3; transform: translateY(0px); }
+  50% { opacity: 0.6; transform: translateY(-5px); }
+}
+
+@keyframes gradientShift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(30deg); }
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
