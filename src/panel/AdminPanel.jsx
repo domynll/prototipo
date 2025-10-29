@@ -5,7 +5,8 @@ import {
   BarChart3, FileText, Play, Image, Headphones, Gamepad2, HelpCircle,
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle,
   Eye, Sparkles, Upload, Mic, Video, Volume2, Download, Move, ChevronUp, ChevronDown,
-  Clock, Activity, TrendingDown
+  Clock, Activity, TrendingDown, Filter, UserCheck, UserX, FileUp, Brain, Search, 
+  PieChart, BarChart2, LineChart
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -98,16 +99,18 @@ const MetricCard = ({ title, value, change, icon: Icon, color }) => (
         <Icon className="w-5 h-5" style={{ color }} />
       </div>
     </div>
-    <div className={`flex items-center gap-1 text-xs font-medium ${
-      change >= 0 ? 'text-green-600' : 'text-red-600'
-    }`}>
-      {change >= 0 ? (
-        <TrendingUp className="w-3 h-3" />
-      ) : (
-        <TrendingDown className="w-3 h-3" />
-      )}
-      <span>{change >= 0 ? '+' : ''}{change}% vs último mes</span>
-    </div>
+    {change !== undefined && (
+      <div className={`flex items-center gap-1 text-xs font-medium ${
+        change >= 0 ? 'text-green-600' : 'text-red-600'
+      }`}>
+        {change >= 0 ? (
+          <TrendingUp className="w-3 h-3" />
+        ) : (
+          <TrendingDown className="w-3 h-3" />
+        )}
+        <span>{change >= 0 ? '+' : ''}{change}% vs último mes</span>
+      </div>
+    )}
   </div>
 );
 
@@ -120,6 +123,7 @@ export default function EnhancedAdminPanel() {
   const [courses, setCourses] = useState([]);
   const [resources, setResources] = useState([]);
   const [achievements, setAchievements] = useState([]);
+  const [groups, setGroups] = useState([]);
   
   // Estados de UI
   const [loading, setLoading] = useState(true);
@@ -132,11 +136,13 @@ export default function EnhancedAdminPanel() {
   // Estados de edición
   const [editingUser, setEditingUser] = useState(null);
   const [editingLevel, setEditingLevel] = useState(null);
+  const [selectedRoles, setSelectedRoles] = useState({});
   
   // Estados de formularios
   const [showNewLevel, setShowNewLevel] = useState(false);
   const [showNewCourse, setShowNewCourse] = useState(false);
   const [showNewResource, setShowNewResource] = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
   
   const [newLevel, setNewLevel] = useState({ nombre: '', descripcion: '', orden: 1 });
   const [newCourse, setNewCourse] = useState({
@@ -155,6 +161,7 @@ export default function EnhancedAdminPanel() {
     tiempo_estimado: 5,
     orden: 1
   });
+  const [newGroup, setNewGroup] = useState({ nombre: '', descripcion: '' });
   
   // Estados de analíticas avanzadas
   const [analytics, setAnalytics] = useState({
@@ -168,12 +175,23 @@ export default function EnhancedAdminPanel() {
     completionRate: 0
   });
 
+  // Estados para análisis detallado
+  const [showDetailedAnalytics, setShowDetailedAnalytics] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [studentProgress, setStudentProgress] = useState([]);
+  const [courseAnalytics, setCourseAnalytics] = useState(null);
+  const [filterStudent, setFilterStudent] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
+
   // Estados para Quiz Builder
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
   const [previewQuiz, setPreviewQuiz] = useState(false);
   const [currentPreviewQuestion, setCurrentPreviewQuestion] = useState(0);
   const [previewAnswers, setPreviewAnswers] = useState({});
+  const [uploadedDocument, setUploadedDocument] = useState(null);
+  const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
   const [currentQuiz, setCurrentQuiz] = useState({
     preguntas: []
@@ -182,7 +200,7 @@ export default function EnhancedAdminPanel() {
   const [currentQuestion, setCurrentQuestion] = useState({
     tipo: 'multiple',
     pregunta: '',
-    audio_pregunta: false,
+    audio_pregunta: true,
     video_url: '',
     imagen_url: '',
     opciones: ['', '', '', ''],
@@ -192,9 +210,42 @@ export default function EnhancedAdminPanel() {
     puntos: 10,
     retroalimentacion_correcta: '¡Excelente! 🎉',
     retroalimentacion_incorrecta: '¡Inténtalo de nuevo! 💪',
-    audio_retroalimentacion: false,
+    audio_retroalimentacion: true,
     tiempo_limite: 0
   });
+
+  // Estados para Chat IA
+const [showAIChat, setShowAIChat] = useState(false);
+const [chatMessages, setChatMessages] = useState([]);
+const [chatInput, setChatInput] = useState('');
+const [chatLoading, setChatLoading] = useState(false);
+
+  // Estados de filtros de usuarios
+  const [filterRole, setFilterRole] = useState('');
+  const [filterGroup, setFilterGroup] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  // Función para obtener el estado real del usuario
+  const getUserStatus = (lastAccess) => {
+    if (!lastAccess) return { isActive: false, label: 'Nunca conectado', color: 'gray' };
+    
+    const date = new Date(lastAccess);
+    const now = new Date();
+    const diffInMinutes = (now - date) / (1000 * 60);
+    
+    // En línea si accedió en los últimos 30 minutos
+    if (diffInMinutes <= 30) {
+      return { isActive: true, label: 'En línea', color: 'green' };
+    }
+    
+    // Activo recientemente si accedió en las últimas 24 horas
+    if (diffInMinutes <= 1440) { // 24 horas = 1440 minutos
+      return { isActive: true, label: 'Activo', color: 'blue' };
+    }
+    
+    // Inactivo si ha pasado más de 24 horas
+    return { isActive: false, label: 'Inactivo', color: 'red' };
+  };
 
   const questionTypes = [
     { value: 'multiple', label: 'Opción Múltiple', icon: HelpCircle, color: '#3B82F6' },
@@ -212,6 +263,13 @@ export default function EnhancedAdminPanel() {
     '🌍', '🌞', '🌙', '⭐', '🔥', '💧', '🍃', '🌸', '🐶', '🐱'
   ];
 
+  const availableRoles = [
+    { value: 'visitante', label: 'Visitante', color: 'gray' },
+    { value: 'estudiante', label: 'Estudiante', color: 'green' },
+    { value: 'docente', label: 'Docente', color: 'blue' },
+    { value: 'admin', label: 'Admin', color: 'red' }
+  ];
+
   useEffect(() => {
     checkAuthAndRole();
   }, []);
@@ -222,57 +280,41 @@ export default function EnhancedAdminPanel() {
     }
   }, [currentUser]);
 
+  const checkAuthAndRole = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        navigate('/login');
+        return;
+      }
 
-const checkAuthAndRole = async () => {
-  try {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError || !session) {
-      navigate('/login');
-      return;
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (userError || !userData) {
+        setError('No se pudo obtener la información del usuario');
+        setTimeout(() => navigate('/login'), 2000);
+        return;
+      }
+
+      if (userData.rol !== 'admin') {
+        setError(`No tienes permisos de administrador. Tu rol es: ${userData.rol}`);
+        setTimeout(() => navigate('/dashboard'), 2000);
+        return;
+      }
+
+      setCurrentUser(userData);
+    } catch (err) {
+      console.error('❌ Error de autenticación:', err);
+      setError('Error de autenticación: ' + err.message);
     }
-
-    // Agregar un pequeño delay para asegurar que la BD esté actualizada
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const { data: userData, error: userError } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    console.log('🔍 Datos del usuario recuperados:', userData);
-    console.log('👤 Rol encontrado:', userData?.rol);
-
-    if (userError) {
-      console.error('❌ Error al buscar usuario:', userError);
-      setError('No se pudo obtener la información del usuario');
-      setTimeout(() => navigate('/login'), 2000);
-      return;
-    }
-
-    if (!userData) {
-      console.error('❌ Usuario no encontrado en tabla usuarios');
-      setError('Usuario no encontrado en el sistema');
-      setTimeout(() => navigate('/login'), 2000);
-      return;
-    }
-
-    // Verificar que sea admin
-    if (userData.rol !== 'admin') {
-      console.error('❌ Usuario no es admin. Rol actual:', userData.rol);
-      setError(`No tienes permisos de administrador. Tu rol es: ${userData.rol}`);
-      setTimeout(() => navigate('/dashboard'), 2000);
-      return;
-    }
-
-    console.log('✅ Acceso permitido como admin');
-    setCurrentUser(userData);
-  } catch (err) {
-    console.error('❌ Error de autenticación:', err);
-    setError('Error de autenticación: ' + err.message);
-  }
-};
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -281,7 +323,8 @@ const checkAuthAndRole = async () => {
       fetchLevels(),
       fetchCourses(),
       fetchResources(),
-      fetchAchievements()
+      fetchAchievements(),
+      fetchGroups()
     ]);
     await calculateAdvancedAnalytics();
     setLoading(false);
@@ -305,6 +348,20 @@ const checkAuthAndRole = async () => {
     } catch (err) {
       console.error('Error cargando usuarios:', err);
       setError('Error al cargar usuarios');
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('grupos')
+        .select('*')
+        .order('nombre', { ascending: true });
+      
+      if (error) throw error;
+      setGroups(data || []);
+    } catch (err) {
+      console.error('Error cargando grupos:', err);
     }
   };
 
@@ -417,7 +474,7 @@ const checkAuthAndRole = async () => {
       if (previousMonthUsers === 0) return 100;
       return Math.round(((lastMonthUsers - previousMonthUsers) / previousMonthUsers) * 100);
     } catch (err) {
-      return 12;
+      return 0;
     }
   };
 
@@ -435,7 +492,7 @@ const checkAuthAndRole = async () => {
       
       return totalStudents > 0 ? Math.round((activeUsers / totalStudents) * 100) : 0;
     } catch (err) {
-      return 68;
+      return 0;
     }
   };
 
@@ -453,7 +510,7 @@ const checkAuthAndRole = async () => {
       
       return totalPossibleCompletions > 0 ? Math.round((totalCompletions / totalPossibleCompletions) * 100) : 0;
     } catch (err) {
-      return 45;
+      return 0;
     }
   };
 
@@ -476,18 +533,22 @@ const checkAuthAndRole = async () => {
       const courseProgress = {};
       data?.forEach(progress => {
         const courseId = progress.recursos?.curso_id;
+        const courseTitle = progress.recursos?.cursos?.titulo;
         if (courseId) {
-          courseProgress[courseId] = (courseProgress[courseId] || 0) + 1;
+          if (!courseProgress[courseId]) {
+            courseProgress[courseId] = { count: 0, title: courseTitle || `Curso ${courseId}` };
+          }
+          courseProgress[courseId].count++;
         }
       });
       
       return Object.entries(courseProgress)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([,a], [,b]) => b.count - a.count)
         .slice(0, 5)
-        .map(([courseId, count]) => ({
+        .map(([courseId, data]) => ({
           courseId,
-          count,
-          title: courses.find(c => c.id === parseInt(courseId))?.titulo || `Curso ${courseId}`
+          count: data.count,
+          title: data.title
         }));
     } catch (err) {
       return [];
@@ -508,7 +569,7 @@ const checkAuthAndRole = async () => {
       
       return Math.round(totalTime / count / 60);
     } catch (err) {
-      return 15;
+      return 0;
     }
   };
 
@@ -526,6 +587,86 @@ const checkAuthAndRole = async () => {
       alert('✅ Rol actualizado exitosamente');
     } catch (err) {
       alert('Error al actualizar el rol');
+    }
+  };
+
+  const updateUserRoles = async (userId, roles) => {
+    try {
+      const rolesArray = Array.isArray(roles) ? roles : [roles];
+      
+      if (rolesArray.length === 0) {
+        alert('Debes seleccionar al menos un rol');
+        return;
+      }
+
+      console.log('🔄 Actualizando roles para usuario:', userId);
+      console.log('📝 Roles a guardar:', rolesArray);
+      console.log('👑 Rol principal:', rolesArray[0]);
+      console.log('➕ Roles adicionales:', rolesArray.slice(1));
+
+      const updateData = { 
+        rol: rolesArray[0],
+        roles_adicionales: rolesArray.length > 1 ? rolesArray.slice(1) : [],
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('💾 Datos a enviar:', updateData);
+
+      const { data, error } = await supabase
+        .from('usuarios')
+        .update(updateData)
+        .eq('id', userId)
+        .select();
+
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        throw error;
+      }
+      
+      console.log('✅ Respuesta de Supabase:', data);
+      
+      await fetchUsers();
+      setSelectedRoles({});
+      setEditingUser(null);
+      alert('✅ Roles actualizados exitosamente');
+    } catch (err) {
+      console.error('❌ Error actualizando roles:', err);
+      alert('Error al actualizar los roles: ' + err.message);
+    }
+  };
+
+  const updateUserGroup = async (userId, groupId) => {
+    try {
+      const { error } = await supabase
+        .from('usuarios')
+        .update({ grupo_id: groupId || null })
+        .eq('id', userId);
+
+      if (error) throw error;
+      
+      fetchUsers();
+      alert('✅ Grupo actualizado exitosamente');
+    } catch (err) {
+      alert('Error al actualizar el grupo');
+    }
+  };
+
+  const updateUserStatus = async (userId, isActive) => {
+    try {
+      const { error } = await supabase
+        .from('usuarios')
+        .update({ 
+          activo: isActive,
+          ultimo_acceso: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+      
+      fetchUsers();
+      alert(`✅ Usuario ${isActive ? 'activado' : 'desactivado'} exitosamente`);
+    } catch (err) {
+      alert('Error al actualizar el estado');
     }
   };
 
@@ -683,6 +824,173 @@ const checkAuthAndRole = async () => {
     }
   };
 
+  const createGroup = async () => {
+    if (!newGroup.nombre.trim()) {
+      alert('El nombre del grupo es obligatorio');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('grupos')
+        .insert([newGroup]);
+
+      if (error) throw error;
+      
+      fetchGroups();
+      setNewGroup({ nombre: '', descripcion: '' });
+      setShowNewGroup(false);
+      alert('✅ Grupo creado exitosamente');
+    } catch (err) {
+      alert('Error al crear el grupo');
+    }
+  };
+
+  const deleteGroup = async (groupId) => {
+    if (!confirm('¿Estás seguro de eliminar este grupo?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('grupos')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) throw error;
+      
+      fetchGroups();
+      alert('✅ Grupo eliminado exitosamente');
+    } catch (err) {
+      alert('Error al eliminar grupo');
+    }
+  };
+
+  const handleDocumentUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setUploadedDocument(file);
+    }
+  };
+
+const generateQuestionsFromDocument = async () => {
+    if (!uploadedDocument) {
+      alert('Por favor, sube un documento primero');
+      return;
+    }
+
+    setGeneratingQuestions(true);
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target.result;
+        
+        try {
+          const response = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `Eres un experto en educación para niños de básica elemental (6-10 años). Analiza el siguiente texto y genera 5 preguntas educativas interactivas en formato JSON.
+
+TEXTO:
+${text.substring(0, 4000)}
+
+IMPORTANTE: Genera EXACTAMENTE este formato JSON (sin texto adicional, solo el JSON):
+{
+  "preguntas": [
+    {
+      "tipo": "multiple",
+      "pregunta": "Pregunta clara y simple",
+      "opciones": ["Opción 1", "Opción 2", "Opción 3", "Opción 4"],
+      "respuesta_correcta": 0,
+      "puntos": 10,
+      "retroalimentacion_correcta": "¡Excelente! 🎉 [Explicación breve]",
+      "retroalimentacion_incorrecta": "Inténtalo de nuevo 💪 [Pista]",
+      "tiempo_limite": 30
+    }
+  ]
+}
+
+REGLAS:
+- Usa lenguaje simple apropiado para niños de 6-10 años
+- Las preguntas deben ser educativas y basadas en el texto
+- Varía entre: multiple (3 preguntas), verdadero_falso (1 pregunta), imagen (1 pregunta)
+- Para tipo "imagen", usa emojis educativos: 🎨,🎮,🎵,🌟,📚,✏️,🔢,🅰️,🌍,🌞
+- Puntos: 10 para fáciles, 15 para medias, 20 para difíciles
+- Tiempo límite: 20-40 segundos según dificultad
+- Retroalimentación debe ser motivadora y educativa
+- respuesta_correcta es el índice (0-3) de la opción correcta
+- NO agregues texto extra, SOLO el JSON`
+                  }]
+                }],
+                generationConfig: {
+                  temperature: 0.7,
+                  topK: 40,
+                  topP: 0.95,
+                  maxOutputTokens: 2048,
+                }
+              })
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`Error API: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const generatedText = data.candidates[0].content.parts[0].text;
+          
+          let jsonText = generatedText;
+          const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonText = jsonMatch[0];
+          }
+          
+          const parsedData = JSON.parse(jsonText);
+          
+          if (!parsedData.preguntas || parsedData.preguntas.length === 0) {
+            throw new Error('No se generaron preguntas válidas');
+          }
+
+          const questionsToAdd = parsedData.preguntas.map(q => ({
+            ...q,
+            id: Date.now() + Math.random(),
+            audio_pregunta: true,
+            audio_retroalimentacion: true,
+            video_url: '',
+            imagen_url: q.tipo === 'imagen' ? (q.imagen_url || '📚') : '',
+            audio_opciones: ['', '', '', ''],
+            imagen_opciones: q.tipo === 'imagen' ? (q.imagen_opciones || ['🎨', '📚', '✏️', '🌟']) : ['', '', '', '']
+          }));
+
+          setCurrentQuiz(prev => ({
+            ...prev,
+            preguntas: [...prev.preguntas, ...questionsToAdd]
+          }));
+
+          alert(`✅ ${questionsToAdd.length} preguntas generadas exitosamente con IA. Revisa y ajusta según sea necesario.`);
+          setGeneratingQuestions(false);
+          setUploadedDocument(null);
+        } catch (apiError) {
+          console.error('Error con API de Gemini:', apiError);
+          alert('❌ Error al generar preguntas con IA: ' + apiError.message);
+          setGeneratingQuestions(false);
+        }
+      };
+      
+      reader.readAsText(uploadedDocument);
+    } catch (err) {
+      console.error('Error leyendo documento:', err);
+      alert('❌ Error al leer el documento');
+      setGeneratingQuestions(false);
+    }
+  };
+
   const addQuestion = () => {
     if (!currentQuestion.pregunta.trim()) {
       alert('La pregunta es obligatoria');
@@ -698,6 +1006,11 @@ const checkAuthAndRole = async () => {
       currentQuestion.opciones = ['Verdadero', 'Falso'];
     }
 
+    // Auto-reproducir audio si está habilitado
+    if (currentQuestion.audio_pregunta) {
+      speakText(currentQuestion.pregunta);
+    }
+
     setCurrentQuiz({
       ...currentQuiz,
       preguntas: [...currentQuiz.preguntas, { ...currentQuestion, id: Date.now() }]
@@ -706,7 +1019,7 @@ const checkAuthAndRole = async () => {
     setCurrentQuestion({
       tipo: 'multiple',
       pregunta: '',
-      audio_pregunta: false,
+      audio_pregunta: true,
       video_url: '',
       imagen_url: '',
       opciones: ['', '', '', ''],
@@ -716,7 +1029,7 @@ const checkAuthAndRole = async () => {
       puntos: 10,
       retroalimentacion_correcta: '¡Excelente! 🎉',
       retroalimentacion_incorrecta: '¡Inténtalo de nuevo! 💪',
-      audio_retroalimentacion: false,
+      audio_retroalimentacion: true,
       tiempo_limite: 0
     });
   };
@@ -764,6 +1077,7 @@ const checkAuthAndRole = async () => {
       setCurrentQuiz({ preguntas: [] });
       setShowQuizBuilder(false);
       setSelectedResource(null);
+      setUploadedDocument(null);
       alert('✅ Quiz guardado exitosamente');
     } catch (err) {
       console.error('Error guardando quiz:', err);
@@ -787,10 +1101,12 @@ const checkAuthAndRole = async () => {
 
   const speakText = (text) => {
     if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'es-ES';
       utterance.rate = 0.9;
-      speechSynthesis.speak(utterance);
+      utterance.pitch = 1.1;
+      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -809,6 +1125,7 @@ const checkAuthAndRole = async () => {
     setShowQuizBuilder(false);
     setCurrentQuiz({ preguntas: [] });
     setSelectedResource(null);
+    setUploadedDocument(null);
   };
 
   const openPreview = (resource) => {
@@ -821,13 +1138,110 @@ const checkAuthAndRole = async () => {
     setPreviewQuiz(true);
     setCurrentPreviewQuestion(0);
     setPreviewAnswers({});
+    
+    // Auto-reproducir la primera pregunta
+    if (resource.contenido_quiz[0]?.audio_pregunta) {
+      setTimeout(() => speakText(resource.contenido_quiz[0].pregunta), 500);
+    }
   };
 
   const closePreview = () => {
+    window.speechSynthesis.cancel();
     setPreviewQuiz(false);
     setPreviewAnswers({});
     setCurrentPreviewQuestion(0);
     setSelectedResource(null);
+  };
+
+  const fetchStudentProgress = async (studentId) => {
+    try {
+      const { data, error } = await supabase
+        .from('progreso_usuarios')
+        .select(`
+          *,
+          recursos(titulo, tipo, puntos_recompensa, cursos(titulo)),
+          usuarios(nombre)
+        `)
+        .eq('usuario_id', studentId)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setStudentProgress(data || []);
+    } catch (err) {
+      console.error('Error cargando progreso del estudiante:', err);
+    }
+  };
+
+  const fetchCourseAnalytics = async (courseId) => {
+    try {
+      const { data: progressData, error: progressError } = await supabase
+        .from('progreso_usuarios')
+        .select(`
+          *,
+          usuarios(nombre, grupo_id),
+          recursos!inner(curso_id)
+        `)
+        .eq('recursos.curso_id', courseId);
+
+      if (progressError) throw progressError;
+
+      const totalStudents = new Set(progressData?.map(p => p.usuario_id)).size;
+      const completedResources = progressData?.filter(p => p.completado).length || 0;
+      const avgProgress = progressData?.reduce((sum, p) => sum + (p.progreso || 0), 0) / (progressData?.length || 1);
+      const totalTime = progressData?.reduce((sum, p) => sum + (p.tiempo_dedicado || 0), 0);
+
+      setCourseAnalytics({
+        totalStudents,
+        completedResources,
+        avgProgress: Math.round(avgProgress),
+        totalTime: Math.round(totalTime / 60),
+        progressData
+      });
+    } catch (err) {
+      console.error('Error cargando analíticas del curso:', err);
+    }
+  };
+
+  const generateCourseReport = async (courseId) => {
+    try {
+      const course = courses.find(c => c.id === parseInt(courseId));
+      if (!course) return;
+
+      await fetchCourseAnalytics(courseId);
+
+      const reportData = {
+        curso: course.titulo,
+        fecha: new Date().toLocaleDateString('es-ES'),
+        estudiantes: courseAnalytics?.totalStudents || 0,
+        progreso_promedio: courseAnalytics?.avgProgress || 0,
+        recursos_completados: courseAnalytics?.completedResources || 0,
+        tiempo_total: courseAnalytics?.totalTime || 0
+      };
+
+      const reportText = `
+=== REPORTE DE CURSO ===
+Curso: ${reportData.curso}
+Fecha: ${reportData.fecha}
+---
+Total Estudiantes: ${reportData.estudiantes}
+Progreso Promedio: ${reportData.progreso_promedio}%
+Recursos Completados: ${reportData.recursos_completados}
+Tiempo Total Dedicado: ${reportData.tiempo_total} minutos
+      `;
+
+      const blob = new Blob([reportText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      alert('✅ Reporte generado y descargado exitosamente');
+    } catch (err) {
+      console.error('Error generando reporte:', err);
+      alert('Error al generar el reporte');
+    }
   };
 
   const renderQuestionPreview = () => {
@@ -948,6 +1362,10 @@ const checkAuthAndRole = async () => {
             onClick={() => {
               if (currentPreviewQuestion > 0) {
                 setCurrentPreviewQuestion(currentPreviewQuestion - 1);
+                const prevQuestion = currentQuiz.preguntas[currentPreviewQuestion - 1];
+                if (prevQuestion?.audio_pregunta) {
+                  setTimeout(() => speakText(prevQuestion.pregunta), 300);
+                }
               }
             }}
             disabled={currentPreviewQuestion === 0}
@@ -960,6 +1378,10 @@ const checkAuthAndRole = async () => {
             onClick={() => {
               if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
                 setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+                const nextQuestion = currentQuiz.preguntas[currentPreviewQuestion + 1];
+                if (nextQuestion?.audio_pregunta) {
+                  setTimeout(() => speakText(nextQuestion.pregunta), 300);
+                }
               }
             }}
             disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
@@ -980,27 +1402,165 @@ const checkAuthAndRole = async () => {
       return acc;
     }, {});
 
+    // Recomendación para crear más quizzes con IA
     if ((resourceTypes.quiz || 0) < 3) {
       recommendations.push({
         type: 'content_gap',
-        title: 'Aumentar Quizzes Interactivos',
-        description: `Solo tienes ${resourceTypes.quiz || 0} quizzes. Crea más para mejorar el engagement.`,
+        title: 'Crear Quizzes con IA',
+        description: `Solo tienes ${resourceTypes.quiz || 0} quizzes. Usa el generador con IA para crear más rápidamente.`,
         priority: 'high',
-        action: 'Crear Quiz'
+        action: 'Ir a Recursos',
+        targetTab: 'resources',
+        icon: Brain
       });
     }
 
+    // Recomendación de compromiso
     if (analytics.engagementRate < 50) {
       recommendations.push({
         type: 'engagement',
-        title: 'Baja Tasa de Engagement',
-        description: `El engagement es del ${analytics.engagementRate}%. Considera gamificación.`,
+        title: 'Baja Tasa de Compromiso',
+        description: `El Compromiso es del ${analytics.engagementRate}%. Los quizzes interactivos pueden ayudar.`,
         priority: 'high',
-        action: 'Mejorar Engagement'
+        action: 'Ver Recursos',
+        targetTab: 'resources',
+        icon: TrendingUp
+      });
+    }
+
+    // Usuarios inactivos
+    const inactiveUsers = users.filter(u => {
+      if (!u.ultimo_acceso) return true;
+      const lastAccess = new Date(u.ultimo_acceso);
+      const daysSinceAccess = (Date.now() - lastAccess) / (1000 * 60 * 60 * 24);
+      return daysSinceAccess > 7;
+    }).length;
+
+    if (inactiveUsers > 0) {
+      recommendations.push({
+        type: 'retention',
+        title: 'Usuarios Inactivos',
+        description: `${inactiveUsers} usuarios no han accedido en más de 7 días.`,
+        priority: 'medium',
+        action: 'Revisar Usuarios',
+        targetTab: 'users',
+        icon: UserX
+      });
+    }
+
+    // Recomendación para usar IA si hay pocos recursos
+    if (resources.length < 10) {
+      recommendations.push({
+        type: 'ai_generator',
+        title: '🤖 Genera Contenido con IA',
+        description: 'Usa el generador de quizzes con IA para crear contenido educativo rápidamente desde documentos.',
+        priority: 'high',
+        action: 'Probar IA',
+        targetTab: 'resources',
+        icon: Sparkles
       });
     }
 
     return recommendations;
+  };
+
+const handleAIChat = async (userMessage) => {
+  if (!userMessage.trim()) return;
+
+  const newUserMessage = {
+    id: Date.now(),
+    role: 'user',
+    content: userMessage,
+    timestamp: new Date()
+  };
+  
+  setChatMessages(prev => [...prev, newUserMessage]);
+  setChatInput('');
+  setChatLoading(true);
+
+  try {
+    const systemContext = `Eres un asistente educativo experto para DidactikApp, una plataforma de educación básica elemental.
+
+INFORMACIÓN DEL SISTEMA:
+- Total usuarios: ${users.length}
+- Estudiantes activos: ${users.filter(u => u.rol === 'estudiante').length}
+- Docentes: ${users.filter(u => u.rol === 'docente').length}
+- Cursos disponibles: ${courses.length}
+- Recursos educativos: ${resources.length}
+- Niveles de aprendizaje: ${levels.length}
+- Engagement actual: ${analytics.engagementRate}%
+- Tasa de completitud: ${analytics.completionRate}%
+
+CURSOS PRINCIPALES:
+${courses.slice(0, 5).map(c => `- ${c.titulo} (${c.nivel_nombre})`).join('\n')}
+
+RECURSOS POR TIPO:
+${Object.entries(resources.reduce((acc, r) => {
+  acc[r.tipo] = (acc[r.tipo] || 0) + 1;
+  return acc;
+}, {})).map(([tipo, count]) => `- ${tipo}: ${count}`).join('\n')}
+
+Responde de manera clara, concisa y educativa. Si te preguntan sobre estadísticas, usa los datos anteriores. Si te piden recomendaciones, da sugerencias específicas y accionables.`;
+
+    // ✅ Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: `${systemContext}\n\nUSUARIO: ${userMessage}\n\nASISTENTE:` }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      let errorText = `Error API: ${response.status}`;
+      try {
+        const errJson = await response.json();
+        if (errJson?.error?.message) errorText += ` - ${errJson.error.message}`;
+      } catch (_) {}
+      throw new Error(errorText);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta del modelo.';
+
+    const aiMessage = {
+      id: Date.now() + 1,
+      role: 'assistant',
+      content: aiResponse,
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, aiMessage]);
+    setChatLoading(false);
+
+  } catch (error) {
+    console.error('Error en chat IA:', error);
+    const errorMessage = {
+      id: Date.now() + 1,
+      role: 'assistant',
+      content: `❌ Lo siento, hubo un error al procesar tu mensaje. ${error.message}`,
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, errorMessage]);
+    setChatLoading(false);
+  }
+};
+
+
+  const clearChat = () => {
+    setChatMessages([]);
+    setChatInput('');
   };
 
   const handleLogout = async () => {
@@ -1031,6 +1591,30 @@ const checkAuthAndRole = async () => {
     return Icon;
   };
 
+  const getFilteredUsers = () => {
+    return users.filter(user => {
+      if (filterRole && user.rol !== filterRole) return false;
+      if (filterGroup && user.grupo_id !== parseInt(filterGroup)) return false;
+      if (filterStatus === 'active' && !user.activo) return false;
+      if (filterStatus === 'inactive' && user.activo) return false;
+      return true;
+    });
+  };
+
+  const formatLastAccess = (lastAccess) => {
+    if (!lastAccess) return 'Nunca';
+    const date = new Date(lastAccess);
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) return 'Hace menos de 1 hora';
+    if (diffInHours < 24) return `Hace ${Math.floor(diffInHours)} horas`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Hace 1 día';
+    if (diffInDays < 30) return `Hace ${diffInDays} días`;
+    return date.toLocaleDateString('es-ES');
+  };
+
   const renderDashboard = () => {
     const aiRecommendations = generateAIRecommendations();
 
@@ -1047,7 +1631,7 @@ const checkAuthAndRole = async () => {
             color="#3B82F6" 
           />
           <MetricCard 
-            title="Tasa de Engagement" 
+            title="Tasa de Compromiso" 
             value={`${analytics.engagementRate}%`} 
             change={5} 
             icon={TrendingUp} 
@@ -1063,7 +1647,6 @@ const checkAuthAndRole = async () => {
           <MetricCard 
             title="Tiempo Promedio" 
             value={`${analytics.avgTimePerResource}m`} 
-            change={-2} 
             icon={Clock} 
             color="#F59E0B" 
           />
@@ -1118,42 +1701,253 @@ const checkAuthAndRole = async () => {
               <h3 className="text-lg font-bold mb-4">Recomendaciones IA Regenerativa</h3>
               
               {aiRecommendations.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  {aiRecommendations.map((rec, index) => (
-                    <div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-3 h-3 rounded-full mt-1 ${
-                          rec.priority === 'high' ? 'bg-red-400' : 
-                          rec.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
-                        }`} />
-                        <div>
-                          <p className="font-semibold text-sm mb-1">{rec.title}</p>
-                          <p className="text-xs opacity-90 mb-2">{rec.description}</p>
-                          <button className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors">
-                            {rec.action}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-                  <p className="text-center">✅ Tu sistema está bien balanceado. ¡Buen trabajo!</p>
-                </div>
-              )}
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+    {aiRecommendations.map((rec, index) => {
+      const IconComponent = rec.icon || AlertCircle;
+      return (
+        <div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all">
+          <div className="flex items-start gap-3">
+            <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
+              rec.priority === 'high' ? 'bg-red-400' : 
+              rec.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
+            }`} />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <IconComponent className="w-4 h-4" />
+                <p className="font-semibold text-sm">{rec.title}</p>
+              </div>
+              <p className="text-xs opacity-90 mb-2">{rec.description}</p>
+              <button 
+                onClick={() => {
+                  if (rec.type === 'ai_generator') {
+                    // Ir a recursos y abrir el Quiz Builder con IA
+                    setActiveTab('resources');
+                    
+                    // Crear un recurso temporal para abrir el builder
+                    const tempResource = {
+                      id: 'temp_' + Date.now(),
+                      titulo: 'Nuevo Quiz con IA',
+                      tipo: 'quiz',
+                      contenido_quiz: []
+                    };
+                    
+                    setTimeout(() => {
+                      setSelectedResource(tempResource);
+                      setShowQuizBuilder(true);
+                      
+                      // Scroll al generador de IA después de abrir
+                      setTimeout(() => {
+                        const aiSection = document.querySelector('.bg-gradient-to-r.from-indigo-50');
+                        if (aiSection) {
+                          aiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      }, 300);
+                    }, 100);
+                  } else if (rec.targetTab) {
+                    setActiveTab(rec.targetTab);
+                  }
+                }}
+                className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1"
+              >
+                {rec.type === 'ai_generator' && <Sparkles className="w-3 h-3" />}
+                {rec.action}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
+    <p className="text-center">✅ Tu sistema está bien balanceado. ¡Buen trabajo!</p>
+  </div>
+)}
 
               <div className="flex gap-2">
-                <button className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Generar Plan de Acción
-                </button>
-                <button className="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-30 transition-all flex items-center gap-2">
+                <button 
+                  onClick={() => setShowDetailedAnalytics(true)}
+                  className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
+                >
                   <BarChart3 className="w-4 h-4" />
-                  Ver Análisis Completo
+                  Ver Análisis Detallado
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+{/* Chat Interactivo con IA */}
+<div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-lg p-6 text-white shadow-lg">
+  <div className="flex items-start gap-4">
+    <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0">
+      <MessageCircle className="w-6 h-6" />
+    </div>
+    <div className="flex-1">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            💬 Chat Interactivo con IA
+            <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nuevo</span>
+          </h3>
+          <p className="text-sm text-blue-100">Pregunta sobre estadísticas, recomendaciones o cualquier duda del sistema</p>
+        </div>
+        <button
+          onClick={() => setShowAIChat(!showAIChat)}
+          className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all"
+        >
+          {showAIChat ? 'Cerrar Chat' : 'Abrir Chat'}
+        </button>
+      </div>
+
+      {showAIChat && (
+        <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
+          {/* Mensajes del chat */}
+          <div className="mb-4 max-h-96 overflow-y-auto space-y-3">
+            {chatMessages.length === 0 ? (
+              <div className="text-center py-8">
+                <Brain className="w-12 h-12 mx-auto mb-3 opacity-70" />
+                <p className="text-sm opacity-90 mb-4">¡Hola! Soy tu asistente de IA. Puedo ayudarte con:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <button
+                    onClick={() => handleAIChat('¿Cuál es el estado actual del sistema?')}
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                  >
+                    📊 Estado del sistema
+                  </button>
+                  <button
+                    onClick={() => handleAIChat('Dame recomendaciones para mejorar el Compromiso')}
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                  >
+                    💡 Mejorar Compromiso
+                  </button>
+                  <button
+                    onClick={() => handleAIChat('¿Qué recursos son los más populares?')}
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                  >
+                    ⭐ Recursos populares
+                  </button>
+                  <button
+                    onClick={() => handleAIChat('¿Cómo crear un quiz interactivo?')}
+                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                  >
+                    🎯 Crear quizzes
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        msg.role === 'user'
+                          ? 'bg-white text-purple-900'
+                          : 'bg-white bg-opacity-20 text-white'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {msg.role === 'assistant' && (
+                          <Brain className="w-4 h-4 mt-1 flex-shrink-0" />
+                        )}
+                        <div className="flex-1">
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {msg.timestamp.toLocaleTimeString('es-ES', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white bg-opacity-20 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 animate-pulse" />
+                        <span className="text-sm">Pensando...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Input del chat */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !chatLoading) {
+                  handleAIChat(chatInput);
+                }
+              }}
+              placeholder="Escribe tu pregunta..."
+              disabled={chatLoading}
+              className="flex-1 px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
+            />
+            <button
+              onClick={() => handleAIChat(chatInput)}
+              disabled={chatLoading || !chatInput.trim()}
+              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Enviar
+            </button>
+            {chatMessages.length > 0 && (
+              <button
+                onClick={clearChat}
+                className="bg-red-500 bg-opacity-50 hover:bg-opacity-70 text-white px-4 py-2 rounded-lg transition-all"
+                title="Limpiar chat"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+
+        {/* Reportes de Cursos */}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-600" />
+            Reportes de Cursos
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {courses.slice(0, 6).map((course) => (
+              <div key={course.id} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border-2 border-gray-200 hover:border-blue-300 transition-all">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-800 text-sm mb-1">{course.titulo}</h4>
+                    <p className="text-xs text-gray-600">{course.nivel_nombre}</p>
+                  </div>
+                  <div 
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${course.color}20` }}
+                  >
+                    <BookOpen className="w-5 h-5" style={{ color: course.color }} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => generateCourseReport(course.id)}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download className="w-3 h-3" />
+                  Generar Reporte
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -1175,7 +1969,7 @@ const checkAuthAndRole = async () => {
                 <Users className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-blue-800">Análisis completado</p>
-                  <p className="text-xs text-blue-600">Engagement: {analytics.engagementRate}%</p>
+                  <p className="text-xs text-blue-600">Compromiso: {analytics.engagementRate}%</p>
                 </div>
               </div>
               {analytics.topCourses.length > 0 && (
@@ -1192,7 +1986,7 @@ const checkAuthAndRole = async () => {
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-600" />
+              <Trophy className="w-5 h-5 text-yellow-600"/>
               Cursos Más Activos
             </h3>
             <div className="space-y-3">
@@ -1212,6 +2006,307 @@ const checkAuthAndRole = async () => {
               ))}
               {analytics.topCourses.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">No hay datos de actividad aún</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDetailedAnalytics = () => {
+    const students = users.filter(u => u.rol === 'estudiante');
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl z-10">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold mb-1">📊 Análisis Detallado</h2>
+                <p className="text-blue-100">Análisis por estudiante y por curso</p>
+              </div>
+              <button
+                onClick={() => setShowDetailedAnalytics(false)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Análisis por Estudiante */}
+            <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border-2 border-green-200">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Users className="w-6 h-6 text-green-600" />
+                Análisis por Estudiante
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Search className="w-4 h-4 inline mr-2" />
+                  Buscar Estudiante
+                </label>
+                <div className="flex gap-3">
+                  <select
+                    value={filterStudent}
+                    onChange={(e) => {
+                      setFilterStudent(e.target.value);
+                      if (e.target.value) {
+                        setSelectedStudent(students.find(s => s.id === parseInt(e.target.value)));
+                        fetchStudentProgress(parseInt(e.target.value));
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">Seleccionar estudiante...</option>
+                    {students.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.nombre} - {groups.find(g => g.id === student.grupo_id)?.nombre || 'Sin grupo'}
+                      </option>
+                    ))}
+                  </select>
+                  {filterStudent && (
+                    <button
+                      onClick={() => {
+                        setFilterStudent('');
+                        setSelectedStudent(null);
+                        setStudentProgress([]);
+                      }}
+                      className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {selectedStudent && (
+                <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                        {selectedStudent.nombre?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-800">{selectedStudent.nombre}</h4>
+                        <p className="text-sm text-gray-600">{selectedStudent.email}</p>
+                        <div className="flex gap-2 mt-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(selectedStudent.rol)}`}>
+                            {selectedStudent.rol}
+                          </span>
+                          {selectedStudent.grupo_id && (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                              {groups.find(g => g.id === selectedStudent.grupo_id)?.nombre}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Último acceso</p>
+                      <p className="text-sm font-semibold text-gray-800">{formatLastAccess(selectedStudent.ultimo_acceso)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-xs text-blue-600 font-semibold mb-1">Recursos Completados</p>
+                      <p className="text-2xl font-bold text-blue-800">{studentProgress.filter(p => p.completado).length}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <p className="text-xs text-green-600 font-semibold mb-1">Progreso Promedio</p>
+                      <p className="text-2xl font-bold text-green-800">
+                        {studentProgress.length > 0 
+                          ? Math.round(studentProgress.reduce((sum, p) => sum + (p.progreso || 0), 0) / studentProgress.length)
+                          : 0}%
+                      </p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <p className="text-xs text-purple-600 font-semibold mb-1">Puntos Totales</p>
+                      <p className="text-2xl font-bold text-purple-800">{selectedStudent.puntos_totales || 0}</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                      <p className="text-xs text-orange-600 font-semibold mb-1">Tiempo Total</p>
+                      <p className="text-2xl font-bold text-orange-800">
+                        {Math.round(studentProgress.reduce((sum, p) => sum + (p.tiempo_dedicado || 0), 0) / 60)}m
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t-2 border-gray-200 pt-4">
+                    <h5 className="font-semibold text-gray-800 mb-3">Progreso por Recurso</h5>
+                    {studentProgress.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {studentProgress.map((progress) => (
+                          <div key={progress.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-800">{progress.recursos?.titulo}</p>
+                              <p className="text-xs text-gray-600">{progress.recursos?.cursos?.titulo}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <p className="text-xs text-gray-500">Progreso</p>
+                                <p className="text-sm font-bold text-gray-800">{progress.progreso || 0}%</p>
+                              </div>
+                              {progress.completado ? (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <Clock className="w-5 h-5 text-orange-500" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No hay progreso registrado</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!selectedStudent && (
+                <div className="bg-white rounded-lg p-8 border-2 border-dashed border-gray-300 text-center">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">Selecciona un estudiante para ver su análisis detallado</p>
+                </div>
+              )}
+            </div>
+
+
+
+            {/* Análisis por Curso */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-purple-600" />
+                Análisis por Curso
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <Filter className="w-4 h-4 inline mr-2" />
+                  Filtrar por Curso
+                </label>
+                <div className="flex gap-3">
+                  <select
+                    value={filterCourse}
+                    onChange={(e) => {
+                      setFilterCourse(e.target.value);
+                      if (e.target.value) {
+                        setSelectedCourse(courses.find(c => c.id === parseInt(e.target.value)));
+                        fetchCourseAnalytics(parseInt(e.target.value));
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">Seleccionar curso...</option>
+                    {courses.map(course => (
+                      <option key={course.id} value={course.id}>
+                        {course.titulo} - {course.nivel_nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {filterCourse && (
+                    <button
+                      onClick={() => {
+                        setFilterCourse('');
+                        setSelectedCourse(null);
+                        setCourseAnalytics(null);
+                      }}
+                      className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {selectedCourse && courseAnalytics && (
+                <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div 
+                        className="w-16 h-16 rounded-xl flex items-center justify-center"
+                        style={{ backgroundColor: `${selectedCourse.color}20` }}
+                      >
+                        <BookOpen className="w-8 h-8" style={{ color: selectedCourse.color }} />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-800">{selectedCourse.titulo}</h4>
+                        <p className="text-sm text-gray-600">{selectedCourse.descripcion}</p>
+                        <div className="flex gap-2 mt-2">
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                            {selectedCourse.nivel_nombre}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => generateCourseReport(selectedCourse.id)}
+                      className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Descargar Reporte
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-xs text-blue-600 font-semibold mb-1">Total Estudiantes</p>
+                      <p className="text-2xl font-bold text-blue-800">{courseAnalytics.totalStudents}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <p className="text-xs text-green-600 font-semibold mb-1">Progreso Promedio</p>
+                      <p className="text-2xl font-bold text-green-800">{courseAnalytics.avgProgress}%</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <p className="text-xs text-purple-600 font-semibold mb-1">Recursos Completados</p>
+                      <p className="text-2xl font-bold text-purple-800">{courseAnalytics.completedResources}</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                      <p className="text-xs text-orange-600 font-semibold mb-1">Tiempo Total</p>
+                      <p className="text-2xl font-bold text-orange-800">{courseAnalytics.totalTime}m</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t-2 border-gray-200 pt-4">
+                    <h5 className="font-semibold text-gray-800 mb-3">Distribución de Progreso</h5>
+                    <div className="space-y-3">
+                      {courseAnalytics.progressData && courseAnalytics.progressData.length > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <span className="text-sm font-medium text-gray-800">Completado (100%)</span>
+                            <span className="text-sm font-bold text-green-800">
+                              {courseAnalytics.progressData.filter(p => p.progreso === 100).length} estudiantes
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <span className="text-sm font-medium text-gray-800">En Progreso (50-99%)</span>
+                            <span className="text-sm font-bold text-blue-800">
+                              {courseAnalytics.progressData.filter(p => p.progreso >= 50 && p.progreso < 100).length} estudiantes
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+                            <span className="text-sm font-medium text-gray-800">Iniciado (1-49%)</span>
+                            <span className="text-sm font-bold text-orange-800">
+                              {courseAnalytics.progressData.filter(p => p.progreso > 0 && p.progreso < 50).length} estudiantes
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-gray-500 text-center py-4">No hay datos de progreso</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!selectedCourse && (
+                <div className="bg-white rounded-lg p-8 border-2 border-dashed border-gray-300 text-center">
+                  <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">Selecciona un curso para ver su análisis detallado</p>
+                </div>
               )}
             </div>
           </div>
@@ -1330,6 +2425,7 @@ const checkAuthAndRole = async () => {
                     setActiveTab(tab.id);
                     setShowQuizBuilder(false);
                     setPreviewQuiz(false);
+                    setShowDetailedAnalytics(false);
                   }}
                   className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
                     activeTab === tab.id
@@ -1353,79 +2449,310 @@ const checkAuthAndRole = async () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800">Gestión de Usuarios</h2>
-              <div className="text-sm text-gray-600">Total: {users.length} usuarios</div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowNewGroup(true)}
+                  className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuevo Grupo
+                </button>
+                <div className="text-sm text-gray-600 flex items-center">
+                  Total: {getFilteredUsers().length} usuarios
+                </div>
+              </div>
             </div>
 
-            {users.length === 0 ? (
+            {/* Formulario Nuevo Grupo */}
+            {showNewGroup && (
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Crear Nuevo Grupo</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Grupo</label>
+                    <input
+                      type="text"
+                      value={newGroup.nombre}
+                      onChange={(e) => setNewGroup({ ...newGroup, nombre: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="Ej: Grupo A, Grupo B"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                    <input
+                      type="text"
+                      value={newGroup.descripcion}
+                      onChange={(e) => setNewGroup({ ...newGroup, descripcion: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="Descripción opcional"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={createGroup}
+                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    Guardar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewGroup(false);
+                      setNewGroup({ nombre: '', descripcion: '' });
+                    }}
+                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filtros */}
+            <div className="bg-white rounded-lg shadow-sm border p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Filter className="w-5 h-5 text-gray-600" />
+                <h3 className="font-semibold text-gray-800">Filtros</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                  <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todos los roles</option>
+                    {availableRoles.map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Grupo</label>
+                  <select
+                    value={filterGroup}
+                    onChange={(e) => setFilterGroup(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todos los grupos</option>
+                    {groups.map(group => (
+                      <option key={group.id} value={group.id}>{group.nombre}</option>
+                    ))}
+                    <option value="sin_grupo">Sin grupo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Todos</option>
+                    <option value="active">Activos</option>
+                    <option value="inactive">Inactivos</option>
+                  </select>
+                </div>
+              </div>
+              {(filterRole || filterGroup || filterStatus) && (
+                <button
+                  onClick={() => {
+                    setFilterRole('');
+                    setFilterGroup('');
+                    setFilterStatus('');
+                  }}
+                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            {/* Lista de Grupos */}
+            {groups.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Grupos Existentes</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {groups.map(group => {
+                    const groupUserCount = users.filter(u => u.grupo_id === group.id).length;
+                    return (
+                      <div key={group.id} className="bg-purple-50 border-2 border-purple-200 rounded-lg p-3 hover:bg-purple-100 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800 text-sm">{group.nombre}</p>
+                            <p className="text-xs text-gray-600 mt-1">{groupUserCount} usuarios</p>
+                          </div>
+                          <button
+                            onClick={() => deleteGroup(group.id)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Tabla de Usuarios */}
+            {getFilteredUsers().length === 0 ? (
               <div className="text-center py-12 bg-white rounded-lg shadow-sm border">
                 <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No hay usuarios registrados</p>
+                <p className="text-gray-500">No hay usuarios que coincidan con los filtros</p>
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
-                              {user.nombre?.charAt(0).toUpperCase() || 'U'}
-                            </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">{user.nombre || 'Sin nombre'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                        <td className="px-6 py-4">
-                          {editingUser === user.id ? (
-                            <select
-                              defaultValue={user.rol}
-                              onChange={(e) => updateUserRole(user.id, e.target.value)}
-                              className="text-sm border rounded px-2 py-1"
-                            >
-                              <option value="visitante">Visitante</option>
-                              <option value="estudiante">Estudiante</option>
-                              <option value="docente">Docente</option>
-                              <option value="admin">Admin</option>
-                            </select>
-                          ) : (
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(user.rol)}`}>
-                              {user.rol}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setEditingUser(editingUser === user.id ? null : user.id)}
-                              className="text-blue-600 hover:text-blue-800 p-2"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            {user.id !== currentUser.id && (
-                              <button
-                                onClick={() => deleteUser(user.id)}
-                                className="text-red-600 hover:text-red-800 p-2"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roles</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grupo</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Último Acceso</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {getFilteredUsers().map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                                {user.nombre?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                              <div className="ml-3">
+                                <div className="text-sm font-medium text-gray-900">{user.nombre || 'Sin nombre'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
+                          <td className="px-6 py-4">
+                            {editingUser === user.id ? (
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                  {availableRoles.map(role => (
+                                    <label key={role.value} className="flex items-center gap-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedRoles[user.id]?.includes(role.value) || (selectedRoles[user.id] === undefined && user.rol === role.value)}
+                                        onChange={(e) => {
+                                          const currentRoles = selectedRoles[user.id] || [user.rol];
+                                          if (e.target.checked) {
+                                            setSelectedRoles({
+                                              ...selectedRoles,
+                                              [user.id]: [...currentRoles, role.value]
+                                            });
+                                          } else {
+                                            setSelectedRoles({
+                                              ...selectedRoles,
+                                              [user.id]: currentRoles.filter(r => r !== role.value)
+                                            });
+                                          }
+                                        }}
+                                        className="w-3 h-3"
+                                      />
+                                      <span className="text-xs">{role.label}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const roles = selectedRoles[user.id] || [user.rol];
+                                    updateUserRoles(user.id, roles);
+                                  }}
+                                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                                >
+                                  Guardar Roles
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(user.rol)}`}>
+                                  {user.rol}
+                                </span>
+                                {user.roles_adicionales && user.roles_adicionales.map((rol, idx) => (
+                                  <span key={idx} className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(rol)}`}>
+                                    {rol}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <select
+                              value={user.grupo_id || ''}
+                              onChange={(e) => updateUserGroup(user.id, e.target.value)}
+                              className="text-xs border rounded px-2 py-1"
+                            >
+                              <option value="">Sin grupo</option>
+                              {groups.map(group => (
+                                <option key={group.id} value={group.id}>{group.nombre}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <span className="text-xs text-gray-600">{formatLastAccess(user.ultimo_acceso)}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+  {(() => {
+    const status = getUserStatus(user.ultimo_acceso);
+    return (
+      <div className="flex items-center gap-2">
+        <div className={`w-3 h-3 rounded-full ${
+          status.color === 'green' ? 'bg-green-500 animate-pulse shadow-lg shadow-green-300' : 
+          status.color === 'blue' ? 'bg-blue-500' : 
+          status.color === 'gray' ? 'bg-gray-400' :
+          'bg-red-500'
+        }`} />
+        <span className={`text-xs font-medium ${
+          status.color === 'green' ? 'text-green-800' : 
+          status.color === 'blue' ? 'text-blue-800' : 
+          status.color === 'gray' ? 'text-gray-600' :
+          'text-red-800'
+        }`}>
+          {status.label}
+        </span>
+      </div>
+    );
+  })()}
+</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => setEditingUser(editingUser === user.id ? null : user.id)}
+                                className="text-blue-600 hover:text-blue-800 p-2"
+                                title="Editar roles"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              {user.id !== currentUser.id && (
+                                <button
+                                  onClick={() => deleteUser(user.id)}
+                                  className="text-red-600 hover:text-red-800 p-2"
+                                  title="Eliminar usuario"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -1557,6 +2884,13 @@ const checkAuthAndRole = async () => {
                         <span>Orden: {course.orden}</span>
                       </div>
                       <div className="flex gap-2 mt-4">
+                        <button
+                          onClick={() => generateCourseReport(course.id)}
+                          className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          Reporte
+                        </button>
                         <button
                           onClick={() => deleteCourse(course.id)}
                           className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -2004,6 +3338,75 @@ const checkAuthAndRole = async () => {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* Generador de Preguntas con IA desde Documento */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200">
+                <div className="flex items-start gap-4">
+                  <div className="bg-indigo-500 rounded-lg p-3 flex-shrink-0">
+                    <Brain className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">🤖 Generador de Preguntas con IA</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Sube un documento (PDF, TXT, DOCX) y la IA generará preguntas automáticamente basadas en el contenido para estudiantes de básica elemental.
+                    </p>
+                    
+                    <div className="flex gap-3 items-center">
+                      <label className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2 bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-lg p-4 transition-colors">
+                          <FileUp className="w-5 h-5 text-indigo-600" />
+                          <div className="flex-1">
+                            {uploadedDocument ? (
+                              <div>
+                                <p className="text-sm font-semibold text-gray-800">{uploadedDocument.name}</p>
+                                <p className="text-xs text-gray-500">{(uploadedDocument.size / 1024).toFixed(2)} KB</p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-600">Haz clic para subir documento</p>
+                            )}
+                          </div>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".pdf,.txt,.doc,.docx"
+                          onChange={handleDocumentUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      
+                      {uploadedDocument && (
+                        <button
+                          onClick={generateQuestionsFromDocument}
+                          disabled={generatingQuestions}
+                          className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {generatingQuestions ? (
+                            <>
+                              <RefreshCw className="w-5 h-5 animate-spin" />
+                              Generando...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-5 h-5" />
+                              Generar Preguntas
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {uploadedDocument && (
+                      <button
+                        onClick={() => setUploadedDocument(null)}
+                        className="mt-2 text-sm text-red-600 hover:text-red-800 flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Quitar documento
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Selector de tipo de pregunta */}
               <div>
                 <label className="block text-sm font-bold text-gray-800 mb-3">🎯 Tipo de Pregunta</label>
@@ -2035,33 +3438,46 @@ const checkAuthAndRole = async () => {
                 </div>
               </div>
 
-              {/* Campo de pregunta */}
+              {/* Campo de pregunta con audio automático */}
               <div>
                 <label className="block text-sm font-bold text-gray-800 mb-2">❓ Pregunta</label>
-                <input
-                  type="text"
-                  value={currentQuestion.pregunta}
-                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, pregunta: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg"
-                  placeholder="Escribe tu pregunta aquí..."
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={currentQuestion.pregunta}
+                    onChange={(e) => setCurrentQuestion({ ...currentQuestion, pregunta: e.target.value })}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg"
+                    placeholder="Escribe tu pregunta aquí..."
+                  />
+                  <button
+                    onClick={() => {
+                      if (currentQuestion.pregunta) {
+                        speakText(currentQuestion.pregunta);
+                      }
+                    }}
+                    disabled={!currentQuestion.pregunta}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Escuchar pregunta"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="audio-auto"
+                    checked={currentQuestion.audio_pregunta}
+                    onChange={(e) => setCurrentQuestion({ ...currentQuestion, audio_pregunta: e.target.checked })}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <label htmlFor="audio-auto" className="text-sm text-gray-700 font-medium">
+                    🔊 Reproducir audio automáticamente (recomendado para básica elemental)
+                  </label>
+                </div>
               </div>
 
               {/* Opciones multimedia */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="flex items-center gap-2 cursor-pointer bg-blue-50 p-4 rounded-xl hover:bg-blue-100 transition-colors border-2 border-blue-200">
-                    <input
-                      type="checkbox"
-                      checked={currentQuestion.audio_pregunta}
-                      onChange={(e) => setCurrentQuestion({ ...currentQuestion, audio_pregunta: e.target.checked })}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <Volume2 className="w-5 h-5 text-blue-600" />
-                    <span className="text-sm font-semibold text-gray-800">Leer Pregunta</span>
-                  </label>
-                </div>
-
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-2">
                     <Video className="w-5 h-5 inline mr-2 text-orange-600" />
@@ -2091,6 +3507,22 @@ const checkAuthAndRole = async () => {
                       <option key={emoji} value={emoji}>{emoji}</option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    <Mic className="w-5 h-5 inline mr-2 text-green-600" />
+                    Retroalimentación
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-green-50 p-3 rounded-lg hover:bg-green-100 transition-colors border-2 border-green-200">
+                    <input
+                      type="checkbox"
+                      checked={currentQuestion.audio_retroalimentacion}
+                      onChange={(e) => setCurrentQuestion({ ...currentQuestion, audio_retroalimentacion: e.target.checked })}
+                      className="w-5 h-5 text-green-600"
+                    />
+                    <span className="text-sm font-semibold text-gray-800">Leer Feedback</span>
+                  </label>
                 </div>
               </div>
 
@@ -2177,19 +3609,6 @@ const checkAuthAndRole = async () => {
                     placeholder="0 = sin límite"
                   />
                 </div>
-
-                <div>
-                  <label className="flex items-center gap-2 cursor-pointer bg-green-50 p-4 rounded-xl hover:bg-green-100 transition-colors border-2 border-green-200">
-                    <input
-                      type="checkbox"
-                      checked={currentQuestion.audio_retroalimentacion}
-                      onChange={(e) => setCurrentQuestion({ ...currentQuestion, audio_retroalimentacion: e.target.checked })}
-                      className="w-5 h-5 text-green-600"
-                    />
-                    <Mic className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-semibold text-gray-800">Leer Feedback</span>
-                  </label>
-                </div>
               </div>
 
               {/* Retroalimentación */}
@@ -2249,7 +3668,7 @@ const checkAuthAndRole = async () => {
                               <div className="flex gap-3 text-xs text-gray-500 mt-1">
                                 <span>⭐ {q.puntos} puntos</span>
                                 <span>📝 {q.opciones.length} opciones</span>
-                                {q.audio_pregunta && <span>🔊 Audio</span>}
+                                {q.audio_pregunta && <span>🔊 Audio Auto</span>}
                                 {q.video_url && <span>🎥 Video</span>}
                                 {q.imagen_url && <span>🖼️ Imagen</span>}
                               </div>
@@ -2325,13 +3744,17 @@ const checkAuthAndRole = async () => {
         </div>
       )}
 
+      {/* MODAL DE ANÁLISIS DETALLADO */}
+      {showDetailedAnalytics && renderDetailedAnalytics()}
+
       <footer className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-600">
           <div>© 2025 Didactikapp - Básica Elemental</div>
           <div className="flex items-center gap-4">
             <span>Usuarios: {users.length}</span>
             <span>Cursos: {courses.length}</span>
-            <span>v2.1.0</span>
+            <span>Recursos: {resources.length}</span>
+            <span>v2.2.0</span>
           </div>
         </div>
       </footer>
