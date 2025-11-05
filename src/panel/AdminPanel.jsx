@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Users, Settings, BookOpen, LogOut, Edit2, Trash2, Plus, Save, X, 
-  GraduationCap, AlertCircle, RefreshCw, Award, MessageCircle, 
+import {
+  Users, Settings, BookOpen, LogOut, Edit2, Trash2, Plus, Save, X,
+  GraduationCap, AlertCircle, RefreshCw, Award, MessageCircle,
   BarChart3, FileText, Play, Image, Headphones, Gamepad2, HelpCircle,
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle,
   Eye, Sparkles, Upload, Mic, Video, Volume2, Download, Move, ChevronUp, ChevronDown,
-  Clock, Activity, TrendingDown, Filter, UserCheck, UserX, FileUp, Brain, Search, 
+  Clock, Activity, TrendingDown, Filter, UserCheck, UserX, FileUp, Brain, Search,
   PieChart, BarChart2, LineChart
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
@@ -14,21 +14,21 @@ import { useNavigate } from 'react-router-dom';
 // Componente de Gráfico de Barras
 const BarChart = ({ title, data, color, maxValue }) => {
   if (!data || data.length === 0) return null;
-  
+
   return (
     <div className="bg-white border-2 border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-center mb-3">
         <span className="text-sm font-bold text-gray-800">{title}</span>
       </div>
-      
+
       <div className="space-y-2">
         {data.map((item, index) => (
           <div key={index} className="flex items-center gap-3">
             <span className="text-xs text-gray-600 w-20 truncate">{item.label}</span>
             <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div 
+              <div
                 className="h-full rounded-full transition-all duration-500"
-                style={{ 
+                style={{
                   width: `${(item.value / maxValue) * 100}%`,
                   backgroundColor: color
                 }}
@@ -100,9 +100,8 @@ const MetricCard = ({ title, value, change, icon: Icon, color }) => (
       </div>
     </div>
     {change !== undefined && (
-      <div className={`flex items-center gap-1 text-xs font-medium ${
-        change >= 0 ? 'text-green-600' : 'text-red-600'
-      }`}>
+      <div className={`flex items-center gap-1 text-xs font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'
+        }`}>
         {change >= 0 ? (
           <TrendingUp className="w-3 h-3" />
         ) : (
@@ -116,7 +115,7 @@ const MetricCard = ({ title, value, change, icon: Icon, color }) => (
 
 export default function EnhancedAdminPanel() {
   const navigate = useNavigate();
-  
+
   // Estados principales
   const [users, setUsers] = useState([]);
   const [levels, setLevels] = useState([]);
@@ -124,7 +123,7 @@ export default function EnhancedAdminPanel() {
   const [resources, setResources] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [groups, setGroups] = useState([]);
-  
+
   // Estados de UI
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,19 +131,19 @@ export default function EnhancedAdminPanel() {
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Estados de edición
   const [editingUser, setEditingUser] = useState(null);
   const [editingLevel, setEditingLevel] = useState(null);
   const [selectedRoles, setSelectedRoles] = useState({});
   const [selectedGroups, setSelectedGroups] = useState({});
-  
+
   // Estados de formularios
   const [showNewLevel, setShowNewLevel] = useState(false);
   const [showNewCourse, setShowNewCourse] = useState(false);
   const [showNewResource, setShowNewResource] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
-  
+
   const [newLevel, setNewLevel] = useState({ nombre: '', descripcion: '', orden: 1 });
   const [newCourse, setNewCourse] = useState({
     titulo: '',
@@ -163,7 +162,7 @@ export default function EnhancedAdminPanel() {
     orden: 1
   });
   const [newGroup, setNewGroup] = useState({ nombre: '', descripcion: '' });
-  
+
   // Estados de analíticas avanzadas
   const [analytics, setAnalytics] = useState({
     totalUsers: 0,
@@ -216,10 +215,10 @@ export default function EnhancedAdminPanel() {
   });
 
   // Estados para Chat IA
-const [showAIChat, setShowAIChat] = useState(false);
-const [chatMessages, setChatMessages] = useState([]);
-const [chatInput, setChatInput] = useState('');
-const [chatLoading, setChatLoading] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState('');
@@ -229,21 +228,21 @@ const [chatLoading, setChatLoading] = useState(false);
   // Función para obtener el estado real del usuario
   const getUserStatus = (lastAccess) => {
     if (!lastAccess) return { isActive: false, label: 'Nunca conectado', color: 'gray' };
-    
+
     const date = new Date(lastAccess);
     const now = new Date();
     const diffInMinutes = (now - date) / (1000 * 60);
-    
+
     // En línea si accedió en los últimos 30 minutos
     if (diffInMinutes <= 30) {
       return { isActive: true, label: 'En línea', color: 'green' };
     }
-    
+
     // Activo recientemente si accedió en las últimas 24 horas
     if (diffInMinutes <= 1440) { // 24 horas = 1440 minutos
       return { isActive: true, label: 'Activo', color: 'blue' };
     }
-    
+
     // Inactivo si ha pasado más de 24 horas
     return { isActive: false, label: 'Inactivo', color: 'red' };
   };
@@ -258,7 +257,7 @@ const [chatLoading, setChatLoading] = useState(false);
   ];
 
   const emojis = [
-    '🎨', '🎮', '🎵', '🌟', '🎉', '🚀', '🌈', '⭐', '💡', '🎯', 
+    '🎨', '🎮', '🎵', '🌟', '🎉', '🚀', '🌈', '⭐', '💡', '🎯',
     '🏆', '🎪', '🦁', '🐘', '🦋', '🌺', '🍎', '📚', '✏️', '🎈',
     '🔢', '🅰️', '🅱️', '🔤', '📝', '✅', '❌', '➕', '➖', '✖️',
     '🌍', '🌞', '🌙', '⭐', '🔥', '💧', '🍃', '🌸', '🐶', '🐱'
@@ -284,7 +283,7 @@ const [chatLoading, setChatLoading] = useState(false);
   const checkAuthAndRole = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !session) {
         navigate('/login');
         return;
@@ -343,7 +342,7 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('usuarios')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       setUsers(data || []);
     } catch (err) {
@@ -358,7 +357,7 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('grupos')
         .select('*')
         .order('nombre', { ascending: true });
-      
+
       if (error) throw error;
       setGroups(data || []);
     } catch (err) {
@@ -372,7 +371,7 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('niveles_aprendizaje')
         .select('*')
         .order('orden', { ascending: true });
-      
+
       if (error) throw error;
       setLevels(data || []);
     } catch (err) {
@@ -387,14 +386,14 @@ const [chatLoading, setChatLoading] = useState(false);
         .select(`*, niveles_aprendizaje(nombre)`)
         .eq('activo', true)
         .order('orden', { ascending: true });
-      
+
       if (error) throw error;
-      
+
       const coursesData = data?.map(course => ({
         ...course,
         nivel_nombre: course.niveles_aprendizaje?.nombre || 'Sin nivel'
       })) || [];
-      
+
       setCourses(coursesData);
     } catch (err) {
       console.error('Error cargando cursos:', err);
@@ -408,15 +407,15 @@ const [chatLoading, setChatLoading] = useState(false);
         .select(`*, cursos(titulo)`)
         .eq('activo', true)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       const resourcesData = data?.map(resource => ({
         ...resource,
         curso_titulo: resource.cursos?.titulo || 'Sin curso',
         completados: 0
       })) || [];
-      
+
       setResources(resourcesData);
     } catch (err) {
       console.error('Error cargando recursos:', err);
@@ -429,7 +428,7 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('logros')
         .select('*')
         .eq('activo', true);
-      
+
       if (error) throw error;
       setAchievements(data || []);
     } catch (err) {
@@ -466,12 +465,12 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('usuarios')
         .select('created_at')
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-      
+
       if (error) throw error;
-      
+
       const lastMonthUsers = data?.length || 0;
       const previousMonthUsers = users.length - lastMonthUsers;
-      
+
       if (previousMonthUsers === 0) return 100;
       return Math.round(((lastMonthUsers - previousMonthUsers) / previousMonthUsers) * 100);
     } catch (err) {
@@ -485,12 +484,12 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('progreso_usuarios')
         .select('*')
         .gte('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-      
+
       if (error) throw error;
-      
+
       const activeUsers = new Set(data?.map(p => p.usuario_id) || []).size;
       const totalStudents = users.filter(u => u.rol === 'estudiante').length;
-      
+
       return totalStudents > 0 ? Math.round((activeUsers / totalStudents) * 100) : 0;
     } catch (err) {
       return 0;
@@ -503,12 +502,12 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('progreso_usuarios')
         .select('*')
         .eq('completado', true);
-      
+
       if (error) throw error;
-      
+
       const totalCompletions = data?.length || 0;
       const totalPossibleCompletions = users.filter(u => u.rol === 'estudiante').length * resources.length;
-      
+
       return totalPossibleCompletions > 0 ? Math.round((totalCompletions / totalPossibleCompletions) * 100) : 0;
     } catch (err) {
       return 0;
@@ -528,9 +527,9 @@ const [chatLoading, setChatLoading] = useState(false);
             )
           )
         `);
-      
+
       if (error) throw error;
-      
+
       const courseProgress = {};
       data?.forEach(progress => {
         const courseId = progress.recursos?.curso_id;
@@ -542,9 +541,9 @@ const [chatLoading, setChatLoading] = useState(false);
           courseProgress[courseId].count++;
         }
       });
-      
+
       return Object.entries(courseProgress)
-        .sort(([,a], [,b]) => b.count - a.count)
+        .sort(([, a], [, b]) => b.count - a.count)
         .slice(0, 5)
         .map(([courseId, data]) => ({
           courseId,
@@ -562,12 +561,12 @@ const [chatLoading, setChatLoading] = useState(false);
         .from('progreso_usuarios')
         .select('tiempo_dedicado')
         .not('tiempo_dedicado', 'is', null);
-      
+
       if (error) throw error;
-      
+
       const totalTime = data?.reduce((sum, item) => sum + (item.tiempo_dedicado || 0), 0) || 0;
       const count = data?.length || 1;
-      
+
       return Math.round(totalTime / count / 60);
     } catch (err) {
       return 0;
@@ -576,290 +575,290 @@ const [chatLoading, setChatLoading] = useState(false);
 
   // ===== NUEVOS ALGORITMOS DE ANÁLISIS =====
 
-// Algoritmo 1: Detección de Aprendizaje Real
-const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
-  try {
-    const { data, error } = await supabase
-      .from('progreso_usuarios')
-      .select(`
+  // Algoritmo 1: Detección de Aprendizaje Real
+  const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
+    try {
+      const { data, error } = await supabase
+        .from('progreso_usuarios')
+        .select(`
         *,
         recursos!inner(titulo, tipo, curso_id)
       `)
-      .eq('usuario_id', studentId)
-      .order('updated_at', { ascending: true });
+        .eq('usuario_id', studentId)
+        .order('updated_at', { ascending: true });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const filteredData = courseId 
-      ? data.filter(p => p.recursos.curso_id === courseId)
-      : data;
+      const filteredData = courseId
+        ? data.filter(p => p.recursos.curso_id === courseId)
+        : data;
 
-    // Análisis de patrones de aprendizaje
-    const analysis = {
-      isLearning: true,
-      confidence: 0,
-      indicators: {
-        averageAttempts: 0,
-        averageTimePerQuestion: 0,
-        repetitionRate: 0,
-        retentionRate: 0,
-        improvementTrend: 0
-      },
-      alerts: []
-    };
+      // Análisis de patrones de aprendizaje
+      const analysis = {
+        isLearning: true,
+        confidence: 0,
+        indicators: {
+          averageAttempts: 0,
+          averageTimePerQuestion: 0,
+          repetitionRate: 0,
+          retentionRate: 0,
+          improvementTrend: 0
+        },
+        alerts: []
+      };
 
-    if (filteredData.length === 0) {
-      return { ...analysis, isLearning: false, alerts: ['Sin datos suficientes'] };
-    }
-
-    // 1. Tasa de Intentos (más de 3 intentos indica dificultad)
-    const attempts = filteredData.map(p => p.intentos || 1);
-    analysis.indicators.averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
-    
-    if (analysis.indicators.averageAttempts > 3) {
-      analysis.alerts.push('⚠️ Requiere muchos intentos - posible dificultad de comprensión');
-      analysis.confidence -= 20;
-    }
-
-    // 2. Tiempo de Respuesta (muy rápido o muy lento)
-    const times = filteredData.map(p => p.tiempo_dedicado || 0).filter(t => t > 0);
-    if (times.length > 0) {
-      analysis.indicators.averageTimePerQuestion = times.reduce((a, b) => a + b, 0) / times.length;
-      
-      // Respuestas muy rápidas (< 5 seg) o muy lentas (> 300 seg)
-      if (analysis.indicators.averageTimePerQuestion < 5) {
-        analysis.alerts.push('⚡ Respuestas muy rápidas - posible adivinación');
-        analysis.confidence -= 15;
-      } else if (analysis.indicators.averageTimePerQuestion > 300) {
-        analysis.alerts.push('🐌 Tiempo excesivo - posible distracción');
-        analysis.confidence -= 10;
+      if (filteredData.length === 0) {
+        return { ...analysis, isLearning: false, alerts: ['Sin datos suficientes'] };
       }
-    }
 
-    // 3. Tasa de Repetición (recursos reiniciados)
-    const repeated = filteredData.filter(p => (p.intentos || 1) > 1).length;
-    analysis.indicators.repetitionRate = (repeated / filteredData.length) * 100;
-    
-    if (analysis.indicators.repetitionRate > 50) {
-      analysis.alerts.push('🔄 Alta tasa de repetición - refuerzo necesario');
-      analysis.confidence -= 15;
-    }
+      // 1. Tasa de Intentos (más de 3 intentos indica dificultad)
+      const attempts = filteredData.map(p => p.intentos || 1);
+      analysis.indicators.averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
 
-    // 4. Tendencia de Mejora (últimos 5 vs primeros 5)
-    if (filteredData.length >= 10) {
-      const first5 = filteredData.slice(0, 5);
-      const last5 = filteredData.slice(-5);
-      
-      const firstAvg = first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-      const lastAvg = last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-      
-      analysis.indicators.improvementTrend = lastAvg - firstAvg;
-      
-      if (analysis.indicators.improvementTrend < 0) {
-        analysis.alerts.push('📉 Rendimiento decreciente - necesita apoyo');
+      if (analysis.indicators.averageAttempts > 3) {
+        analysis.alerts.push('⚠️ Requiere muchos intentos - posible dificultad de comprensión');
         analysis.confidence -= 20;
-        analysis.isLearning = false;
-      } else if (analysis.indicators.improvementTrend > 15) {
-        analysis.alerts.push('✅ Excelente progreso - aprendizaje efectivo');
-        analysis.confidence += 30;
       }
+
+      // 2. Tiempo de Respuesta (muy rápido o muy lento)
+      const times = filteredData.map(p => p.tiempo_dedicado || 0).filter(t => t > 0);
+      if (times.length > 0) {
+        analysis.indicators.averageTimePerQuestion = times.reduce((a, b) => a + b, 0) / times.length;
+
+        // Respuestas muy rápidas (< 5 seg) o muy lentas (> 300 seg)
+        if (analysis.indicators.averageTimePerQuestion < 5) {
+          analysis.alerts.push('⚡ Respuestas muy rápidas - posible adivinación');
+          analysis.confidence -= 15;
+        } else if (analysis.indicators.averageTimePerQuestion > 300) {
+          analysis.alerts.push('🐌 Tiempo excesivo - posible distracción');
+          analysis.confidence -= 10;
+        }
+      }
+
+      // 3. Tasa de Repetición (recursos reiniciados)
+      const repeated = filteredData.filter(p => (p.intentos || 1) > 1).length;
+      analysis.indicators.repetitionRate = (repeated / filteredData.length) * 100;
+
+      if (analysis.indicators.repetitionRate > 50) {
+        analysis.alerts.push('🔄 Alta tasa de repetición - refuerzo necesario');
+        analysis.confidence -= 15;
+      }
+
+      // 4. Tendencia de Mejora (últimos 5 vs primeros 5)
+      if (filteredData.length >= 10) {
+        const first5 = filteredData.slice(0, 5);
+        const last5 = filteredData.slice(-5);
+
+        const firstAvg = first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+        const lastAvg = last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+
+        analysis.indicators.improvementTrend = lastAvg - firstAvg;
+
+        if (analysis.indicators.improvementTrend < 0) {
+          analysis.alerts.push('📉 Rendimiento decreciente - necesita apoyo');
+          analysis.confidence -= 20;
+          analysis.isLearning = false;
+        } else if (analysis.indicators.improvementTrend > 15) {
+          analysis.alerts.push('✅ Excelente progreso - aprendizaje efectivo');
+          analysis.confidence += 30;
+        }
+      }
+
+      // 5. Tasa de Retención (completados que siguen completados)
+      const completed = filteredData.filter(p => p.completado).length;
+      analysis.indicators.retentionRate = (completed / filteredData.length) * 100;
+
+      if (analysis.indicators.retentionRate < 30) {
+        analysis.alerts.push('⚠️ Baja retención - revisar metodología');
+        analysis.confidence -= 15;
+      }
+
+      // Calcular confianza final (0-100)
+      analysis.confidence = Math.max(0, Math.min(100, 60 + analysis.confidence));
+
+      // Determinar si está aprendiendo
+      analysis.isLearning = analysis.confidence >= 50;
+
+      return analysis;
+    } catch (err) {
+      console.error('Error analizando efectividad:', err);
+      return null;
     }
+  };
 
-    // 5. Tasa de Retención (completados que siguen completados)
-    const completed = filteredData.filter(p => p.completado).length;
-    analysis.indicators.retentionRate = (completed / filteredData.length) * 100;
-    
-    if (analysis.indicators.retentionRate < 30) {
-      analysis.alerts.push('⚠️ Baja retención - revisar metodología');
-      analysis.confidence -= 15;
-    }
-
-    // Calcular confianza final (0-100)
-    analysis.confidence = Math.max(0, Math.min(100, 60 + analysis.confidence));
-    
-    // Determinar si está aprendiendo
-    analysis.isLearning = analysis.confidence >= 50;
-
-    return analysis;
-  } catch (err) {
-    console.error('Error analizando efectividad:', err);
-    return null;
-  }
-};
-
-// Algoritmo 2: Detección de Atención
-const analyzeAttentionLevel = async (studentId, courseId = null) => {
-  try {
-    const { data, error } = await supabase
-      .from('progreso_usuarios')
-      .select(`
+  // Algoritmo 2: Detección de Atención
+  const analyzeAttentionLevel = async (studentId, courseId = null) => {
+    try {
+      const { data, error } = await supabase
+        .from('progreso_usuarios')
+        .select(`
         *,
         recursos!inner(curso_id)
       `)
-      .eq('usuario_id', studentId)
-      .order('updated_at', { ascending: false })
-      .limit(20); // Últimas 20 actividades
+        .eq('usuario_id', studentId)
+        .order('updated_at', { ascending: false })
+        .limit(20); // Últimas 20 actividades
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const filteredData = courseId 
-      ? data.filter(p => p.recursos.curso_id === courseId)
-      : data;
+      const filteredData = courseId
+        ? data.filter(p => p.recursos.curso_id === courseId)
+        : data;
 
-    const attention = {
-      level: 'Buena',
-      score: 75,
-      indicators: {
-        inactivityPeriods: 0,
-        consistencyScore: 0,
-        focusIndex: 0
-      },
-      recommendations: []
-    };
+      const attention = {
+        level: 'Buena',
+        score: 75,
+        indicators: {
+          inactivityPeriods: 0,
+          consistencyScore: 0,
+          focusIndex: 0
+        },
+        recommendations: []
+      };
 
-    if (filteredData.length < 3) {
-      return { ...attention, level: 'Insuficientes datos', score: 0 };
-    }
+      if (filteredData.length < 3) {
+        return { ...attention, level: 'Insuficientes datos', score: 0 };
+      }
 
-    // 1. Detectar períodos de inactividad largos
-    const updates = filteredData.map(p => new Date(p.updated_at)).sort((a, b) => a - b);
-    let longGaps = 0;
-    
-    for (let i = 1; i < updates.length; i++) {
-      const diffMinutes = (updates[i] - updates[i-1]) / (1000 * 60);
-      if (diffMinutes > 30) longGaps++; // Más de 30 min entre actividades
-    }
-    
-    attention.indicators.inactivityPeriods = longGaps;
-    
-    if (longGaps > 3) {
-      attention.score -= 20;
-      attention.recommendations.push('🕐 Establecer horarios regulares de estudio');
-    }
+      // 1. Detectar períodos de inactividad largos
+      const updates = filteredData.map(p => new Date(p.updated_at)).sort((a, b) => a - b);
+      let longGaps = 0;
 
-    // 2. Consistencia de rendimiento
-    const progressValues = filteredData.map(p => p.progreso || 0);
-    const stdDev = calculateStdDev(progressValues);
-    const mean = progressValues.reduce((a, b) => a + b, 0) / progressValues.length;
-    
-    attention.indicators.consistencyScore = stdDev;
-    
-    if (stdDev > 30) {
-      attention.score -= 15;
-      attention.recommendations.push('📊 Rendimiento inconsistente - revisar ambiente de estudio');
-    }
+      for (let i = 1; i < updates.length; i++) {
+        const diffMinutes = (updates[i] - updates[i - 1]) / (1000 * 60);
+        if (diffMinutes > 30) longGaps++; // Más de 30 min entre actividades
+      }
 
-    // 3. Índice de Foco (tiempo dedicado vs tiempo estimado)
-    const focusTimes = filteredData.filter(p => p.tiempo_dedicado && p.tiempo_dedicado > 0);
-    if (focusTimes.length > 0) {
-      const avgTime = focusTimes.reduce((sum, p) => sum + p.tiempo_dedicado, 0) / focusTimes.length;
-      // Asumiendo 5 minutos por recurso como ideal
-      attention.indicators.focusIndex = Math.min(100, (avgTime / 300) * 100);
-      
-      if (attention.indicators.focusIndex < 30) {
+      attention.indicators.inactivityPeriods = longGaps;
+
+      if (longGaps > 3) {
         attention.score -= 20;
-        attention.recommendations.push('⚡ Aumentar tiempo de dedicación por actividad');
+        attention.recommendations.push('🕐 Establecer horarios regulares de estudio');
       }
-    }
 
-    // Determinar nivel de atención
-    if (attention.score >= 70) {
-      attention.level = 'Excelente';
-    } else if (attention.score >= 50) {
-      attention.level = 'Buena';
-    } else if (attention.score >= 30) {
-      attention.level = 'Regular';
-      attention.recommendations.push('⚠️ Necesita mejorar concentración en clase');
-    } else {
-      attention.level = 'Baja';
-      attention.recommendations.push('🚨 ALERTA: Baja atención - intervención necesaria');
-    }
+      // 2. Consistencia de rendimiento
+      const progressValues = filteredData.map(p => p.progreso || 0);
+      const stdDev = calculateStdDev(progressValues);
+      const mean = progressValues.reduce((a, b) => a + b, 0) / progressValues.length;
 
-    return attention;
-  } catch (err) {
-    console.error('Error analizando atención:', err);
-    return null;
-  }
-};
+      attention.indicators.consistencyScore = stdDev;
 
-// Función auxiliar: Desviación estándar
-const calculateStdDev = (values) => {
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
-  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
-  return Math.sqrt(variance);
-};
-
-// Algoritmo 3: Retroalimentación Adaptativa Completa
-const generateAdaptiveFeedback = async (studentId, courseId) => {
-  try {
-    const learningAnalysis = await analyzeLearningEffectiveness(studentId, courseId);
-    const attentionAnalysis = await analyzeAttentionLevel(studentId, courseId);
-
-    const feedback = {
-      studentId,
-      courseId,
-      timestamp: new Date().toISOString(),
-      overallStatus: 'En Progreso',
-      learningEffectiveness: learningAnalysis,
-      attentionLevel: attentionAnalysis,
-      strengths: [],
-      weaknesses: [],
-      recommendations: [],
-      actionPlan: []
-    };
-
-    // Determinar estado general
-    if (learningAnalysis?.isLearning && attentionAnalysis?.score >= 70) {
-      feedback.overallStatus = '✅ Aprendizaje Efectivo';
-      feedback.strengths.push('Demuestra comprensión real del contenido');
-      feedback.strengths.push('Mantiene buena atención en clase');
-    } else if (!learningAnalysis?.isLearning || attentionAnalysis?.score < 30) {
-      feedback.overallStatus = '🚨 Requiere Intervención';
-      feedback.actionPlan.push('🎯 PRIORITARIO: Reunión con docente y padres');
-    } else {
-      feedback.overallStatus = '⚠️ Necesita Apoyo';
-    }
-
-    // Identificar fortalezas y debilidades
-    if (learningAnalysis) {
-      if (learningAnalysis.indicators.improvementTrend > 10) {
-        feedback.strengths.push('Muestra mejora continua en su aprendizaje');
+      if (stdDev > 30) {
+        attention.score -= 15;
+        attention.recommendations.push('📊 Rendimiento inconsistente - revisar ambiente de estudio');
       }
-      if (learningAnalysis.indicators.retentionRate > 70) {
-        feedback.strengths.push('Buena retención de conocimientos');
+
+      // 3. Índice de Foco (tiempo dedicado vs tiempo estimado)
+      const focusTimes = filteredData.filter(p => p.tiempo_dedicado && p.tiempo_dedicado > 0);
+      if (focusTimes.length > 0) {
+        const avgTime = focusTimes.reduce((sum, p) => sum + p.tiempo_dedicado, 0) / focusTimes.length;
+        // Asumiendo 5 minutos por recurso como ideal
+        attention.indicators.focusIndex = Math.min(100, (avgTime / 300) * 100);
+
+        if (attention.indicators.focusIndex < 30) {
+          attention.score -= 20;
+          attention.recommendations.push('⚡ Aumentar tiempo de dedicación por actividad');
+        }
       }
-      if (learningAnalysis.indicators.averageAttempts > 3) {
-        feedback.weaknesses.push('Dificultad para comprender a la primera');
-        feedback.recommendations.push('📚 Reforzar conceptos básicos antes de avanzar');
+
+      // Determinar nivel de atención
+      if (attention.score >= 70) {
+        attention.level = 'Excelente';
+      } else if (attention.score >= 50) {
+        attention.level = 'Buena';
+      } else if (attention.score >= 30) {
+        attention.level = 'Regular';
+        attention.recommendations.push('⚠️ Necesita mejorar concentración en clase');
+      } else {
+        attention.level = 'Baja';
+        attention.recommendations.push('🚨 ALERTA: Baja atención - intervención necesaria');
       }
-    }
 
-    if (attentionAnalysis) {
-      if (attentionAnalysis.score < 50) {
-        feedback.weaknesses.push('Problemas de atención y concentración');
-        feedback.recommendations.push(...attentionAnalysis.recommendations);
+      return attention;
+    } catch (err) {
+      console.error('Error analizando atención:', err);
+      return null;
+    }
+  };
+
+  // Función auxiliar: Desviación estándar
+  const calculateStdDev = (values) => {
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
+    return Math.sqrt(variance);
+  };
+
+  // Algoritmo 3: Retroalimentación Adaptativa Completa
+  const generateAdaptiveFeedback = async (studentId, courseId) => {
+    try {
+      const learningAnalysis = await analyzeLearningEffectiveness(studentId, courseId);
+      const attentionAnalysis = await analyzeAttentionLevel(studentId, courseId);
+
+      const feedback = {
+        studentId,
+        courseId,
+        timestamp: new Date().toISOString(),
+        overallStatus: 'En Progreso',
+        learningEffectiveness: learningAnalysis,
+        attentionLevel: attentionAnalysis,
+        strengths: [],
+        weaknesses: [],
+        recommendations: [],
+        actionPlan: []
+      };
+
+      // Determinar estado general
+      if (learningAnalysis?.isLearning && attentionAnalysis?.score >= 70) {
+        feedback.overallStatus = '✅ Aprendizaje Efectivo';
+        feedback.strengths.push('Demuestra comprensión real del contenido');
+        feedback.strengths.push('Mantiene buena atención en clase');
+      } else if (!learningAnalysis?.isLearning || attentionAnalysis?.score < 30) {
+        feedback.overallStatus = '🚨 Requiere Intervención';
+        feedback.actionPlan.push('🎯 PRIORITARIO: Reunión con docente y padres');
+      } else {
+        feedback.overallStatus = '⚠️ Necesita Apoyo';
       }
-    }
 
-    // Plan de acción
-    if (feedback.weaknesses.length > 0) {
-      feedback.actionPlan.push('📝 Evaluación diagnóstica adicional');
-      feedback.actionPlan.push('👥 Trabajo en grupos pequeños');
-      feedback.actionPlan.push('🎮 Actividades interactivas personalizadas');
-    }
+      // Identificar fortalezas y debilidades
+      if (learningAnalysis) {
+        if (learningAnalysis.indicators.improvementTrend > 10) {
+          feedback.strengths.push('Muestra mejora continua en su aprendizaje');
+        }
+        if (learningAnalysis.indicators.retentionRate > 70) {
+          feedback.strengths.push('Buena retención de conocimientos');
+        }
+        if (learningAnalysis.indicators.averageAttempts > 3) {
+          feedback.weaknesses.push('Dificultad para comprender a la primera');
+          feedback.recommendations.push('📚 Reforzar conceptos básicos antes de avanzar');
+        }
+      }
 
-    if (feedback.strengths.length > 0) {
-      feedback.actionPlan.push('⭐ Reconocer logros públicamente');
-      feedback.actionPlan.push('🎯 Desafíos avanzados para mantener motivación');
-    }
+      if (attentionAnalysis) {
+        if (attentionAnalysis.score < 50) {
+          feedback.weaknesses.push('Problemas de atención y concentración');
+          feedback.recommendations.push(...attentionAnalysis.recommendations);
+        }
+      }
 
-    return feedback;
-  } catch (err) {
-    console.error('Error generando retroalimentación:', err);
-    return null;
-  }
-};
+      // Plan de acción
+      if (feedback.weaknesses.length > 0) {
+        feedback.actionPlan.push('📝 Evaluación diagnóstica adicional');
+        feedback.actionPlan.push('👥 Trabajo en grupos pequeños');
+        feedback.actionPlan.push('🎮 Actividades interactivas personalizadas');
+      }
+
+      if (feedback.strengths.length > 0) {
+        feedback.actionPlan.push('⭐ Reconocer logros públicamente');
+        feedback.actionPlan.push('🎯 Desafíos avanzados para mantener motivación');
+      }
+
+      return feedback;
+    } catch (err) {
+      console.error('Error generando retroalimentación:', err);
+      return null;
+    }
+  };
 
   const updateUserRole = async (userId, newRole) => {
     try {
@@ -869,7 +868,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', userId);
 
       if (error) throw error;
-      
+
       fetchUsers();
       setEditingUser(null);
       alert('✅ Rol actualizado exitosamente');
@@ -881,7 +880,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
   const updateUserRoles = async (userId, roles) => {
     try {
       const rolesArray = Array.isArray(roles) ? roles : [roles];
-      
+
       if (rolesArray.length === 0) {
         alert('Debes seleccionar al menos un rol');
         return;
@@ -892,7 +891,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
       console.log('👑 Rol principal:', rolesArray[0]);
       console.log('➕ Roles adicionales:', rolesArray.slice(1));
 
-      const updateData = { 
+      const updateData = {
         rol: rolesArray[0],
         roles_adicionales: rolesArray.length > 1 ? rolesArray.slice(1) : [],
         updated_at: new Date().toISOString()
@@ -910,9 +909,9 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         console.error('❌ Error de Supabase:', error);
         throw error;
       }
-      
+
       console.log('✅ Respuesta de Supabase:', data);
-      
+
       await fetchUsers();
       setSelectedRoles({});
       setEditingUser(null);
@@ -924,61 +923,61 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
   };
 
   const updateUserGroups = async (userId, groups) => {
-  try {
-    const groupsArray = Array.isArray(groups) ? groups : [groups];
-    
-    if (groupsArray.length === 0) {
-      alert('Debes seleccionar al menos un grupo');
-      return;
+    try {
+      const groupsArray = Array.isArray(groups) ? groups : [groups];
+
+      if (groupsArray.length === 0) {
+        alert('Debes seleccionar al menos un grupo');
+        return;
+      }
+
+      console.log('🔄 Actualizando grupos para usuario:', userId);
+      console.log('📝 Grupos a guardar:', groupsArray);
+      console.log('👥 Grupo principal:', groupsArray[0]);
+      console.log('➕ Grupos adicionales:', groupsArray.slice(1));
+
+      const updateData = {
+        grupo_id: groupsArray[0],
+        grupos_adicionales: groupsArray.length > 1 ? groupsArray.slice(1) : [],
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('💾 Datos a enviar:', updateData);
+
+      const { data, error } = await supabase
+        .from('usuarios')
+        .update(updateData)
+        .eq('id', userId)
+        .select();
+
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Respuesta de Supabase:', data);
+
+      await fetchUsers();
+      setSelectedGroups({});
+      alert('✅ Grupos actualizados exitosamente');
+    } catch (err) {
+      console.error('❌ Error actualizando grupos:', err);
+      alert('Error al actualizar los grupos: ' + err.message);
     }
-
-    console.log('🔄 Actualizando grupos para usuario:', userId);
-    console.log('📝 Grupos a guardar:', groupsArray);
-    console.log('👥 Grupo principal:', groupsArray[0]);
-    console.log('➕ Grupos adicionales:', groupsArray.slice(1));
-
-    const updateData = { 
-      grupo_id: groupsArray[0],
-      grupos_adicionales: groupsArray.length > 1 ? groupsArray.slice(1) : [],
-      updated_at: new Date().toISOString()
-    };
-
-    console.log('💾 Datos a enviar:', updateData);
-
-    const { data, error } = await supabase
-      .from('usuarios')
-      .update(updateData)
-      .eq('id', userId)
-      .select();
-
-    if (error) {
-      console.error('❌ Error de Supabase:', error);
-      throw error;
-    }
-    
-    console.log('✅ Respuesta de Supabase:', data);
-    
-    await fetchUsers();
-    setSelectedGroups({});
-    alert('✅ Grupos actualizados exitosamente');
-  } catch (err) {
-    console.error('❌ Error actualizando grupos:', err);
-    alert('Error al actualizar los grupos: ' + err.message);
-  }
-};
+  };
 
   const updateUserStatus = async (userId, isActive) => {
     try {
       const { error } = await supabase
         .from('usuarios')
-        .update({ 
+        .update({
           activo: isActive,
           ultimo_acceso: new Date().toISOString()
         })
         .eq('id', userId);
 
       if (error) throw error;
-      
+
       fetchUsers();
       alert(`✅ Usuario ${isActive ? 'activado' : 'desactivado'} exitosamente`);
     } catch (err) {
@@ -988,7 +987,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
 
   const deleteUser = async (userId) => {
     if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('usuarios')
@@ -996,7 +995,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', userId);
 
       if (error) throw error;
-      
+
       fetchUsers();
       alert('✅ Usuario eliminado exitosamente');
     } catch (err) {
@@ -1016,7 +1015,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .insert([newLevel]);
 
       if (error) throw error;
-      
+
       fetchLevels();
       setNewLevel({ nombre: '', descripcion: '', orden: 1 });
       setShowNewLevel(false);
@@ -1034,7 +1033,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', levelId);
 
       if (error) throw error;
-      
+
       fetchLevels();
       setEditingLevel(null);
     } catch (err) {
@@ -1044,7 +1043,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
 
   const deleteLevel = async (levelId) => {
     if (!confirm('¿Estás seguro de eliminar este nivel?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('niveles_aprendizaje')
@@ -1052,7 +1051,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', levelId);
 
       if (error) throw error;
-      
+
       fetchLevels();
       alert('✅ Nivel eliminado exitosamente');
     } catch (err) {
@@ -1072,7 +1071,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .insert([{ ...newCourse, created_by: currentUser.id }]);
 
       if (error) throw error;
-      
+
       fetchCourses();
       setNewCourse({ titulo: '', descripcion: '', nivel_id: '', color: '#3B82F6', orden: 1 });
       setShowNewCourse(false);
@@ -1084,7 +1083,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
 
   const deleteCourse = async (courseId) => {
     if (!confirm('¿Estás seguro de eliminar este curso?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('cursos')
@@ -1092,7 +1091,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', courseId);
 
       if (error) throw error;
-      
+
       fetchCourses();
       alert('✅ Curso eliminado exitosamente');
     } catch (err) {
@@ -1112,7 +1111,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .insert([{ ...newResource, created_by: currentUser.id }]);
 
       if (error) throw error;
-      
+
       fetchResources();
       setNewResource({ titulo: '', descripcion: '', tipo: 'video', curso_id: '', puntos_recompensa: 10, tiempo_estimado: 5, orden: 1 });
       setShowNewResource(false);
@@ -1124,7 +1123,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
 
   const deleteResource = async (resourceId) => {
     if (!confirm('¿Estás seguro de eliminar este recurso?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('recursos')
@@ -1132,7 +1131,7 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
         .eq('id', resourceId);
 
       if (error) throw error;
-      
+
       fetchResources();
       alert('✅ Recurso eliminado exitosamente');
     } catch (err) {
@@ -1140,37 +1139,37 @@ const generateAdaptiveFeedback = async (studentId, courseId) => {
     }
   };
 
-const createGroup = async () => {
-  if (!newGroup.nombre.trim()) {
-    alert('El nombre del grupo es obligatorio');
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('grupos')
-      .insert([newGroup])
-      .select(); // ⬅️ IMPORTANTE: Agregar .select()
-
-    if (error) throw error;
-    
-    // Actualizar estado inmediatamente con el nuevo grupo
-    if (data && data.length > 0) {
-      setGroups(prevGroups => [...prevGroups, data[0]]);
+  const createGroup = async () => {
+    if (!newGroup.nombre.trim()) {
+      alert('El nombre del grupo es obligatorio');
+      return;
     }
-    
-    setNewGroup({ nombre: '', descripcion: '' });
-    setShowNewGroup(false);
-    alert('✅ Grupo creado exitosamente');
-  } catch (err) {
-    console.error('Error creando grupo:', err);
-    alert('Error al crear el grupo: ' + err.message);
-  }
-};
+
+    try {
+      const { data, error } = await supabase
+        .from('grupos')
+        .insert([newGroup])
+        .select(); // ⬅️ IMPORTANTE: Agregar .select()
+
+      if (error) throw error;
+
+      // Actualizar estado inmediatamente con el nuevo grupo
+      if (data && data.length > 0) {
+        setGroups(prevGroups => [...prevGroups, data[0]]);
+      }
+
+      setNewGroup({ nombre: '', descripcion: '' });
+      setShowNewGroup(false);
+      alert('✅ Grupo creado exitosamente');
+    } catch (err) {
+      console.error('Error creando grupo:', err);
+      alert('Error al crear el grupo: ' + err.message);
+    }
+  };
 
   const deleteGroup = async (groupId) => {
     if (!confirm('¿Estás seguro de eliminar este grupo?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('grupos')
@@ -1178,7 +1177,7 @@ const createGroup = async () => {
         .eq('id', groupId);
 
       if (error) throw error;
-      
+
       fetchGroups();
       alert('✅ Grupo eliminado exitosamente');
     } catch (err) {
@@ -1193,19 +1192,19 @@ const createGroup = async () => {
     }
   };
 
-const generateQuestionsFromDocument = async () => {
+  const generateQuestionsFromDocument = async () => {
     if (!uploadedDocument) {
       alert('Por favor, sube un documento primero');
       return;
     }
 
     setGeneratingQuestions(true);
-    
+
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target.result;
-        
+
         try {
           const response = await fetch(
             'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
@@ -1266,15 +1265,15 @@ REGLAS:
 
           const data = await response.json();
           const generatedText = data.candidates[0].content.parts[0].text;
-          
+
           let jsonText = generatedText;
           const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             jsonText = jsonMatch[0];
           }
-          
+
           const parsedData = JSON.parse(jsonText);
-          
+
           if (!parsedData.preguntas || parsedData.preguntas.length === 0) {
             throw new Error('No se generaron preguntas válidas');
           }
@@ -1304,7 +1303,7 @@ REGLAS:
           setGeneratingQuestions(false);
         }
       };
-      
+
       reader.readAsText(uploadedDocument);
     } catch (err) {
       console.error('Error leyendo documento:', err);
@@ -1381,7 +1380,7 @@ REGLAS:
     try {
       const { error } = await supabase
         .from('recursos')
-        .update({ 
+        .update({
           contenido_quiz: currentQuiz.preguntas,
           metadata: {
             total_preguntas: currentQuiz.preguntas.length,
@@ -1394,7 +1393,7 @@ REGLAS:
         .eq('id', selectedResource.id);
 
       if (error) throw error;
-      
+
       fetchResources();
       setCurrentQuiz({ preguntas: [] });
       setShowQuizBuilder(false);
@@ -1410,7 +1409,7 @@ REGLAS:
   const handlePreviewAnswer = (questionIndex, optionIndex) => {
     const question = currentQuiz.preguntas[questionIndex];
     const isCorrect = optionIndex === question.respuesta_correcta;
-    
+
     setPreviewAnswers({
       ...previewAnswers,
       [questionIndex]: { selected: optionIndex, isCorrect }
@@ -1460,7 +1459,7 @@ REGLAS:
     setPreviewQuiz(true);
     setCurrentPreviewQuestion(0);
     setPreviewAnswers({});
-    
+
     // Auto-reproducir la primera pregunta
     if (resource.contenido_quiz[0]?.audio_pregunta) {
       setTimeout(() => speakText(resource.contenido_quiz[0].pregunta), 500);
@@ -1524,26 +1523,26 @@ REGLAS:
     }
   };
 
-const generateCourseReport = async (courseId) => {
-  try {
-    const course = courses.find(c => c.id === parseInt(courseId));
-    if (!course) return;
+  const generateCourseReport = async (courseId) => {
+    try {
+      const course = courses.find(c => c.id === parseInt(courseId));
+      if (!course) return;
 
-    await fetchCourseAnalytics(courseId);
+      await fetchCourseAnalytics(courseId);
 
-    // Obtener estudiantes del curso
-    const { data: studentsData, error } = await supabase
-      .from('progreso_usuarios')
-      .select(`
+      // Obtener estudiantes del curso
+      const { data: studentsData, error } = await supabase
+        .from('progreso_usuarios')
+        .select(`
         usuario_id,
         usuarios!inner(nombre, email, grupo_id)
       `)
-      .eq('recursos.curso_id', courseId);
+        .eq('recursos.curso_id', courseId);
 
-    const uniqueStudents = [...new Set(studentsData?.map(s => s.usuario_id))];
+      const uniqueStudents = [...new Set(studentsData?.map(s => s.usuario_id))];
 
-    // Generar análisis detallado por estudiante
-    let detailedReport = `
+      // Generar análisis detallado por estudiante
+      let detailedReport = `
 ╔════════════════════════════════════════════════════════════════╗
 ║          REPORTE DETALLADO DE CURSO CON IA PREDICTIVA         ║
 ╚════════════════════════════════════════════════════════════════╝
@@ -1565,14 +1564,14 @@ const generateCourseReport = async (courseId) => {
 ═══════════════════════════════════════════════════════════════
 `;
 
-    for (const studentId of uniqueStudents.slice(0, 10)) {
-      const student = users.find(u => u.id === studentId);
-      if (!student) continue;
+      for (const studentId of uniqueStudents.slice(0, 10)) {
+        const student = users.find(u => u.id === studentId);
+        if (!student) continue;
 
-      const feedback = await generateAdaptiveFeedback(studentId, courseId);
-      
-      if (feedback) {
-        detailedReport += `\n
+        const feedback = await generateAdaptiveFeedback(studentId, courseId);
+
+        if (feedback) {
+          detailedReport += `\n
 ┌────────────────────────────────────────────────────────────┐
 │ ESTUDIANTE: ${student.nombre.padEnd(45)} │
 │ EMAIL: ${student.email.padEnd(48)} │
@@ -1609,10 +1608,10 @@ ${feedback.recommendations.map(r => `   → ${r}`).join('\n') || '   ✅ Continu
 ${feedback.actionPlan.map(a => `   ${a}`).join('\n')}
 
 `;
+        }
       }
-    }
 
-    detailedReport += `
+      detailedReport += `
 ═══════════════════════════════════════════════════════════════
                     RESUMEN Y CONCLUSIONES
 ═══════════════════════════════════════════════════════════════
@@ -1626,36 +1625,36 @@ que analiza patrones de aprendizaje, atención y retención.
    • Adaptive Feedback System (AFS)
 
 ⚡ Recomendación General del Sistema:
-${courseAnalytics?.avgProgress >= 70 
-  ? '✅ El curso muestra buen desempeño general. Mantener metodología.'
-  : courseAnalytics?.avgProgress >= 50
-    ? '⚠️ Requiere ajustes en la metodología de enseñanza.'
-    : '🚨 URGENTE: Revisar completamente el enfoque pedagógico.'}
+${courseAnalytics?.avgProgress >= 70
+          ? '✅ El curso muestra buen desempeño general. Mantener metodología.'
+          : courseAnalytics?.avgProgress >= 50
+            ? '⚠️ Requiere ajustes en la metodología de enseñanza.'
+            : '🚨 URGENTE: Revisar completamente el enfoque pedagógico.'}
 
 ═══════════════════════════════════════════════════════════════
                  Generado por Didactikapp v2.3.0
 ═══════════════════════════════════════════════════════════════
 `;
 
-    // Descargar reporte
-    const blob = new Blob([detailedReport], { type: 'text/plain; charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Reporte_IA_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+      // Descargar reporte
+      const blob = new Blob([detailedReport], { type: 'text/plain; charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_IA_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
 
-    alert('✅ Reporte con análisis de IA generado exitosamente');
-  } catch (err) {
-    console.error('Error generando reporte:', err);
-    alert('Error al generar el reporte');
-  }
-};
+      alert('✅ Reporte con análisis de IA generado exitosamente');
+    } catch (err) {
+      console.error('Error generando reporte:', err);
+      alert('Error al generar el reporte');
+    }
+  };
 
   const renderQuestionPreview = () => {
     if (!currentQuiz.preguntas.length) return null;
-    
+
     const question = currentQuiz.preguntas[currentPreviewQuestion];
     const answer = previewAnswers[currentPreviewQuestion];
 
@@ -1674,9 +1673,8 @@ ${courseAnalytics?.avgProgress >= 70
             {currentQuiz.preguntas.map((_, idx) => (
               <div
                 key={idx}
-                className={`w-3 h-3 rounded-full ${
-                  idx === currentPreviewQuestion ? 'bg-purple-500' : 'bg-gray-300'
-                }`}
+                className={`w-3 h-3 rounded-full ${idx === currentPreviewQuestion ? 'bg-purple-500' : 'bg-gray-300'
+                  }`}
               />
             ))}
           </div>
@@ -1685,8 +1683,8 @@ ${courseAnalytics?.avgProgress >= 70
         <div className="flex-1 flex flex-col items-center justify-center">
           {question.video_url && (
             <div className="mb-6 w-full max-w-2xl">
-              <video 
-                controls 
+              <video
+                controls
                 className="w-full rounded-2xl shadow-lg"
                 src={question.video_url}
               >
@@ -1724,17 +1722,16 @@ ${courseAnalytics?.avgProgress >= 70
                 key={idx}
                 onClick={() => handlePreviewAnswer(currentPreviewQuestion, idx)}
                 disabled={answer !== undefined}
-                className={`p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 ${
-                  answer === undefined
+                className={`p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 ${answer === undefined
                     ? 'bg-white hover:bg-purple-50 hover:border-purple-300 border-2 border-gray-200 text-gray-700'
                     : answer.selected === idx
-                    ? answer.isCorrect
-                      ? 'bg-green-500 text-white border-2 border-green-600 animate-bounce'
-                      : 'bg-red-500 text-white border-2 border-red-600'
-                    : idx === question.respuesta_correcta
-                    ? 'bg-green-500 text-white border-2 border-green-600'
-                    : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                }`}
+                      ? answer.isCorrect
+                        ? 'bg-green-500 text-white border-2 border-green-600 animate-bounce'
+                        : 'bg-red-500 text-white border-2 border-red-600'
+                      : idx === question.respuesta_correcta
+                        ? 'bg-green-500 text-white border-2 border-green-600'
+                        : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   {question.tipo === 'imagen' && question.imagen_opciones[idx] ? (
@@ -1746,8 +1743,8 @@ ${courseAnalytics?.avgProgress >= 70
                     <span>{opcion}</span>
                   )}
                   {answer !== undefined && answer.selected === idx && (
-                    answer.isCorrect ? 
-                      <CheckCircle className="w-6 h-6" /> : 
+                    answer.isCorrect ?
+                      <CheckCircle className="w-6 h-6" /> :
                       <XCircle className="w-6 h-6" />
                   )}
                 </div>
@@ -1756,9 +1753,8 @@ ${courseAnalytics?.avgProgress >= 70
           </div>
 
           {answer && (
-            <div className={`mt-6 p-4 rounded-xl text-center ${
-              answer.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
+            <div className={`mt-6 p-4 rounded-xl text-center ${answer.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
               <p className="text-xl font-bold">
                 {answer.isCorrect ? question.retroalimentacion_correcta : question.retroalimentacion_incorrecta}
               </p>
@@ -1782,7 +1778,7 @@ ${courseAnalytics?.avgProgress >= 70
           >
             ← Anterior
           </button>
-          
+
           <button
             onClick={() => {
               if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
@@ -1805,7 +1801,7 @@ ${courseAnalytics?.avgProgress >= 70
 
   const generateAIRecommendations = () => {
     const recommendations = [];
-    
+
     const resourceTypes = resources.reduce((acc, resource) => {
       acc[resource.tipo] = (acc[resource.tipo] || 0) + 1;
       return acc;
@@ -1873,22 +1869,22 @@ ${courseAnalytics?.avgProgress >= 70
     return recommendations;
   };
 
-const handleAIChat = async (userMessage) => {
-  if (!userMessage.trim()) return;
+  const handleAIChat = async (userMessage) => {
+    if (!userMessage.trim()) return;
 
-  const newUserMessage = {
-    id: Date.now(),
-    role: 'user',
-    content: userMessage,
-    timestamp: new Date()
-  };
-  
-  setChatMessages(prev => [...prev, newUserMessage]);
-  setChatInput('');
-  setChatLoading(true);
+    const newUserMessage = {
+      id: Date.now(),
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date()
+    };
 
-  try {
-    const systemContext = `Eres un asistente educativo experto para DidactikApp, una plataforma de educación básica elemental.
+    setChatMessages(prev => [...prev, newUserMessage]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const systemContext = `Eres un asistente educativo experto para DidactikApp, una plataforma de educación básica elemental.
 
 INFORMACIÓN DEL SISTEMA:
 - Total usuarios: ${users.length}
@@ -1905,66 +1901,66 @@ ${courses.slice(0, 5).map(c => `- ${c.titulo} (${c.nivel_nombre})`).join('\n')}
 
 RECURSOS POR TIPO:
 ${Object.entries(resources.reduce((acc, r) => {
-  acc[r.tipo] = (acc[r.tipo] || 0) + 1;
-  return acc;
-}, {})).map(([tipo, count]) => `- ${tipo}: ${count}`).join('\n')}
+        acc[r.tipo] = (acc[r.tipo] || 0) + 1;
+        return acc;
+      }, {})).map(([tipo, count]) => `- ${tipo}: ${count}`).join('\n')}
 
 Responde de manera clara, concisa y educativa. Si te preguntan sobre estadísticas, usa los datos anteriores. Si te piden recomendaciones, da sugerencias específicas y accionables.`;
 
-    // ✅ Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `${systemContext}\n\nUSUARIO: ${userMessage}\n\nASISTENTE:` }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        })
+      // ✅ Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
+      const response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemContext}\n\nUSUARIO: ${userMessage}\n\nASISTENTE:` }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 1024,
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        let errorText = `Error API: ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson?.error?.message) errorText += ` - ${errJson.error.message}`;
+        } catch (_) { }
+        throw new Error(errorText);
       }
-    );
 
-    if (!response.ok) {
-      let errorText = `Error API: ${response.status}`;
-      try {
-        const errJson = await response.json();
-        if (errJson?.error?.message) errorText += ` - ${errJson.error.message}`;
-      } catch (_) {}
-      throw new Error(errorText);
+      const data = await response.json();
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta del modelo.';
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: aiResponse,
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, aiMessage]);
+      setChatLoading(false);
+
+    } catch (error) {
+      console.error('Error en chat IA:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: `❌ Lo siento, hubo un error al procesar tu mensaje. ${error.message}`,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      setChatLoading(false);
     }
-
-    const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin respuesta del modelo.';
-
-    const aiMessage = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      content: aiResponse,
-      timestamp: new Date()
-    };
-
-    setChatMessages(prev => [...prev, aiMessage]);
-    setChatLoading(false);
-
-  } catch (error) {
-    console.error('Error en chat IA:', error);
-    const errorMessage = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      content: `❌ Lo siento, hubo un error al procesar tu mensaje. ${error.message}`,
-      timestamp: new Date()
-    };
-    setChatMessages(prev => [...prev, errorMessage]);
-    setChatLoading(false);
-  }
-};
+  };
 
 
   const clearChat = () => {
@@ -2001,38 +1997,38 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
   };
 
   const getFilteredUsers = () => {
-  return users.filter(user => {
-    if (filterRole && user.rol !== filterRole) return false;
-    
-    if (filterGroup) {
-      if (filterGroup === 'sin_grupo') {
-        if (user.grupo_id || (user.grupos_adicionales && user.grupos_adicionales.length > 0)) {
-          return false;
-        }
-      } else {
-        const userGroups = [
-          user.grupo_id,
-          ...(user.grupos_adicionales || [])
-        ].filter(Boolean);
-        
-        if (!userGroups.includes(parseInt(filterGroup))) {
-          return false;
+    return users.filter(user => {
+      if (filterRole && user.rol !== filterRole) return false;
+
+      if (filterGroup) {
+        if (filterGroup === 'sin_grupo') {
+          if (user.grupo_id || (user.grupos_adicionales && user.grupos_adicionales.length > 0)) {
+            return false;
+          }
+        } else {
+          const userGroups = [
+            user.grupo_id,
+            ...(user.grupos_adicionales || [])
+          ].filter(Boolean);
+
+          if (!userGroups.includes(parseInt(filterGroup))) {
+            return false;
+          }
         }
       }
-    }
-    
-    if (filterStatus === 'active' && !user.activo) return false;
-    if (filterStatus === 'inactive' && user.activo) return false;
-    return true;
-  });
-};
+
+      if (filterStatus === 'active' && !user.activo) return false;
+      if (filterStatus === 'inactive' && user.activo) return false;
+      return true;
+    });
+  };
 
   const formatLastAccess = (lastAccess) => {
     if (!lastAccess) return 'Nunca';
     const date = new Date(lastAccess);
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) return 'Hace menos de 1 hora';
     if (diffInHours < 24) return `Hace ${Math.floor(diffInHours)} horas`;
     const diffInDays = Math.floor(diffInHours / 24);
@@ -2047,39 +2043,39 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     return (
       <div className="space-y-6">
         <h2 className="text-xl font-semibold text-gray-800">Dashboard Analítico</h2>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <MetricCard 
-            title="Usuarios Activos" 
-            value={analytics.activeStudents} 
-            change={analytics.userGrowth} 
-            icon={Users} 
-            color="#3B82F6" 
+          <MetricCard
+            title="Usuarios Activos"
+            value={analytics.activeStudents}
+            change={analytics.userGrowth}
+            icon={Users}
+            color="#3B82F6"
           />
-          <MetricCard 
-            title="Tasa de Compromiso" 
-            value={`${analytics.engagementRate}%`} 
-            change={5} 
-            icon={TrendingUp} 
-            color="#10B981" 
+          <MetricCard
+            title="Tasa de Compromiso"
+            value={`${analytics.engagementRate}%`}
+            change={5}
+            icon={TrendingUp}
+            color="#10B981"
           />
-          <MetricCard 
-            title="Completitud" 
-            value={`${analytics.completionRate}%`} 
-            change={8} 
-            icon={CheckCircle} 
-            color="#8B5CF6" 
+          <MetricCard
+            title="Completitud"
+            value={`${analytics.completionRate}%`}
+            change={8}
+            icon={CheckCircle}
+            color="#8B5CF6"
           />
-          <MetricCard 
-            title="Tiempo Promedio" 
-            value={`${analytics.avgTimePerResource}m`} 
-            icon={Clock} 
-            color="#F59E0B" 
+          <MetricCard
+            title="Tiempo Promedio"
+            value={`${analytics.avgTimePerResource}m`}
+            icon={Clock}
+            color="#F59E0B"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <BarChart 
+          <BarChart
             title="Distribución de Usuarios"
             data={[
               { label: 'Estudiantes', value: users.filter(u => u.rol === 'estudiante').length },
@@ -2091,29 +2087,29 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           />
 
           <div className="grid grid-cols-2 gap-4">
-            <ProgressCircle 
-              title="Cursos Activos" 
-              value={courses.length} 
-              max={20} 
-              color="#10B981" 
+            <ProgressCircle
+              title="Cursos Activos"
+              value={courses.length}
+              max={20}
+              color="#10B981"
             />
-            <ProgressCircle 
-              title="Recursos" 
-              value={resources.length} 
-              max={100} 
-              color="#8B5CF6" 
+            <ProgressCircle
+              title="Recursos"
+              value={resources.length}
+              max={100}
+              color="#8B5CF6"
             />
-            <ProgressCircle 
-              title="Niveles" 
-              value={levels.length} 
-              max={10} 
-              color="#F59E0B" 
+            <ProgressCircle
+              title="Niveles"
+              value={levels.length}
+              max={10}
+              color="#F59E0B"
             />
-            <ProgressCircle 
-              title="Logros" 
-              value={achievements.length} 
-              max={50} 
-              color="#EF4444" 
+            <ProgressCircle
+              title="Logros"
+              value={achievements.length}
+              max={50}
+              color="#EF4444"
             />
           </div>
         </div>
@@ -2125,73 +2121,72 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold mb-4">Recomendaciones IA Regenerativa</h3>
-              
+
               {aiRecommendations.length > 0 ? (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-    {aiRecommendations.map((rec, index) => {
-      const IconComponent = rec.icon || AlertCircle;
-      return (
-        <div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all">
-          <div className="flex items-start gap-3">
-            <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
-              rec.priority === 'high' ? 'bg-red-400' : 
-              rec.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
-            }`} />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <IconComponent className="w-4 h-4" />
-                <p className="font-semibold text-sm">{rec.title}</p>
-              </div>
-              <p className="text-xs opacity-90 mb-2">{rec.description}</p>
-              <button 
-                onClick={() => {
-                  if (rec.type === 'ai_generator') {
-                    // Ir a recursos y abrir el Quiz Builder con IA
-                    setActiveTab('resources');
-                    
-                    // Crear un recurso temporal para abrir el builder
-                    const tempResource = {
-                      id: 'temp_' + Date.now(),
-                      titulo: 'Nuevo Quiz con IA',
-                      tipo: 'quiz',
-                      contenido_quiz: []
-                    };
-                    
-                    setTimeout(() => {
-                      setSelectedResource(tempResource);
-                      setShowQuizBuilder(true);
-                      
-                      // Scroll al generador de IA después de abrir
-                      setTimeout(() => {
-                        const aiSection = document.querySelector('.bg-gradient-to-r.from-indigo-50');
-                        if (aiSection) {
-                          aiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                      }, 300);
-                    }, 100);
-                  } else if (rec.targetTab) {
-                    setActiveTab(rec.targetTab);
-                  }
-                }}
-                className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1"
-              >
-                {rec.type === 'ai_generator' && <Sparkles className="w-3 h-3" />}
-                {rec.action}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    })}
-  </div>
-) : (
-  <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-    <p className="text-center">✅ Tu sistema está bien balanceado. ¡Buen trabajo!</p>
-  </div>
-)}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {aiRecommendations.map((rec, index) => {
+                    const IconComponent = rec.icon || AlertCircle;
+                    return (
+                      <div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${rec.priority === 'high' ? 'bg-red-400' :
+                              rec.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
+                            }`} />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <IconComponent className="w-4 h-4" />
+                              <p className="font-semibold text-sm">{rec.title}</p>
+                            </div>
+                            <p className="text-xs opacity-90 mb-2">{rec.description}</p>
+                            <button
+                              onClick={() => {
+                                if (rec.type === 'ai_generator') {
+                                  // Ir a recursos y abrir el Quiz Builder con IA
+                                  setActiveTab('resources');
+
+                                  // Crear un recurso temporal para abrir el builder
+                                  const tempResource = {
+                                    id: 'temp_' + Date.now(),
+                                    titulo: 'Nuevo Quiz con IA',
+                                    tipo: 'quiz',
+                                    contenido_quiz: []
+                                  };
+
+                                  setTimeout(() => {
+                                    setSelectedResource(tempResource);
+                                    setShowQuizBuilder(true);
+
+                                    // Scroll al generador de IA después de abrir
+                                    setTimeout(() => {
+                                      const aiSection = document.querySelector('.bg-gradient-to-r.from-indigo-50');
+                                      if (aiSection) {
+                                        aiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }
+                                    }, 300);
+                                  }, 100);
+                                } else if (rec.targetTab) {
+                                  setActiveTab(rec.targetTab);
+                                }
+                              }}
+                              className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1"
+                            >
+                              {rec.type === 'ai_generator' && <Sparkles className="w-3 h-3" />}
+                              {rec.action}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
+                  <p className="text-center">✅ Tu sistema está bien balanceado. ¡Buen trabajo!</p>
+                </div>
+              )}
 
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => setShowDetailedAnalytics(true)}
                   className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
                 >
@@ -2203,146 +2198,145 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           </div>
         </div>
 
-{/* Chat Interactivo con IA */}
-<div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-lg p-6 text-white shadow-lg">
-  <div className="flex items-start gap-4">
-    <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0">
-      <MessageCircle className="w-6 h-6" />
-    </div>
-    <div className="flex-1">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            💬 Chat Interactivo con IA
-            <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nuevo</span>
-          </h3>
-          <p className="text-sm text-blue-100">Pregunta sobre estadísticas, recomendaciones o cualquier duda del sistema</p>
-        </div>
-        <button
-          onClick={() => setShowAIChat(!showAIChat)}
-          className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all"
-        >
-          {showAIChat ? 'Cerrar Chat' : 'Abrir Chat'}
-        </button>
-      </div>
-
-      {showAIChat && (
-        <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-          {/* Mensajes del chat */}
-          <div className="mb-4 max-h-96 overflow-y-auto space-y-3">
-            {chatMessages.length === 0 ? (
-              <div className="text-center py-8">
-                <Brain className="w-12 h-12 mx-auto mb-3 opacity-70" />
-                <p className="text-sm opacity-90 mb-4">¡Hola! Soy tu asistente de IA. Puedo ayudarte con:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                  <button
-                    onClick={() => handleAIChat('¿Cuál es el estado actual del sistema?')}
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                  >
-                    📊 Estado del sistema
-                  </button>
-                  <button
-                    onClick={() => handleAIChat('Dame recomendaciones para mejorar el Compromiso                                                                                                                  ')}
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                  >
-                    💡 Mejorar Compromiso
-                  </button>
-                  <button
-                    onClick={() => handleAIChat('¿Qué recursos son los más populares?')}
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                  >
-                    ⭐ Recursos populares
-                  </button>
-                  <button
-                    onClick={() => handleAIChat('¿Cómo crear un quiz interactivo?')}
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                  >
-                    🎯 Crear quizzes
-                  </button>
+        {/* Chat Interactivo con IA */}
+        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-lg p-6 text-white shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0">
+              <MessageCircle className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    💬 Chat Interactivo con IA
+                    <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">Nuevo</span>
+                  </h3>
+                  <p className="text-sm text-blue-100">Pregunta sobre estadísticas, recomendaciones o cualquier duda del sistema</p>
                 </div>
+                <button
+                  onClick={() => setShowAIChat(!showAIChat)}
+                  className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all"
+                >
+                  {showAIChat ? 'Cerrar Chat' : 'Abrir Chat'}
+                </button>
               </div>
-            ) : (
-              <>
-                {chatMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        msg.role === 'user'
-                          ? 'bg-white text-purple-900'
-                          : 'bg-white bg-opacity-20 text-white'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        {msg.role === 'assistant' && (
-                          <Brain className="w-4 h-4 mt-1 flex-shrink-0" />
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <p className="text-xs opacity-70 mt-1">
-                            {msg.timestamp.toLocaleTimeString('es-ES', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </p>
+
+              {showAIChat && (
+                <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
+                  {/* Mensajes del chat */}
+                  <div className="mb-4 max-h-96 overflow-y-auto space-y-3">
+                    {chatMessages.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Brain className="w-12 h-12 mx-auto mb-3 opacity-70" />
+                        <p className="text-sm opacity-90 mb-4">¡Hola! Soy tu asistente de IA. Puedo ayudarte con:</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          <button
+                            onClick={() => handleAIChat('¿Cuál es el estado actual del sistema?')}
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                          >
+                            📊 Estado del sistema
+                          </button>
+                          <button
+                            onClick={() => handleAIChat('Dame recomendaciones para mejorar el Compromiso                                                                                                                  ')}
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                          >
+                            💡 Mejorar Compromiso
+                          </button>
+                          <button
+                            onClick={() => handleAIChat('¿Qué recursos son los más populares?')}
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                          >
+                            ⭐ Recursos populares
+                          </button>
+                          <button
+                            onClick={() => handleAIChat('¿Cómo crear un quiz interactivo?')}
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
+                          >
+                            🎯 Crear quizzes
+                          </button>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        {chatMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
+                                  ? 'bg-white text-purple-900'
+                                  : 'bg-white bg-opacity-20 text-white'
+                                }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                {msg.role === 'assistant' && (
+                                  <Brain className="w-4 h-4 mt-1 flex-shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                  <p className="text-xs opacity-70 mt-1">
+                                    {msg.timestamp.toLocaleTimeString('es-ES', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {chatLoading && (
+                          <div className="flex justify-start">
+                            <div className="bg-white bg-opacity-20 rounded-lg p-3">
+                              <div className="flex items-center gap-2">
+                                <Brain className="w-4 h-4 animate-pulse" />
+                                <span className="text-sm">Pensando...</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                      <div className="flex items-center gap-2">
-                        <Brain className="w-4 h-4 animate-pulse" />
-                        <span className="text-sm">Pensando...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
 
-          {/* Input del chat */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !chatLoading) {
-                  handleAIChat(chatInput);
-                }
-              }}
-              placeholder="Escribe tu pregunta..."
-              disabled={chatLoading}
-              className="flex-1 px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
-            />
-            <button
-              onClick={() => handleAIChat(chatInput)}
-              disabled={chatLoading || !chatInput.trim()}
-              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Enviar
-            </button>
-            {chatMessages.length > 0 && (
-              <button
-                onClick={clearChat}
-                className="bg-red-500 bg-opacity-50 hover:bg-opacity-70 text-white px-4 py-2 rounded-lg transition-all"
-                title="Limpiar chat"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+                  {/* Input del chat */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !chatLoading) {
+                          handleAIChat(chatInput);
+                        }
+                      }}
+                      placeholder="Escribe tu pregunta..."
+                      disabled={chatLoading}
+                      className="flex-1 px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
+                    />
+                    <button
+                      onClick={() => handleAIChat(chatInput)}
+                      disabled={chatLoading || !chatInput.trim()}
+                      className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Enviar
+                    </button>
+                    {chatMessages.length > 0 && (
+                      <button
+                        onClick={clearChat}
+                        className="bg-red-500 bg-opacity-50 hover:bg-opacity-70 text-white px-4 py-2 rounded-lg transition-all"
+                        title="Limpiar chat"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  </div>
-</div>
 
         {/* Reportes de Cursos */}
         <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -2358,7 +2352,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     <h4 className="font-semibold text-gray-800 text-sm mb-1">{course.titulo}</h4>
                     <p className="text-xs text-gray-600">{course.nivel_nombre}</p>
                   </div>
-                  <div 
+                  <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: `${course.color}20` }}
                   >
@@ -2412,7 +2406,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-600"/>
+              <Trophy className="w-5 h-5 text-yellow-600" />
               Cursos Más Activos
             </h3>
             <div className="space-y-3">
@@ -2468,7 +2462,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <Users className="w-6 h-6 text-green-600" />
                 Análisis por Estudiante
               </h3>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Search className="w-4 h-4 inline mr-2" />
@@ -2544,7 +2538,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                       <p className="text-xs text-green-600 font-semibold mb-1">Progreso Promedio</p>
                       <p className="text-2xl font-bold text-green-800">
-                        {studentProgress.length > 0 
+                        {studentProgress.length > 0
                           ? Math.round(studentProgress.reduce((sum, p) => sum + (p.progreso || 0), 0) / studentProgress.length)
                           : 0}%
                       </p>
@@ -2608,7 +2602,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <BookOpen className="w-6 h-6 text-purple-600" />
                 Análisis por Curso
               </h3>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Filter className="w-4 h-4 inline mr-2" />
@@ -2652,7 +2646,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <div className="bg-white rounded-lg p-6 border-2 border-gray-200">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
-                      <div 
+                      <div
                         className="w-16 h-16 rounded-xl flex items-center justify-center"
                         style={{ backgroundColor: `${selectedCourse.color}20` }}
                       >
@@ -2792,7 +2786,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             <h1 className="text-2xl font-bold text-gray-800">Panel de Administrador</h1>
             <p className="text-gray-600 text-sm">Sistema de gestión educativa con IA</p>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={refreshData}
@@ -2802,7 +2796,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="text-sm">Actualizar</span>
             </button>
-            
+
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -2815,57 +2809,61 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </button>
 
               {menuOpen && (
-  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border py-2 z-10">
-    <div className="px-4 py-2 border-b">
-      <p className="text-sm font-medium text-gray-900">{currentUser?.nombre}</p>
-      <p className="text-xs text-gray-500">{currentUser?.email}</p>
-      <div className="flex flex-wrap gap-1 mt-2">
-        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(currentUser?.rol)}`}>
-          {currentUser?.rol}
-        </span>
-        {currentUser?.roles_adicionales?.map((rol, idx) => (
-          <span key={idx} className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(rol)}`}>
-            {rol}
-          </span>
-        ))}
-      </div>
-    </div>
+                <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border py-2 z-10">
+                  <div className="px-4 py-2 border-b">
+                    <p className="text-sm font-medium text-gray-900">{currentUser?.nombre}</p>
+                    <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(currentUser?.rol)}`}>
+                        {currentUser?.rol}
+                      </span>
+                      {currentUser?.roles_adicionales?.map((rol, idx) => (
+                        <span key={idx} className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(rol)}`}>
+                          {rol}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-    {/* SELECTOR DE PERFILES */}
-    {(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
-      <div className="px-4 py-2 border-b">
-        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Cambiar Perfil</p>
-        <div className="space-y-1">
-          {[currentUser.rol, ...currentUser.roles_adicionales].map((rol, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                // Aquí puedes implementar lógica para cambiar la vista según el rol
-                alert(`Cambiar a perfil: ${rol}`);
-                // navigate(`/${rol === 'admin' ? 'admin' : 'dashboard'}`);
-              }}
-              className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center gap-2 ${
-                rol === currentUser.rol ? 'bg-blue-50 border border-blue-200' : ''
-              }`}
-            >
-              <div className={`w-2 h-2 rounded-full ${getRoleBadgeColor(rol).includes('red') ? 'bg-red-500' : getRoleBadgeColor(rol).includes('blue') ? 'bg-blue-500' : getRoleBadgeColor(rol).includes('green') ? 'bg-green-500' : 'bg-gray-500'}`} />
-              <span className="capitalize">{rol}</span>
-              {rol === currentUser.rol && <span className="ml-auto text-xs text-blue-600">● Activo</span>}
-            </button>
-          ))}
+                  {/* SELECTOR DE PERFILES */}
+                  {(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
+                    <div className="px-4 py-2 border-b">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Cambiar Perfil</p>
+                      <div className="space-y-1">
+                        {[currentUser.rol, ...currentUser.roles_adicionales].map((rol, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              // Aquí puedes implementar lógica para cambiar la vista según el rol
+                              alert(`Cambiar a perfil: ${rol}`);
+                              // navigate(`/${rol === 'admin' ? 'admin' : 'dashboard'}`);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center gap-2 ${rol === currentUser.rol ? 'bg-blue-50 border border-blue-200' : ''
+                              }`}
+                          >
+                            <div className={`w-2 h-2 rounded-full ${getRoleBadgeColor(rol).includes('red') ? 'bg-red-500' : getRoleBadgeColor(rol).includes('blue') ? 'bg-blue-500' : getRoleBadgeColor(rol).includes('green') ? 'bg-green-500' : 'bg-gray-500'}`} />
+                            <span className="capitalize">{rol}</span>
+                            {rol === currentUser.rol && <span className="ml-auto text-xs text-blue-600">● Activo</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    )}
 
-    <button
-      onClick={handleLogout}
-      className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-    >
-      <LogOut className="w-4 h-4" />
-      Cerrar Sesión
-    </button>
-  </div>
-)}
+
 
         <div className="px-6">
           <div className="flex space-x-6 overflow-x-auto">
@@ -2887,11 +2885,10 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     setPreviewQuiz(false);
                     setShowDetailedAnalytics(false);
                   }}
-                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${
-                    activeTab === tab.id
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <TabIcon className="w-4 h-4" />
                   {tab.label}
@@ -3148,72 +3145,72 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                             )}
                           </td>
                           <td className="px-6 py-4">
-  {editingUser === user.id ? (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {groups.map(group => (
-          <label key={group.id} className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={
-                selectedGroups[user.id]?.includes(group.id) || 
-                (selectedGroups[user.id] === undefined && 
-                  (user.grupo_id === group.id || user.grupos_adicionales?.includes(group.id)))
-              }
-              onChange={(e) => {
-                const currentGroups = selectedGroups[user.id] || [
-                  user.grupo_id,
-                  ...(user.grupos_adicionales || [])
-                ].filter(Boolean);
-                
-                if (e.target.checked) {
-                  setSelectedGroups({
-                    ...selectedGroups,
-                    [user.id]: [...currentGroups, group.id]
-                  });
-                } else {
-                  setSelectedGroups({
-                    ...selectedGroups,
-                    [user.id]: currentGroups.filter(g => g !== group.id)
-                  });
-                }
-              }}
-              className="w-3 h-3"
-            />
-            <span className="text-xs">{group.nombre}</span>
-          </label>
-        ))}
-      </div>
-      <button
-        onClick={() => {
-          const groupIds = selectedGroups[user.id] || [user.grupo_id];
-          updateUserGroups(user.id, groupIds);
-        }}
-        className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
-      >
-        Guardar Grupos
-      </button>
-    </div>
-  ) : (
-    <div className="flex flex-wrap gap-1">
-      {user.grupo_id && (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-          {groups.find(g => g.id === user.grupo_id)?.nombre || 'Grupo Principal'}
-        </span>
-      )}
-      {user.grupos_adicionales && user.grupos_adicionales.map((groupId, idx) => (
-        <span key={idx} className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-          {groups.find(g => g.id === groupId)?.nombre || `Grupo ${groupId}`}
-        </span>
-      ))}
-      {!user.grupo_id && (!user.grupos_adicionales || user.grupos_adicionales.length === 0) && (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-          Sin grupo
-        </span>
-      )}
-    </div>
-  )}
-</td>
+                            {editingUser === user.id ? (
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                  {groups.map(group => (
+                                    <label key={group.id} className="flex items-center gap-1 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          selectedGroups[user.id]?.includes(group.id) ||
+                                          (selectedGroups[user.id] === undefined &&
+                                            (user.grupo_id === group.id || user.grupos_adicionales?.includes(group.id)))
+                                        }
+                                        onChange={(e) => {
+                                          const currentGroups = selectedGroups[user.id] || [
+                                            user.grupo_id,
+                                            ...(user.grupos_adicionales || [])
+                                          ].filter(Boolean);
+
+                                          if (e.target.checked) {
+                                            setSelectedGroups({
+                                              ...selectedGroups,
+                                              [user.id]: [...currentGroups, group.id]
+                                            });
+                                          } else {
+                                            setSelectedGroups({
+                                              ...selectedGroups,
+                                              [user.id]: currentGroups.filter(g => g !== group.id)
+                                            });
+                                          }
+                                        }}
+                                        className="w-3 h-3"
+                                      />
+                                      <span className="text-xs">{group.nombre}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const groupIds = selectedGroups[user.id] || [user.grupo_id];
+                                    updateUserGroups(user.id, groupIds);
+                                  }}
+                                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                                >
+                                  Guardar Grupos
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {user.grupo_id && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                                    {groups.find(g => g.id === user.grupo_id)?.nombre || 'Grupo Principal'}
+                                  </span>
+                                )}
+                                {user.grupos_adicionales && user.grupos_adicionales.map((groupId, idx) => (
+                                  <span key={idx} className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                    {groups.find(g => g.id === groupId)?.nombre || `Grupo ${groupId}`}
+                                  </span>
+                                ))}
+                                {!user.grupo_id && (!user.grupos_adicionales || user.grupos_adicionales.length === 0) && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                    Sin grupo
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4 text-gray-400" />
@@ -3221,28 +3218,26 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                             </div>
                           </td>
                           <td className="px-6 py-4">
-  {(() => {
-    const status = getUserStatus(user.ultimo_acceso);
-    return (
-      <div className="flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ${
-          status.color === 'green' ? 'bg-green-500 animate-pulse shadow-lg shadow-green-300' : 
-          status.color === 'blue' ? 'bg-blue-500' : 
-          status.color === 'gray' ? 'bg-gray-400' :
-          'bg-red-500'
-        }`} />
-        <span className={`text-xs font-medium ${
-          status.color === 'green' ? 'text-green-800' : 
-          status.color === 'blue' ? 'text-blue-800' : 
-          status.color === 'gray' ? 'text-gray-600' :
-          'text-red-800'
-        }`}>
-          {status.label}
-        </span>
-      </div>
-    );
-  })()}
-</td>
+                            {(() => {
+                              const status = getUserStatus(user.ultimo_acceso);
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full ${status.color === 'green' ? 'bg-green-500 animate-pulse shadow-lg shadow-green-300' :
+                                      status.color === 'blue' ? 'bg-blue-500' :
+                                        status.color === 'gray' ? 'bg-gray-400' :
+                                          'bg-red-500'
+                                    }`} />
+                                  <span className={`text-xs font-medium ${status.color === 'green' ? 'text-green-800' :
+                                      status.color === 'blue' ? 'text-blue-800' :
+                                        status.color === 'gray' ? 'text-gray-600' :
+                                          'text-red-800'
+                                    }`}>
+                                    {status.label}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2">
                               <button
@@ -3303,7 +3298,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                       placeholder="Ej: Matemáticas Básicas"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Nivel</label>
                     <select
@@ -3821,9 +3816,8 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     <p className="text-sm text-gray-600 mb-3">{achievement.descripcion}</p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{achievement.puntos_requeridos} puntos</span>
-                      <span className={`px-2 py-1 rounded-full ${
-                        achievement.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full ${achievement.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {achievement.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </div>
@@ -3866,7 +3860,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     <p className="text-sm text-gray-600 mb-4">
                       Sube un documento (PDF, TXT, DOCX) y la IA generará preguntas automáticamente basadas en el contenido para estudiantes de básica elemental.
                     </p>
-                    
+
                     <div className="flex gap-3 items-center">
                       <label className="flex-1 cursor-pointer">
                         <div className="flex items-center gap-2 bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-lg p-4 transition-colors">
@@ -3889,7 +3883,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                           className="hidden"
                         />
                       </label>
-                      
+
                       {uploadedDocument && (
                         <button
                           onClick={generateQuestionsFromDocument}
@@ -3934,18 +3928,17 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                       <button
                         key={type.value}
                         onClick={() => setCurrentQuestion({ ...currentQuestion, tipo: type.value })}
-                        className={`p-4 rounded-xl border-2 transition-all transform hover:scale-105 ${
-                          currentQuestion.tipo === type.value
+                        className={`p-4 rounded-xl border-2 transition-all transform hover:scale-105 ${currentQuestion.tipo === type.value
                             ? 'border-purple-500 bg-purple-50 shadow-md'
                             : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                          }`}
                         style={{
                           borderColor: currentQuestion.tipo === type.value ? type.color : undefined,
                           backgroundColor: currentQuestion.tipo === type.value ? `${type.color}15` : undefined
                         }}
                       >
-                        <TypeIcon 
-                          className="w-6 h-6 mx-auto mb-2" 
+                        <TypeIcon
+                          className="w-6 h-6 mx-auto mb-2"
                           style={{ color: type.color }}
                         />
                         <div className="text-sm font-semibold text-gray-800">{type.label}</div>
@@ -4048,7 +4041,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-3">
                     📝 Opciones de Respuesta
-                    {currentQuestion.tipo === 'verdadero_falso' && 
+                    {currentQuestion.tipo === 'verdadero_falso' &&
                       <span className="ml-2 text-xs text-gray-500">(Automático: Verdadero/Falso)</span>
                     }
                   </label>
@@ -4070,11 +4063,10 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                           />
                           <button
                             onClick={() => setCurrentQuestion({ ...currentQuestion, respuesta_correcta: idx })}
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                              currentQuestion.respuesta_correcta === idx
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${currentQuestion.respuesta_correcta === idx
                                 ? 'bg-green-500 text-white shadow-lg scale-105'
                                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                            }`}
+                              }`}
                           >
                             {currentQuestion.respuesta_correcta === idx ? '✓' : idx + 1}
                           </button>
@@ -4173,7 +4165,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                       return (
                         <div key={q.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
                           <div className="flex items-center gap-3 flex-1">
-                            <div 
+                            <div
                               className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white shadow-md"
                               style={{ backgroundColor: typeColor }}
                             >
