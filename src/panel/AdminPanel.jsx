@@ -137,6 +137,7 @@ export default function EnhancedAdminPanel() {
   const [editingUser, setEditingUser] = useState(null);
   const [editingLevel, setEditingLevel] = useState(null);
   const [selectedRoles, setSelectedRoles] = useState({});
+  const [selectedGroups, setSelectedGroups] = useState({});
   
   // Estados de formularios
   const [showNewLevel, setShowNewLevel] = useState(false);
@@ -573,6 +574,293 @@ const [chatLoading, setChatLoading] = useState(false);
     }
   };
 
+  // ===== NUEVOS ALGORITMOS DE ANÁLISIS =====
+
+// Algoritmo 1: Detección de Aprendizaje Real
+const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
+  try {
+    const { data, error } = await supabase
+      .from('progreso_usuarios')
+      .select(`
+        *,
+        recursos!inner(titulo, tipo, curso_id)
+      `)
+      .eq('usuario_id', studentId)
+      .order('updated_at', { ascending: true });
+
+    if (error) throw error;
+
+    const filteredData = courseId 
+      ? data.filter(p => p.recursos.curso_id === courseId)
+      : data;
+
+    // Análisis de patrones de aprendizaje
+    const analysis = {
+      isLearning: true,
+      confidence: 0,
+      indicators: {
+        averageAttempts: 0,
+        averageTimePerQuestion: 0,
+        repetitionRate: 0,
+        retentionRate: 0,
+        improvementTrend: 0
+      },
+      alerts: []
+    };
+
+    if (filteredData.length === 0) {
+      return { ...analysis, isLearning: false, alerts: ['Sin datos suficientes'] };
+    }
+
+    // 1. Tasa de Intentos (más de 3 intentos indica dificultad)
+    const attempts = filteredData.map(p => p.intentos || 1);
+    analysis.indicators.averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
+    
+    if (analysis.indicators.averageAttempts > 3) {
+      analysis.alerts.push('⚠️ Requiere muchos intentos - posible dificultad de comprensión');
+      analysis.confidence -= 20;
+    }
+
+    // 2. Tiempo de Respuesta (muy rápido o muy lento)
+    const times = filteredData.map(p => p.tiempo_dedicado || 0).filter(t => t > 0);
+    if (times.length > 0) {
+      analysis.indicators.averageTimePerQuestion = times.reduce((a, b) => a + b, 0) / times.length;
+      
+      // Respuestas muy rápidas (< 5 seg) o muy lentas (> 300 seg)
+      if (analysis.indicators.averageTimePerQuestion < 5) {
+        analysis.alerts.push('⚡ Respuestas muy rápidas - posible adivinación');
+        analysis.confidence -= 15;
+      } else if (analysis.indicators.averageTimePerQuestion > 300) {
+        analysis.alerts.push('🐌 Tiempo excesivo - posible distracción');
+        analysis.confidence -= 10;
+      }
+    }
+
+    // 3. Tasa de Repetición (recursos reiniciados)
+    const repeated = filteredData.filter(p => (p.intentos || 1) > 1).length;
+    analysis.indicators.repetitionRate = (repeated / filteredData.length) * 100;
+    
+    if (analysis.indicators.repetitionRate > 50) {
+      analysis.alerts.push('🔄 Alta tasa de repetición - refuerzo necesario');
+      analysis.confidence -= 15;
+    }
+
+    // 4. Tendencia de Mejora (últimos 5 vs primeros 5)
+    if (filteredData.length >= 10) {
+      const first5 = filteredData.slice(0, 5);
+      const last5 = filteredData.slice(-5);
+      
+      const firstAvg = first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+      const lastAvg = last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+      
+      analysis.indicators.improvementTrend = lastAvg - firstAvg;
+      
+      if (analysis.indicators.improvementTrend < 0) {
+        analysis.alerts.push('📉 Rendimiento decreciente - necesita apoyo');
+        analysis.confidence -= 20;
+        analysis.isLearning = false;
+      } else if (analysis.indicators.improvementTrend > 15) {
+        analysis.alerts.push('✅ Excelente progreso - aprendizaje efectivo');
+        analysis.confidence += 30;
+      }
+    }
+
+    // 5. Tasa de Retención (completados que siguen completados)
+    const completed = filteredData.filter(p => p.completado).length;
+    analysis.indicators.retentionRate = (completed / filteredData.length) * 100;
+    
+    if (analysis.indicators.retentionRate < 30) {
+      analysis.alerts.push('⚠️ Baja retención - revisar metodología');
+      analysis.confidence -= 15;
+    }
+
+    // Calcular confianza final (0-100)
+    analysis.confidence = Math.max(0, Math.min(100, 60 + analysis.confidence));
+    
+    // Determinar si está aprendiendo
+    analysis.isLearning = analysis.confidence >= 50;
+
+    return analysis;
+  } catch (err) {
+    console.error('Error analizando efectividad:', err);
+    return null;
+  }
+};
+
+// Algoritmo 2: Detección de Atención
+const analyzeAttentionLevel = async (studentId, courseId = null) => {
+  try {
+    const { data, error } = await supabase
+      .from('progreso_usuarios')
+      .select(`
+        *,
+        recursos!inner(curso_id)
+      `)
+      .eq('usuario_id', studentId)
+      .order('updated_at', { ascending: false })
+      .limit(20); // Últimas 20 actividades
+
+    if (error) throw error;
+
+    const filteredData = courseId 
+      ? data.filter(p => p.recursos.curso_id === courseId)
+      : data;
+
+    const attention = {
+      level: 'Buena',
+      score: 75,
+      indicators: {
+        inactivityPeriods: 0,
+        consistencyScore: 0,
+        focusIndex: 0
+      },
+      recommendations: []
+    };
+
+    if (filteredData.length < 3) {
+      return { ...attention, level: 'Insuficientes datos', score: 0 };
+    }
+
+    // 1. Detectar períodos de inactividad largos
+    const updates = filteredData.map(p => new Date(p.updated_at)).sort((a, b) => a - b);
+    let longGaps = 0;
+    
+    for (let i = 1; i < updates.length; i++) {
+      const diffMinutes = (updates[i] - updates[i-1]) / (1000 * 60);
+      if (diffMinutes > 30) longGaps++; // Más de 30 min entre actividades
+    }
+    
+    attention.indicators.inactivityPeriods = longGaps;
+    
+    if (longGaps > 3) {
+      attention.score -= 20;
+      attention.recommendations.push('🕐 Establecer horarios regulares de estudio');
+    }
+
+    // 2. Consistencia de rendimiento
+    const progressValues = filteredData.map(p => p.progreso || 0);
+    const stdDev = calculateStdDev(progressValues);
+    const mean = progressValues.reduce((a, b) => a + b, 0) / progressValues.length;
+    
+    attention.indicators.consistencyScore = stdDev;
+    
+    if (stdDev > 30) {
+      attention.score -= 15;
+      attention.recommendations.push('📊 Rendimiento inconsistente - revisar ambiente de estudio');
+    }
+
+    // 3. Índice de Foco (tiempo dedicado vs tiempo estimado)
+    const focusTimes = filteredData.filter(p => p.tiempo_dedicado && p.tiempo_dedicado > 0);
+    if (focusTimes.length > 0) {
+      const avgTime = focusTimes.reduce((sum, p) => sum + p.tiempo_dedicado, 0) / focusTimes.length;
+      // Asumiendo 5 minutos por recurso como ideal
+      attention.indicators.focusIndex = Math.min(100, (avgTime / 300) * 100);
+      
+      if (attention.indicators.focusIndex < 30) {
+        attention.score -= 20;
+        attention.recommendations.push('⚡ Aumentar tiempo de dedicación por actividad');
+      }
+    }
+
+    // Determinar nivel de atención
+    if (attention.score >= 70) {
+      attention.level = 'Excelente';
+    } else if (attention.score >= 50) {
+      attention.level = 'Buena';
+    } else if (attention.score >= 30) {
+      attention.level = 'Regular';
+      attention.recommendations.push('⚠️ Necesita mejorar concentración en clase');
+    } else {
+      attention.level = 'Baja';
+      attention.recommendations.push('🚨 ALERTA: Baja atención - intervención necesaria');
+    }
+
+    return attention;
+  } catch (err) {
+    console.error('Error analizando atención:', err);
+    return null;
+  }
+};
+
+// Función auxiliar: Desviación estándar
+const calculateStdDev = (values) => {
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+// Algoritmo 3: Retroalimentación Adaptativa Completa
+const generateAdaptiveFeedback = async (studentId, courseId) => {
+  try {
+    const learningAnalysis = await analyzeLearningEffectiveness(studentId, courseId);
+    const attentionAnalysis = await analyzeAttentionLevel(studentId, courseId);
+
+    const feedback = {
+      studentId,
+      courseId,
+      timestamp: new Date().toISOString(),
+      overallStatus: 'En Progreso',
+      learningEffectiveness: learningAnalysis,
+      attentionLevel: attentionAnalysis,
+      strengths: [],
+      weaknesses: [],
+      recommendations: [],
+      actionPlan: []
+    };
+
+    // Determinar estado general
+    if (learningAnalysis?.isLearning && attentionAnalysis?.score >= 70) {
+      feedback.overallStatus = '✅ Aprendizaje Efectivo';
+      feedback.strengths.push('Demuestra comprensión real del contenido');
+      feedback.strengths.push('Mantiene buena atención en clase');
+    } else if (!learningAnalysis?.isLearning || attentionAnalysis?.score < 30) {
+      feedback.overallStatus = '🚨 Requiere Intervención';
+      feedback.actionPlan.push('🎯 PRIORITARIO: Reunión con docente y padres');
+    } else {
+      feedback.overallStatus = '⚠️ Necesita Apoyo';
+    }
+
+    // Identificar fortalezas y debilidades
+    if (learningAnalysis) {
+      if (learningAnalysis.indicators.improvementTrend > 10) {
+        feedback.strengths.push('Muestra mejora continua en su aprendizaje');
+      }
+      if (learningAnalysis.indicators.retentionRate > 70) {
+        feedback.strengths.push('Buena retención de conocimientos');
+      }
+      if (learningAnalysis.indicators.averageAttempts > 3) {
+        feedback.weaknesses.push('Dificultad para comprender a la primera');
+        feedback.recommendations.push('📚 Reforzar conceptos básicos antes de avanzar');
+      }
+    }
+
+    if (attentionAnalysis) {
+      if (attentionAnalysis.score < 50) {
+        feedback.weaknesses.push('Problemas de atención y concentración');
+        feedback.recommendations.push(...attentionAnalysis.recommendations);
+      }
+    }
+
+    // Plan de acción
+    if (feedback.weaknesses.length > 0) {
+      feedback.actionPlan.push('📝 Evaluación diagnóstica adicional');
+      feedback.actionPlan.push('👥 Trabajo en grupos pequeños');
+      feedback.actionPlan.push('🎮 Actividades interactivas personalizadas');
+    }
+
+    if (feedback.strengths.length > 0) {
+      feedback.actionPlan.push('⭐ Reconocer logros públicamente');
+      feedback.actionPlan.push('🎯 Desafíos avanzados para mantener motivación');
+    }
+
+    return feedback;
+  } catch (err) {
+    console.error('Error generando retroalimentación:', err);
+    return null;
+  }
+};
+
   const updateUserRole = async (userId, newRole) => {
     try {
       const { error } = await supabase
@@ -635,21 +923,49 @@ const [chatLoading, setChatLoading] = useState(false);
     }
   };
 
-  const updateUserGroup = async (userId, groupId) => {
-    try {
-      const { error } = await supabase
-        .from('usuarios')
-        .update({ grupo_id: groupId || null })
-        .eq('id', userId);
-
-      if (error) throw error;
-      
-      fetchUsers();
-      alert('✅ Grupo actualizado exitosamente');
-    } catch (err) {
-      alert('Error al actualizar el grupo');
+  const updateUserGroups = async (userId, groups) => {
+  try {
+    const groupsArray = Array.isArray(groups) ? groups : [groups];
+    
+    if (groupsArray.length === 0) {
+      alert('Debes seleccionar al menos un grupo');
+      return;
     }
-  };
+
+    console.log('🔄 Actualizando grupos para usuario:', userId);
+    console.log('📝 Grupos a guardar:', groupsArray);
+    console.log('👥 Grupo principal:', groupsArray[0]);
+    console.log('➕ Grupos adicionales:', groupsArray.slice(1));
+
+    const updateData = { 
+      grupo_id: groupsArray[0],
+      grupos_adicionales: groupsArray.length > 1 ? groupsArray.slice(1) : [],
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('💾 Datos a enviar:', updateData);
+
+    const { data, error } = await supabase
+      .from('usuarios')
+      .update(updateData)
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('❌ Error de Supabase:', error);
+      throw error;
+    }
+    
+    console.log('✅ Respuesta de Supabase:', data);
+    
+    await fetchUsers();
+    setSelectedGroups({});
+    alert('✅ Grupos actualizados exitosamente');
+  } catch (err) {
+    console.error('❌ Error actualizando grupos:', err);
+    alert('Error al actualizar los grupos: ' + err.message);
+  }
+};
 
   const updateUserStatus = async (userId, isActive) => {
     try {
@@ -824,27 +1140,33 @@ const [chatLoading, setChatLoading] = useState(false);
     }
   };
 
-  const createGroup = async () => {
-    if (!newGroup.nombre.trim()) {
-      alert('El nombre del grupo es obligatorio');
-      return;
-    }
+const createGroup = async () => {
+  if (!newGroup.nombre.trim()) {
+    alert('El nombre del grupo es obligatorio');
+    return;
+  }
 
-    try {
-      const { error } = await supabase
-        .from('grupos')
-        .insert([newGroup]);
+  try {
+    const { data, error } = await supabase
+      .from('grupos')
+      .insert([newGroup])
+      .select(); // ⬅️ IMPORTANTE: Agregar .select()
 
-      if (error) throw error;
-      
-      fetchGroups();
-      setNewGroup({ nombre: '', descripcion: '' });
-      setShowNewGroup(false);
-      alert('✅ Grupo creado exitosamente');
-    } catch (err) {
-      alert('Error al crear el grupo');
+    if (error) throw error;
+    
+    // Actualizar estado inmediatamente con el nuevo grupo
+    if (data && data.length > 0) {
+      setGroups(prevGroups => [...prevGroups, data[0]]);
     }
-  };
+    
+    setNewGroup({ nombre: '', descripcion: '' });
+    setShowNewGroup(false);
+    alert('✅ Grupo creado exitosamente');
+  } catch (err) {
+    console.error('Error creando grupo:', err);
+    alert('Error al crear el grupo: ' + err.message);
+  }
+};
 
   const deleteGroup = async (groupId) => {
     if (!confirm('¿Estás seguro de eliminar este grupo?')) return;
@@ -1202,47 +1524,134 @@ REGLAS:
     }
   };
 
-  const generateCourseReport = async (courseId) => {
-    try {
-      const course = courses.find(c => c.id === parseInt(courseId));
-      if (!course) return;
+const generateCourseReport = async (courseId) => {
+  try {
+    const course = courses.find(c => c.id === parseInt(courseId));
+    if (!course) return;
 
-      await fetchCourseAnalytics(courseId);
+    await fetchCourseAnalytics(courseId);
 
-      const reportData = {
-        curso: course.titulo,
-        fecha: new Date().toLocaleDateString('es-ES'),
-        estudiantes: courseAnalytics?.totalStudents || 0,
-        progreso_promedio: courseAnalytics?.avgProgress || 0,
-        recursos_completados: courseAnalytics?.completedResources || 0,
-        tiempo_total: courseAnalytics?.totalTime || 0
-      };
+    // Obtener estudiantes del curso
+    const { data: studentsData, error } = await supabase
+      .from('progreso_usuarios')
+      .select(`
+        usuario_id,
+        usuarios!inner(nombre, email, grupo_id)
+      `)
+      .eq('recursos.curso_id', courseId);
 
-      const reportText = `
-=== REPORTE DE CURSO ===
-Curso: ${reportData.curso}
-Fecha: ${reportData.fecha}
----
-Total Estudiantes: ${reportData.estudiantes}
-Progreso Promedio: ${reportData.progreso_promedio}%
-Recursos Completados: ${reportData.recursos_completados}
-Tiempo Total Dedicado: ${reportData.tiempo_total} minutos
-      `;
+    const uniqueStudents = [...new Set(studentsData?.map(s => s.usuario_id))];
 
-      const blob = new Blob([reportText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reporte_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+    // Generar análisis detallado por estudiante
+    let detailedReport = `
+╔════════════════════════════════════════════════════════════════╗
+║          REPORTE DETALLADO DE CURSO CON IA PREDICTIVA         ║
+╚════════════════════════════════════════════════════════════════╝
 
-      alert('✅ Reporte generado y descargado exitosamente');
-    } catch (err) {
-      console.error('Error generando reporte:', err);
-      alert('Error al generar el reporte');
+📚 CURSO: ${course.titulo}
+📅 FECHA: ${new Date().toLocaleDateString('es-ES')}
+🎯 NIVEL: ${course.nivel_nombre}
+
+═══════════════════════════════════════════════════════════════
+                    ESTADÍSTICAS GENERALES
+═══════════════════════════════════════════════════════════════
+👥 Total Estudiantes: ${courseAnalytics?.totalStudents || 0}
+📊 Progreso Promedio: ${courseAnalytics?.avgProgress || 0}%
+✅ Recursos Completados: ${courseAnalytics?.completedResources || 0}
+⏱️ Tiempo Total Dedicado: ${courseAnalytics?.totalTime || 0} minutos
+
+═══════════════════════════════════════════════════════════════
+            ANÁLISIS DE APRENDIZAJE POR ESTUDIANTE
+═══════════════════════════════════════════════════════════════
+`;
+
+    for (const studentId of uniqueStudents.slice(0, 10)) {
+      const student = users.find(u => u.id === studentId);
+      if (!student) continue;
+
+      const feedback = await generateAdaptiveFeedback(studentId, courseId);
+      
+      if (feedback) {
+        detailedReport += `\n
+┌────────────────────────────────────────────────────────────┐
+│ ESTUDIANTE: ${student.nombre.padEnd(45)} │
+│ EMAIL: ${student.email.padEnd(48)} │
+└────────────────────────────────────────────────────────────┘
+
+🎯 ESTADO GENERAL: ${feedback.overallStatus}
+
+📈 EFECTIVIDAD DE APRENDIZAJE:
+   • ¿Está aprendiendo realmente? ${feedback.learningEffectiveness?.isLearning ? 'SÍ ✅' : 'NO ❌'}
+   • Confianza del análisis: ${feedback.learningEffectiveness?.confidence.toFixed(1)}%
+   • Promedio de intentos: ${feedback.learningEffectiveness?.indicators.averageAttempts.toFixed(1)}
+   • Tasa de retención: ${feedback.learningEffectiveness?.indicators.retentionRate.toFixed(1)}%
+   • Tendencia de mejora: ${feedback.learningEffectiveness?.indicators.improvementTrend >= 0 ? '+' : ''}${feedback.learningEffectiveness?.indicators.improvementTrend.toFixed(1)}%
+
+👁️ NIVEL DE ATENCIÓN:
+   • Calificación: ${feedback.attentionLevel?.level}
+   • Puntaje: ${feedback.attentionLevel?.score}/100
+   • Períodos de inactividad: ${feedback.attentionLevel?.indicators.inactivityPeriods}
+   • Consistencia: ${feedback.attentionLevel?.indicators.consistencyScore.toFixed(1)}
+
+⚠️ ALERTAS:
+${feedback.learningEffectiveness?.alerts.map(a => `   • ${a}`).join('\n') || '   ✅ Sin alertas'}
+
+💪 FORTALEZAS:
+${feedback.strengths.map(s => `   ✓ ${s}`).join('\n') || '   - Por desarrollar'}
+
+🎯 ÁREAS DE MEJORA:
+${feedback.weaknesses.map(w => `   ✗ ${w}`).join('\n') || '   ✅ Ninguna identificada'}
+
+📋 RECOMENDACIONES:
+${feedback.recommendations.map(r => `   → ${r}`).join('\n') || '   ✅ Continuar con el buen trabajo'}
+
+🚀 PLAN DE ACCIÓN:
+${feedback.actionPlan.map(a => `   ${a}`).join('\n')}
+
+`;
+      }
     }
-  };
+
+    detailedReport += `
+═══════════════════════════════════════════════════════════════
+                    RESUMEN Y CONCLUSIONES
+═══════════════════════════════════════════════════════════════
+
+Este reporte fue generado usando Inteligencia Artificial predictiva
+que analiza patrones de aprendizaje, atención y retención.
+
+📊 Algoritmos utilizados:
+   • Learning Effectiveness Analysis (LEA)
+   • Attention Detection Algorithm (ADA)
+   • Adaptive Feedback System (AFS)
+
+⚡ Recomendación General del Sistema:
+${courseAnalytics?.avgProgress >= 70 
+  ? '✅ El curso muestra buen desempeño general. Mantener metodología.'
+  : courseAnalytics?.avgProgress >= 50
+    ? '⚠️ Requiere ajustes en la metodología de enseñanza.'
+    : '🚨 URGENTE: Revisar completamente el enfoque pedagógico.'}
+
+═══════════════════════════════════════════════════════════════
+                 Generado por Didactikapp v2.3.0
+═══════════════════════════════════════════════════════════════
+`;
+
+    // Descargar reporte
+    const blob = new Blob([detailedReport], { type: 'text/plain; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Reporte_IA_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    alert('✅ Reporte con análisis de IA generado exitosamente');
+  } catch (err) {
+    console.error('Error generando reporte:', err);
+    alert('Error al generar el reporte');
+  }
+};
 
   const renderQuestionPreview = () => {
     if (!currentQuiz.preguntas.length) return null;
@@ -1592,14 +2001,31 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
   };
 
   const getFilteredUsers = () => {
-    return users.filter(user => {
-      if (filterRole && user.rol !== filterRole) return false;
-      if (filterGroup && user.grupo_id !== parseInt(filterGroup)) return false;
-      if (filterStatus === 'active' && !user.activo) return false;
-      if (filterStatus === 'inactive' && user.activo) return false;
-      return true;
-    });
-  };
+  return users.filter(user => {
+    if (filterRole && user.rol !== filterRole) return false;
+    
+    if (filterGroup) {
+      if (filterGroup === 'sin_grupo') {
+        if (user.grupo_id || (user.grupos_adicionales && user.grupos_adicionales.length > 0)) {
+          return false;
+        }
+      } else {
+        const userGroups = [
+          user.grupo_id,
+          ...(user.grupos_adicionales || [])
+        ].filter(Boolean);
+        
+        if (!userGroups.includes(parseInt(filterGroup))) {
+          return false;
+        }
+      }
+    }
+    
+    if (filterStatus === 'active' && !user.activo) return false;
+    if (filterStatus === 'inactive' && user.activo) return false;
+    return true;
+  });
+};
 
   const formatLastAccess = (lastAccess) => {
     if (!lastAccess) return 'Nunca';
@@ -1816,7 +2242,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     📊 Estado del sistema
                   </button>
                   <button
-                    onClick={() => handleAIChat('Dame recomendaciones para mejorar el Compromiso')}
+                    onClick={() => handleAIChat('Dame recomendaciones para mejorar el Compromiso                                                                                                                  ')}
                     className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
                   >
                     💡 Mejorar Compromiso
@@ -2389,23 +2815,57 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg border py-2 z-10">
-                  <div className="px-4 py-2 border-b">
-                    <p className="text-sm font-medium text-gray-900">{currentUser?.nombre}</p>
-                    <p className="text-xs text-gray-500">{currentUser?.email}</p>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Cerrar Sesión
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border py-2 z-10">
+    <div className="px-4 py-2 border-b">
+      <p className="text-sm font-medium text-gray-900">{currentUser?.nombre}</p>
+      <p className="text-xs text-gray-500">{currentUser?.email}</p>
+      <div className="flex flex-wrap gap-1 mt-2">
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(currentUser?.rol)}`}>
+          {currentUser?.rol}
+        </span>
+        {currentUser?.roles_adicionales?.map((rol, idx) => (
+          <span key={idx} className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(rol)}`}>
+            {rol}
+          </span>
+        ))}
+      </div>
+    </div>
+
+    {/* SELECTOR DE PERFILES */}
+    {(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
+      <div className="px-4 py-2 border-b">
+        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Cambiar Perfil</p>
+        <div className="space-y-1">
+          {[currentUser.rol, ...currentUser.roles_adicionales].map((rol, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                // Aquí puedes implementar lógica para cambiar la vista según el rol
+                alert(`Cambiar a perfil: ${rol}`);
+                // navigate(`/${rol === 'admin' ? 'admin' : 'dashboard'}`);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                rol === currentUser.rol ? 'bg-blue-50 border border-blue-200' : ''
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${getRoleBadgeColor(rol).includes('red') ? 'bg-red-500' : getRoleBadgeColor(rol).includes('blue') ? 'bg-blue-500' : getRoleBadgeColor(rol).includes('green') ? 'bg-green-500' : 'bg-gray-500'}`} />
+              <span className="capitalize">{rol}</span>
+              {rol === currentUser.rol && <span className="ml-auto text-xs text-blue-600">● Activo</span>}
+            </button>
+          ))}
         </div>
+      </div>
+    )}
+
+    <button
+      onClick={handleLogout}
+      className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+    >
+      <LogOut className="w-4 h-4" />
+      Cerrar Sesión
+    </button>
+  </div>
+)}
 
         <div className="px-6">
           <div className="flex space-x-6 overflow-x-auto">
@@ -2688,17 +3148,72 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            <select
-                              value={user.grupo_id || ''}
-                              onChange={(e) => updateUserGroup(user.id, e.target.value)}
-                              className="text-xs border rounded px-2 py-1"
-                            >
-                              <option value="">Sin grupo</option>
-                              {groups.map(group => (
-                                <option key={group.id} value={group.id}>{group.nombre}</option>
-                              ))}
-                            </select>
-                          </td>
+  {editingUser === user.id ? (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {groups.map(group => (
+          <label key={group.id} className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={
+                selectedGroups[user.id]?.includes(group.id) || 
+                (selectedGroups[user.id] === undefined && 
+                  (user.grupo_id === group.id || user.grupos_adicionales?.includes(group.id)))
+              }
+              onChange={(e) => {
+                const currentGroups = selectedGroups[user.id] || [
+                  user.grupo_id,
+                  ...(user.grupos_adicionales || [])
+                ].filter(Boolean);
+                
+                if (e.target.checked) {
+                  setSelectedGroups({
+                    ...selectedGroups,
+                    [user.id]: [...currentGroups, group.id]
+                  });
+                } else {
+                  setSelectedGroups({
+                    ...selectedGroups,
+                    [user.id]: currentGroups.filter(g => g !== group.id)
+                  });
+                }
+              }}
+              className="w-3 h-3"
+            />
+            <span className="text-xs">{group.nombre}</span>
+          </label>
+        ))}
+      </div>
+      <button
+        onClick={() => {
+          const groupIds = selectedGroups[user.id] || [user.grupo_id];
+          updateUserGroups(user.id, groupIds);
+        }}
+        className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+      >
+        Guardar Grupos
+      </button>
+    </div>
+  ) : (
+    <div className="flex flex-wrap gap-1">
+      {user.grupo_id && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+          {groups.find(g => g.id === user.grupo_id)?.nombre || 'Grupo Principal'}
+        </span>
+      )}
+      {user.grupos_adicionales && user.grupos_adicionales.map((groupId, idx) => (
+        <span key={idx} className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+          {groups.find(g => g.id === groupId)?.nombre || `Grupo ${groupId}`}
+        </span>
+      ))}
+      {!user.grupo_id && (!user.grupos_adicionales || user.grupos_adicionales.length === 0) && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+          Sin grupo
+        </span>
+      )}
+    </div>
+  )}
+</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4 text-gray-400" />
@@ -2757,6 +3272,8 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             )}
           </div>
         )}
+
+
 
         {/* SECCIÓN DE CURSOS */}
         {activeTab === 'courses' && (
