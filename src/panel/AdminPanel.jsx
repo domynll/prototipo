@@ -307,40 +307,62 @@ const getUserStatus = (lastAccess) => {
   }, [currentUser]);
 
   const checkAuthAndRole = async () => {
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        navigate('/login');
-        return;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const { data: userData, error: userError } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (userError || !userData) {
-        setError('No se pudo obtener la información del usuario');
-        setTimeout(() => navigate('/login'), 2000);
-        return;
-      }
-
-      if (userData.rol !== 'admin' && !userData.roles_adicionales?.includes('admin')) {
-        setError(`No tienes permisos de administrador. Tu rol es: ${userData.rol}`);
-        setTimeout(() => navigate('/dashboard'), 2000);
-        return;
-      }
-
-      setCurrentUser(userData);
-    } catch (err) {
-      console.error('❌ Error de autenticación:', err);
-      setError('Error de autenticación: ' + err.message);
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      navigate('/login');
+      return;
     }
-  };
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const { data: userData, error: userError } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('auth_id', session.user.id)
+      .single();
+    if (userError || !userData) {
+      setError('No se pudo obtener la información del usuario');
+      setTimeout(() => navigate('/login'), 2000);
+      return;
+    }
+  
+    setCurrentUser(userData);
+  } catch (err) {
+    console.error('❌ Error de autenticación:', err);
+    setError('Error de autenticación: ' + err.message);
+  }
+};
+
+useEffect(() => {
+  if (!currentUser) return;
+  const isAdmin = currentUser.rol === 'admin' || currentUser.roles_adicionales?.includes('admin');
+  if (!isAdmin) {
+    navigate('/dashboard');
+  }
+}, [currentUser, navigate]);
+
+const handleRoleSwitch = async (newRol) => {
+  try {
+    const allRoles = [currentUser.rol, ...(currentUser.roles_adicionales || [])];
+    if (!allRoles.includes(newRol)) {
+      alert('❌ No tienes acceso a este rol');
+      return;
+    }
+    const updatedUser = { ...currentUser, rol: newRol };
+    setCurrentUser(updatedUser);
+    setMenuOpen(false);
+    setActiveTab('dashboard');
+    
+    supabase
+      .from('usuarios')
+      .update({ rol: newRol })
+      .eq('id', currentUser.id)
+      .catch(err => console.warn('⚠️ BD no actualizada:', err));
+    
+    alert(`✅ Cambiado a: ${newRol}`);
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+};
 
   const loadAllData = async () => {
     setLoading(true);
@@ -3409,8 +3431,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
 
 {/* SELECTOR DE PERFILES MEJORADO */}
-// ✅ REEMPLAZA ESTA SECCIÓN EN TU CÓDIGO
-// Busca: "SELECTOR DE PERFILES MEJORADO"
 
 {(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
   <div className="px-4 py-2 border-b">
@@ -3418,47 +3438,33 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     <div className="space-y-1">
       {[currentUser.rol, ...currentUser.roles_adicionales]
         .filter((rol, index, self) => self.indexOf(rol) === index)
-        .map((rol, idx) => {
+        .map((rol) => {
           const roleInfo = availableRoles.find(r => r.value === rol);
           const isActive = rol === currentUser.rol;
-          
           return (
             <button
-              key={idx}
+              key={rol}
               onClick={() => {
                 if (isActive) {
                   setMenuOpen(false);
-                  alert('✅ Ya estás usando este perfil');
+                  alert('✅ Ya usas este perfil');
                   return;
                 }
-                
-                // ✅ CAMBIO CLAVE: Actualizar el rol directamente sin navigate()
-                const updatedUser = {
-                  ...currentUser,
-                  rol: rol
-                };
-                
-                setCurrentUser(updatedUser);
-                setMenuOpen(false);
-                setActiveTab('dashboard');
-                
-                // ✅ Mostrar confirmación
-                alert(`✅ Perfil cambiado a: ${roleInfo?.label || rol}`);
+                handleRoleSwitch(rol);
               }}
-              className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center justify-between gap-2 ${
-                isActive ? 'bg-blue-50 border-2 border-blue-300 font-semibold' : 'border border-gray-200'
+              className={`w-full text-left px-3 py-2 text-sm rounded transition-all flex items-center justify-between gap-2 ${
+                isActive ? 'bg-blue-50 border-2 border-blue-300 font-semibold text-blue-700' : 'border border-gray-200 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
                   roleInfo?.color === 'red' ? 'bg-red-500' :
                   roleInfo?.color === 'blue' ? 'bg-blue-500' :
-                  roleInfo?.color === 'green' ? 'bg-green-500' :
-                  'bg-gray-500'
+                  roleInfo?.color === 'green' ? 'bg-green-500' : 'bg-gray-500'
                 }`} />
                 <span className="capitalize">{roleInfo?.label || rol}</span>
               </div>
-              {isActive && <span className="text-xs text-blue-600 font-bold">● ACTIVO</span>}
+              {isActive && <span className="text-xs font-bold">● ACTIVO</span>}
             </button>
           );
         })}
