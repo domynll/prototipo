@@ -6,7 +6,7 @@ import {
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle,
   Eye, Sparkles, Upload, Mic, Video, Volume2, Download, Move, ChevronUp, ChevronDown,
   Clock, Activity, TrendingDown, Filter, UserCheck, UserX, FileUp, Brain, Search,
-  PieChart, BarChart2, LineChart
+  PieChart, BarChart2, LineChart, Printer 
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -192,6 +192,8 @@ export default function EnhancedAdminPanel() {
   const [previewAnswers, setPreviewAnswers] = useState({});
   const [uploadedDocument, setUploadedDocument] = useState(null);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
+  
+  
 
   const [currentQuiz, setCurrentQuiz] = useState({
     preguntas: []
@@ -214,38 +216,62 @@ export default function EnhancedAdminPanel() {
     tiempo_limite: 0
   });
 
-  // Estados para Chat IA
-  const [showAIChat, setShowAIChat] = useState(false);
+const [showAIChat, setShowAIChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+
+  // Estados para modal de reporte visual
+  const [showCourseReportModal, setShowCourseReportModal] = useState(false);
+  const [courseReportData, setCourseReportData] = useState(null);
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState('');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-  // Función para obtener el estado real del usuario
-  const getUserStatus = (lastAccess) => {
-    if (!lastAccess) return { isActive: false, label: 'Nunca conectado', color: 'gray' };
+const [quizConfig, setQuizConfig] = useState({ 
+totalPreguntas: 5, 
+tiposSeleccionados: { 
+multiple: true, 
+verdadero_falso: true, 
+completar: true, 
+imagen: false, 
+audio: false 
+}, 
+dificultad: 'medio', // facil, medio, dificil 
+audio_automatico: true, 
+retroalimentacion_detallada: true 
+});
 
-    const date = new Date(lastAccess);
-    const now = new Date();
-    const diffInMinutes = (now - date) / (1000 * 60);
+  // Obtener el estado real del usuario =====
+const getUserStatus = (lastAccess) => {
+  if (!lastAccess) return { isActive: false, label: 'Nunca conectado', color: 'gray' };
 
-    // En línea si accedió en los últimos 30 minutos
-    if (diffInMinutes <= 30) {
-      return { isActive: true, label: 'En línea', color: 'green' };
-    }
+  const lastAccessDate = new Date(lastAccess);
+  const now = new Date();
+  const diffInMinutes = (now - lastAccessDate) / (1000 * 60);
 
-    // Activo recientemente si accedió en las últimas 24 horas
-    if (diffInMinutes <= 1440) { // 24 horas = 1440 minutos
-      return { isActive: true, label: 'Activo', color: 'blue' };
-    }
-
-    // Inactivo si ha pasado más de 24 horas
-    return { isActive: false, label: 'Inactivo', color: 'red' };
-  };
+  // En línea: menos de 5 minutos
+  if (diffInMinutes < 5) {
+    return { isActive: true, label: 'En línea', color: 'green' };
+  }
+  
+  // Activo recientemente: menos de 30 minutos
+  if (diffInMinutes < 30) {
+    return { isActive: true, label: 'Activo (hace ' + Math.round(diffInMinutes) + ' min)', color: 'blue' };
+  }
+  
+  // Inactivo hoy: menos de 24 horas
+  if (diffInMinutes < 1440) {
+    const hours = Math.floor(diffInMinutes / 60);
+    return { isActive: false, label: 'Inactivo (hace ' + hours + 'h)', color: 'orange' };
+  }
+  
+  // Inactivo días
+  const days = Math.floor(diffInMinutes / 1440);
+  return { isActive: false, label: 'Inactivo (hace ' + days + ' días)', color: 'red' };
+};
 
   const questionTypes = [
     { value: 'multiple', label: 'Opción Múltiple', icon: HelpCircle, color: '#3B82F6' },
@@ -303,7 +329,7 @@ export default function EnhancedAdminPanel() {
         return;
       }
 
-      if (userData.rol !== 'admin') {
+      if (userData.rol !== 'admin' && !userData.roles_adicionales?.includes('admin')) {
         setError(`No tienes permisos de administrador. Tu rol es: ${userData.rol}`);
         setTimeout(() => navigate('/dashboard'), 2000);
         return;
@@ -481,7 +507,7 @@ export default function EnhancedAdminPanel() {
   const calculateEngagementRate = async () => {
     try {
       const { data, error } = await supabase
-        .from('progreso_usuarios')
+        .from('progreso_estudiantes')
         .select('*')
         .gte('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
@@ -498,26 +524,21 @@ export default function EnhancedAdminPanel() {
 
   const calculateCompletionRate = async () => {
     try {
-      const { data, error } = await supabase
-        .from('progreso_usuarios')
-        .select('*')
-        .eq('completado', true);
-
-      if (error) throw error;
-
-      const totalCompletions = data?.length || 0;
-      const totalPossibleCompletions = users.filter(u => u.rol === 'estudiante').length * resources.length;
-
+      const { data, error } = await supabase.from('progreso_estudiantes') // ← CAMBIO 
+      .select('*') 
+      .eq('completado', true); 
+      if (error) throw error; 
+      const totalCompletions = data?.length || 0; 
+      const totalPossibleCompletions = users.filter(u => u.rol === 'estudiante').length * resources.length; 
       return totalPossibleCompletions > 0 ? Math.round((totalCompletions / totalPossibleCompletions) * 100) : 0;
-    } catch (err) {
+     } catch (err) { 
       return 0;
-    }
-  };
+     } };
 
-  const calculateTopCourses = async () => {
+      const calculateTopCourses = async () => {
     try {
       const { data, error } = await supabase
-        .from('progreso_usuarios')
+        .from('progreso_estudiantes')
         .select(`
           *,
           recursos!inner(
@@ -558,7 +579,7 @@ export default function EnhancedAdminPanel() {
   const calculateAvgTimePerResource = async () => {
     try {
       const { data, error } = await supabase
-        .from('progreso_usuarios')
+        .from('progreso_estudiantes')
         .select('tiempo_dedicado')
         .not('tiempo_dedicado', 'is', null);
 
@@ -573,120 +594,116 @@ export default function EnhancedAdminPanel() {
     }
   };
 
-  // ===== NUEVOS ALGORITMOS DE ANÁLISIS =====
+  // ===== ALGORITMOS DE ANÁLISIS DE APRENDIZAJE =====
 
-  // Algoritmo 1: Detección de Aprendizaje Real
+  // Algoritmo 1: Detección de Aprendizaje Real (LEA)
   const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
-    try {
-      const { data, error } = await supabase
-        .from('progreso_usuarios')
-        .select(`
+  try {
+    const { data, error } = await supabase
+      .from('progreso_estudiantes')  // ← CAMBIO: progreso_usuarios → progreso_estudiantes
+      .select(`
         *,
         recursos!inner(titulo, tipo, curso_id)
       `)
-        .eq('usuario_id', studentId)
-        .order('updated_at', { ascending: true });
+      .eq('usuario_id', studentId)
+      .order('updated_at', { ascending: true });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const filteredData = courseId
-        ? data.filter(p => p.recursos.curso_id === courseId)
-        : data;
+    const filteredData = courseId
+      ? data.filter(p => p.recursos.curso_id === courseId)
+      : data;
 
-      // Análisis de patrones de aprendizaje
-      const analysis = {
-        isLearning: true,
-        confidence: 0,
-        indicators: {
-          averageAttempts: 0,
-          averageTimePerQuestion: 0,
-          repetitionRate: 0,
-          retentionRate: 0,
-          improvementTrend: 0
-        },
-        alerts: []
-      };
+    const analysis = {
+      isLearning: true,
+      confidence: 0,
+      indicators: {
+        averageAttempts: 0,
+        averageTimePerQuestion: 0,
+        repetitionRate: 0,
+        retentionRate: 0,
+        improvementTrend: 0
+      },
+      alerts: []
+    };
 
-      if (filteredData.length === 0) {
-        return { ...analysis, isLearning: false, alerts: ['Sin datos suficientes'] };
-      }
-
-      // 1. Tasa de Intentos (más de 3 intentos indica dificultad)
-      const attempts = filteredData.map(p => p.intentos || 1);
-      analysis.indicators.averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
-
-      if (analysis.indicators.averageAttempts > 3) {
-        analysis.alerts.push('⚠️ Requiere muchos intentos - posible dificultad de comprensión');
-        analysis.confidence -= 20;
-      }
-
-      // 2. Tiempo de Respuesta (muy rápido o muy lento)
-      const times = filteredData.map(p => p.tiempo_dedicado || 0).filter(t => t > 0);
-      if (times.length > 0) {
-        analysis.indicators.averageTimePerQuestion = times.reduce((a, b) => a + b, 0) / times.length;
-
-        // Respuestas muy rápidas (< 5 seg) o muy lentas (> 300 seg)
-        if (analysis.indicators.averageTimePerQuestion < 5) {
-          analysis.alerts.push('⚡ Respuestas muy rápidas - posible adivinación');
-          analysis.confidence -= 15;
-        } else if (analysis.indicators.averageTimePerQuestion > 300) {
-          analysis.alerts.push('🐌 Tiempo excesivo - posible distracción');
-          analysis.confidence -= 10;
-        }
-      }
-
-      // 3. Tasa de Repetición (recursos reiniciados)
-      const repeated = filteredData.filter(p => (p.intentos || 1) > 1).length;
-      analysis.indicators.repetitionRate = (repeated / filteredData.length) * 100;
-
-      if (analysis.indicators.repetitionRate > 50) {
-        analysis.alerts.push('🔄 Alta tasa de repetición - refuerzo necesario');
-        analysis.confidence -= 15;
-      }
-
-      // 4. Tendencia de Mejora (últimos 5 vs primeros 5)
-      if (filteredData.length >= 10) {
-        const first5 = filteredData.slice(0, 5);
-        const last5 = filteredData.slice(-5);
-
-        const firstAvg = first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-        const lastAvg = last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-
-        analysis.indicators.improvementTrend = lastAvg - firstAvg;
-
-        if (analysis.indicators.improvementTrend < 0) {
-          analysis.alerts.push('📉 Rendimiento decreciente - necesita apoyo');
-          analysis.confidence -= 20;
-          analysis.isLearning = false;
-        } else if (analysis.indicators.improvementTrend > 15) {
-          analysis.alerts.push('✅ Excelente progreso - aprendizaje efectivo');
-          analysis.confidence += 30;
-        }
-      }
-
-      // 5. Tasa de Retención (completados que siguen completados)
-      const completed = filteredData.filter(p => p.completado).length;
-      analysis.indicators.retentionRate = (completed / filteredData.length) * 100;
-
-      if (analysis.indicators.retentionRate < 30) {
-        analysis.alerts.push('⚠️ Baja retención - revisar metodología');
-        analysis.confidence -= 15;
-      }
-
-      // Calcular confianza final (0-100)
-      analysis.confidence = Math.max(0, Math.min(100, 60 + analysis.confidence));
-
-      // Determinar si está aprendiendo
-      analysis.isLearning = analysis.confidence >= 50;
-
-      return analysis;
-    } catch (err) {
-      console.error('Error analizando efectividad:', err);
-      return null;
+    if (filteredData.length === 0) {
+      return { ...analysis, isLearning: false, alerts: ['Sin datos suficientes'] };
     }
-  };
 
-  // Algoritmo 2: Detección de Atención
+    // 1. Tasa de Intentos
+    const attempts = filteredData.map(p => p.intentos || 1);
+    analysis.indicators.averageAttempts = attempts.reduce((a, b) => a + b, 0) / attempts.length;
+
+    if (analysis.indicators.averageAttempts > 3) {
+      analysis.alerts.push('⚠️ Requiere muchos intentos - posible dificultad de comprensión');
+      analysis.confidence -= 20;
+    }
+
+    // 2. Tiempo de Respuesta
+    const times = filteredData.map(p => p.tiempo_dedicado || 0).filter(t => t > 0);
+    if (times.length > 0) {
+      analysis.indicators.averageTimePerQuestion = times.reduce((a, b) => a + b, 0) / times.length;
+
+      if (analysis.indicators.averageTimePerQuestion < 5) {
+        analysis.alerts.push('⚡ Respuestas muy rápidas - posible adivinación');
+        analysis.confidence -= 15;
+      } else if (analysis.indicators.averageTimePerQuestion > 300) {
+        analysis.alerts.push('🐌 Tiempo excesivo - posible distracción');
+        analysis.confidence -= 10;
+      }
+    }
+
+    // 3. Tasa de Repetición
+    const repeated = filteredData.filter(p => (p.intentos || 1) > 1).length;
+    analysis.indicators.repetitionRate = (repeated / filteredData.length) * 100;
+
+    if (analysis.indicators.repetitionRate > 50) {
+      analysis.alerts.push('🔄 Alta tasa de repetición - refuerzo necesario');
+      analysis.confidence -= 15;
+    }
+
+    // 4. Tendencia de Mejora
+    if (filteredData.length >= 10) {
+      const first5 = filteredData.slice(0, 5);
+      const last5 = filteredData.slice(-5);
+
+      const firstAvg = first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+      const lastAvg = last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
+
+      analysis.indicators.improvementTrend = lastAvg - firstAvg;
+
+      if (analysis.indicators.improvementTrend < 0) {
+        analysis.alerts.push('📉 Rendimiento decreciente - necesita apoyo');
+        analysis.confidence -= 20;
+        analysis.isLearning = false;
+      } else if (analysis.indicators.improvementTrend > 15) {
+        analysis.alerts.push('✅ Excelente progreso - aprendizaje efectivo');
+        analysis.confidence += 30;
+      }
+    }
+
+    // 5. Tasa de Retención
+    const completed = filteredData.filter(p => p.completado).length;
+    analysis.indicators.retentionRate = (completed / filteredData.length) * 100;
+
+    if (analysis.indicators.retentionRate < 30) {
+      analysis.alerts.push('⚠️ Baja retención - revisar metodología');
+      analysis.confidence -= 15;
+    }
+
+    // Calcular confianza final
+    analysis.confidence = Math.max(0, Math.min(100, 60 + analysis.confidence));
+    analysis.isLearning = analysis.confidence >= 50;
+
+    return analysis;
+  } catch (err) {
+    console.error('Error analizando efectividad:', err);
+    return null;
+  }
+};
+
+  // Algoritmo 2: Detección de Atención (ADA)
   const analyzeAttentionLevel = async (studentId, courseId = null) => {
     try {
       const { data, error } = await supabase
@@ -697,7 +714,7 @@ export default function EnhancedAdminPanel() {
       `)
         .eq('usuario_id', studentId)
         .order('updated_at', { ascending: false })
-        .limit(20); // Últimas 20 actividades
+        .limit(20);
 
       if (error) throw error;
 
@@ -720,13 +737,13 @@ export default function EnhancedAdminPanel() {
         return { ...attention, level: 'Insuficientes datos', score: 0 };
       }
 
-      // 1. Detectar períodos de inactividad largos
+      // 1. Períodos de inactividad
       const updates = filteredData.map(p => new Date(p.updated_at)).sort((a, b) => a - b);
       let longGaps = 0;
 
       for (let i = 1; i < updates.length; i++) {
         const diffMinutes = (updates[i] - updates[i - 1]) / (1000 * 60);
-        if (diffMinutes > 30) longGaps++; // Más de 30 min entre actividades
+        if (diffMinutes > 30) longGaps++;
       }
 
       attention.indicators.inactivityPeriods = longGaps;
@@ -739,7 +756,6 @@ export default function EnhancedAdminPanel() {
       // 2. Consistencia de rendimiento
       const progressValues = filteredData.map(p => p.progreso || 0);
       const stdDev = calculateStdDev(progressValues);
-      const mean = progressValues.reduce((a, b) => a + b, 0) / progressValues.length;
 
       attention.indicators.consistencyScore = stdDev;
 
@@ -748,11 +764,10 @@ export default function EnhancedAdminPanel() {
         attention.recommendations.push('📊 Rendimiento inconsistente - revisar ambiente de estudio');
       }
 
-      // 3. Índice de Foco (tiempo dedicado vs tiempo estimado)
+      // 3. Índice de Foco
       const focusTimes = filteredData.filter(p => p.tiempo_dedicado && p.tiempo_dedicado > 0);
       if (focusTimes.length > 0) {
         const avgTime = focusTimes.reduce((sum, p) => sum + p.tiempo_dedicado, 0) / focusTimes.length;
-        // Asumiendo 5 minutos por recurso como ideal
         attention.indicators.focusIndex = Math.min(100, (avgTime / 300) * 100);
 
         if (attention.indicators.focusIndex < 30) {
@@ -761,7 +776,7 @@ export default function EnhancedAdminPanel() {
         }
       }
 
-      // Determinar nivel de atención
+      // Determinar nivel
       if (attention.score >= 70) {
         attention.level = 'Excelente';
       } else if (attention.score >= 50) {
@@ -789,7 +804,7 @@ export default function EnhancedAdminPanel() {
     return Math.sqrt(variance);
   };
 
-  // Algoritmo 3: Retroalimentación Adaptativa Completa
+  // Algoritmo 3: Retroalimentación Adaptativa (AFS)
   const generateAdaptiveFeedback = async (studentId, courseId) => {
     try {
       const learningAnalysis = await analyzeLearningEffectiveness(studentId, courseId);
@@ -820,7 +835,7 @@ export default function EnhancedAdminPanel() {
         feedback.overallStatus = '⚠️ Necesita Apoyo';
       }
 
-      // Identificar fortalezas y debilidades
+      // Identificar fortalezas
       if (learningAnalysis) {
         if (learningAnalysis.indicators.improvementTrend > 10) {
           feedback.strengths.push('Muestra mejora continua en su aprendizaje');
@@ -886,18 +901,11 @@ export default function EnhancedAdminPanel() {
         return;
       }
 
-      console.log('🔄 Actualizando roles para usuario:', userId);
-      console.log('📝 Roles a guardar:', rolesArray);
-      console.log('👑 Rol principal:', rolesArray[0]);
-      console.log('➕ Roles adicionales:', rolesArray.slice(1));
-
       const updateData = {
         rol: rolesArray[0],
         roles_adicionales: rolesArray.length > 1 ? rolesArray.slice(1) : [],
         updated_at: new Date().toISOString()
       };
-
-      console.log('💾 Datos a enviar:', updateData);
 
       const { data, error } = await supabase
         .from('usuarios')
@@ -905,12 +913,7 @@ export default function EnhancedAdminPanel() {
         .eq('id', userId)
         .select();
 
-      if (error) {
-        console.error('❌ Error de Supabase:', error);
-        throw error;
-      }
-
-      console.log('✅ Respuesta de Supabase:', data);
+      if (error) throw error;
 
       await fetchUsers();
       setSelectedRoles({});
@@ -931,18 +934,11 @@ export default function EnhancedAdminPanel() {
         return;
       }
 
-      console.log('🔄 Actualizando grupos para usuario:', userId);
-      console.log('📝 Grupos a guardar:', groupsArray);
-      console.log('👥 Grupo principal:', groupsArray[0]);
-      console.log('➕ Grupos adicionales:', groupsArray.slice(1));
-
       const updateData = {
         grupo_id: groupsArray[0],
         grupos_adicionales: groupsArray.length > 1 ? groupsArray.slice(1) : [],
         updated_at: new Date().toISOString()
       };
-
-      console.log('💾 Datos a enviar:', updateData);
 
       const { data, error } = await supabase
         .from('usuarios')
@@ -950,12 +946,7 @@ export default function EnhancedAdminPanel() {
         .eq('id', userId)
         .select();
 
-      if (error) {
-        console.error('❌ Error de Supabase:', error);
-        throw error;
-      }
-
-      console.log('✅ Respuesta de Supabase:', data);
+      if (error) throw error;
 
       await fetchUsers();
       setSelectedGroups({});
@@ -1139,33 +1130,41 @@ export default function EnhancedAdminPanel() {
     }
   };
 
-  const createGroup = async () => {
-    if (!newGroup.nombre.trim()) {
-      alert('El nombre del grupo es obligatorio');
-      return;
-    }
+  //Crear Grupo con actualización inmediata
 
-    try {
-      const { data, error } = await supabase
-        .from('grupos')
-        .insert([newGroup])
-        .select(); // ⬅️ IMPORTANTE: Agregar .select()
 
-      if (error) throw error;
+const createGroup = async () => {
+  if (!newGroup.nombre.trim()) {
+    alert('⚠️ El nombre del grupo es obligatorio');
+    return;
+  }
 
-      // Actualizar estado inmediatamente con el nuevo grupo
-      if (data && data.length > 0) {
-        setGroups(prevGroups => [...prevGroups, data[0]]);
-      }
+  try {
+    const { data, error } = await supabase
+      .from('grupos')
+      .insert([{
+        nombre: newGroup.nombre.trim(),
+        descripcion: newGroup.descripcion.trim(),
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single(); // Obtener el registro creado
 
-      setNewGroup({ nombre: '', descripcion: '' });
-      setShowNewGroup(false);
-      alert('✅ Grupo creado exitosamente');
-    } catch (err) {
-      console.error('Error creando grupo:', err);
-      alert('Error al crear el grupo: ' + err.message);
-    }
-  };
+    if (error) throw error;
+
+    //  Actualizar estado inmediatamente
+    setGroups(prevGroups => [...prevGroups, data]);
+    
+    // Limpiar formulario
+    setNewGroup({ nombre: '', descripcion: '' });
+    setShowNewGroup(false);
+    
+    alert('✅ Grupo "' + data.nombre + '" creado exitosamente');
+  } catch (err) {
+    console.error('❌ Error creando grupo:', err);
+    alert('Error al crear el grupo: ' + err.message);
+  }
+};
 
   const deleteGroup = async (groupId) => {
     if (!confirm('¿Estás seguro de eliminar este grupo?')) return;
@@ -1185,132 +1184,475 @@ export default function EnhancedAdminPanel() {
     }
   };
 
+  // ===== FUNCIÓN CORREGIDA: Manejo de documentos con mejor validación =====
   const handleDocumentUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      const validTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!validTypes.includes(file.type)) {
+        alert('⚠️ Formato no válido. Solo se aceptan archivos TXT, PDF, DOC o DOCX');
+        event.target.value = '';
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('⚠️ El archivo es demasiado grande. Máximo 5MB');
+        event.target.value = '';
+        return;
+      }
+      
       setUploadedDocument(file);
     }
   };
 
-  const generateQuestionsFromDocument = async () => {
-    if (!uploadedDocument) {
-      alert('Por favor, sube un documento primero');
-      return;
-    }
 
-    setGeneratingQuestions(true);
+const generateQuestionsFromDocument = async () => {
+  if (!uploadedDocument) {
+    alert('⚠️ Por favor, sube un documento primero');
+    return;
+  }
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = e.target.result;
+  setGeneratingQuestions(true);
 
-        try {
-          const response = await fetch(
-            'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{
-                    text: `Eres un experto en educación para niños de básica elemental (6-10 años). Analiza el siguiente texto y genera 5 preguntas educativas interactivas en formato JSON.
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
 
-TEXTO:
-${text.substring(0, 4000)}
+      if (!text || text.trim().length < 100) {
+        alert('❌ El documento está vacío o es muy corto.\n\nPor favor sube un documento con al menos 100 caracteres de contenido educativo.');
+        setGeneratingQuestions(false);
+        return;
+      }
 
-IMPORTANTE: Genera EXACTAMENTE este formato JSON (sin texto adicional, solo el JSON):
+      console.log('📄 DOCUMENTO LEÍDO');
+      console.log('⚙️ Configuración:', quizConfig);
+
+      try {
+        // ============================================
+        // CONSTRUIR PROMPT CON CONFIGURACIÓN DEL USUARIO
+        // ============================================
+        
+        const tiposHabilitados = Object.entries(quizConfig.tiposSeleccionados)
+          .filter(([_, enabled]) => enabled)
+          .map(([tipo, _]) => tipo);
+
+        if (tiposHabilitados.length === 0) {
+          alert('⚠️ Debes seleccionar al menos un tipo de pregunta');
+          setGeneratingQuestions(false);
+          return;
+        }
+
+        const distribucion = {};
+        tiposHabilitados.forEach(tipo => {
+          distribucion[tipo] = Math.ceil(quizConfig.totalPreguntas / tiposHabilitados.length);
+        });
+
+        const nivelDificultad = {
+          facil: 'simple y directa',
+          medio: 'moderadamente desafiante',
+          dificil: 'desafiante, requiere análisis profundo'
+        };
+
+        const prompt = `INSTRUCCIONES CRÍTICAS - MODO PERSONALIZADO:
+
+Tu ÚNICA tarea es analizar el documento y generar preguntas EXCLUSIVAMENTE basadas en su contenido.
+
+⚠️ PROHIBICIONES ABSOLUTAS:
+❌ NO inventar información
+❌ NO deducir información no mencionada
+❌ NO usar conocimiento general
+❌ NO inferir conceptos no explícitos
+❌ SOLO usar lo que aparece EXACTAMENTE en el documento
+
+═══════════════════════════════════════════════════════════════
+CONFIGURACIÓN SOLICITADA POR EL USUARIO:
+═══════════════════════════════════════════════════════════════
+📊 Total de preguntas: ${quizConfig.totalPreguntas}
+🎯 Tipos de preguntas habilitados: ${tiposHabilitados.join(', ')}
+📈 Distribución: ${Object.entries(distribucion).map(([tipo, count]) => `${tipo} (${count})`).join(', ')}
+🔥 Dificultad: ${nivelDificultad[quizConfig.dificultad]}
+🔊 Audio automático: ${quizConfig.audio_automatico ? 'Sí' : 'No'}
+💬 Retroalimentación: ${quizConfig.retroalimentacion_detallada ? 'Detallada' : 'Simple'}
+
+═══════════════════════════════════════════════════════════════
+DOCUMENTO COMPLETO:
+═══════════════════════════════════════════════════════════════
+${text}
+═══════════════════════════════════════════════════════════════
+
+📝 GENERA EXACTAMENTE ${quizConfig.totalPreguntas} PREGUNTAS:
+
+${tiposHabilitados.includes('multiple') ? `
+✓ PREGUNTAS DE OPCIÓN MÚLTIPLE (${distribucion['multiple']}):
+  - Pregunta sobre información específica del documento
+  - 4 opciones: 1 correcta (exacta del documento), 3 plausibles pero NO en el documento
+  - Dificultad: ${nivelDificultad[quizConfig.dificultad]}
+` : ''}
+
+${tiposHabilitados.includes('verdadero_falso') ? `
+✓ PREGUNTAS VERDADERO/FALSO (${distribucion['verdadero_falso']}):
+  - Afirmaciones basadas directamente en el documento
+  - Claramente verdaderas o falsas según el contenido
+  - Verificables en el texto
+` : ''}
+
+${tiposHabilitados.includes('completar') ? `
+✓ PREGUNTAS PARA COMPLETAR (${distribucion['completar']}):
+  - Frases incompletas del documento
+  - Palabras clave omitidas que aparecen en el texto
+  - 4 opciones: 1 correcta, 3 incorrectas pero similares
+` : ''}
+
+${tiposHabilitados.includes('imagen') ? `
+✓ PREGUNTAS CON IMAGEN (${distribucion['imagen']}):
+  - Conceptos del documento representados con emojis
+  - Seleccionar emoji que mejor representa un concepto
+  - 4 opciones de emojis relacionados
+` : ''}
+
+${tiposHabilitados.includes('audio') ? `
+✓ PREGUNTAS DE AUDIO (${distribucion['audio']}):
+  - Palabras o conceptos clave del documento
+  - "Si escucharas esta palabra del documento, ¿cuál sería?"
+  - Opciones relacionadas al vocabulario del texto
+` : ''}
+
+FORMATO JSON REQUERIDO:
+
 {
   "preguntas": [
-    {
+    ${tiposHabilitados.includes('multiple') ? `{
       "tipo": "multiple",
-      "pregunta": "Pregunta clara y simple",
-      "opciones": ["Opción 1", "Opción 2", "Opción 3", "Opción 4"],
+      "pregunta": "Según el documento, ¿[información específica que está en el texto]?",
+      "opciones": [
+        "[Respuesta correcta exacta del documento]",
+        "[Opción plausible pero NO en el documento]",
+        "[Opción plausible pero NO en el documento]",
+        "[Opción plausible pero NO en el documento]"
+      ],
       "respuesta_correcta": 0,
       "puntos": 10,
-      "retroalimentacion_correcta": "¡Excelente! 🎉 [Explicación breve]",
-      "retroalimentacion_incorrecta": "Inténtalo de nuevo 💪 [Pista]",
+      "retroalimentacion_correcta": "${quizConfig.retroalimentacion_detallada ? '✓ ¡Correcto! El documento confirma: [cita breve]' : '✓ ¡Correcto!'}",
+      "retroalimentacion_incorrecta": "${quizConfig.retroalimentacion_detallada ? '✗ Revisa el documento donde dice...' : '✗ Revisa el documento'}",
+      "tiempo_limite": 30,
+      "audio_pregunta": ${quizConfig.audio_automatico}
+    },` : ''}
+    ${tiposHabilitados.includes('verdadero_falso') ? `{
+      "tipo": "verdadero_falso",
+      "pregunta": "¿Es verdadero que [afirmación que está en el documento]?",
+      "opciones": ["Verdadero", "Falso"],
+      "respuesta_correcta": 0,
+      "puntos": 10,
+      "retroalimentacion_correcta": "${quizConfig.retroalimentacion_detallada ? '✓ Correcto. El documento lo confirma.' : '✓ ¡Correcto!'}",
+      "retroalimentacion_incorrecta": "${quizConfig.retroalimentacion_detallada ? '✗ El documento dice lo contrario' : '✗ No es correcto'}",
+      "tiempo_limite": 20,
+      "audio_pregunta": ${quizConfig.audio_automatico}
+    },` : ''}
+    ${tiposHabilitados.includes('completar') ? `{
+      "tipo": "completar",
+      "pregunta": "Completa: [inicio de frase del documento] ___",
+      "opciones": [
+        "[final exacto del documento]",
+        "[palabra similar pero incorrecta]",
+        "[palabra similar pero incorrecta]",
+        "[palabra similar pero incorrecta]"
+      ],
+      "respuesta_correcta": 0,
+      "puntos": 10,
+      "retroalimentacion_correcta": "✓ ¡Exacto! Así aparece en el documento",
+      "retroalimentacion_incorrecta": "✗ Busca esa frase exacta",
+      "tiempo_limite": 25
+    },` : ''}
+    ${tiposHabilitados.includes('imagen') ? `{
+      "tipo": "imagen",
+      "pregunta": "¿Qué emoji representa mejor el concepto de [concepto del documento]?",
+      "opciones": [
+        "[Concepto del documento]",
+        "[Concepto no relacionado]",
+        "[Concepto no relacionado]",
+        "[Concepto no relacionado]"
+      ],
+      "imagen_opciones": ["🎨", "📚", "🔬", "🌍"],
+      "respuesta_correcta": 0,
+      "puntos": 15,
+      "retroalimentacion_correcta": "✓ ¡Bien! Ese emoji representa el concepto",
+      "retroalimentacion_incorrecta": "✗ Piensa en el significado",
       "tiempo_limite": 30
-    }
+    },` : ''}
+    ${tiposHabilitados.includes('audio') ? `{
+      "tipo": "audio",
+      "pregunta": "El documento menciona la palabra '[palabra clave del documento]'. ¿Cuál es su significado en este contexto?",
+      "opciones": [
+        "[Significado correcto según el documento]",
+        "[Significado incorrecto pero plausible]",
+        "[Significado incorrecto pero plausible]",
+        "[Significado incorrecto pero plausible]"
+      ],
+      "respuesta_correcta": 0,
+      "puntos": 15,
+      "retroalimentacion_correcta": "✓ ¡Correcto! Eso es lo que significa en el documento",
+      "retroalimentacion_incorrecta": "✗ Revisa el contexto en el documento",
+      "tiempo_limite": 25,
+      "audio_pregunta": true
+    }` : ''}
   ]
 }
 
-REGLAS:
-- Usa lenguaje simple apropiado para niños de 6-10 años
-- Las preguntas deben ser educativas y basadas en el texto
-- Varía entre: multiple (3 preguntas), verdadero_falso (1 pregunta), imagen (1 pregunta)
-- Para tipo "imagen", usa emojis educativos: 🎨,🎮,🎵,🌟,📚,✏️,🔢,🅰️,🌍,🌞
-- Puntos: 10 para fáciles, 15 para medias, 20 para difíciles
-- Tiempo límite: 20-40 segundos según dificultad
-- Retroalimentación debe ser motivadora y educativa
-- respuesta_correcta es el índice (0-3) de la opción correcta
-- NO agregues texto extra, SOLO el JSON`
-                  }]
-                }],
-                generationConfig: {
-                  temperature: 0.7,
-                  topK: 40,
-                  topP: 0.95,
-                  maxOutputTokens: 2048,
-                }
-              })
-            }
-          );
+⚠️ VALIDACIONES FINALES:
+✓ TODAS las respuestas correctas ESTÁN en el documento
+✓ Cantidad de preguntas: ${quizConfig.totalPreguntas}
+✓ Tipos solicitados: ${tiposHabilitados.join(', ')}
+✓ Dificultad: ${nivelDificultad[quizConfig.dificultad]}
+✓ Devuelve SOLO JSON, sin explicaciones adicionales`;
 
-          if (!response.ok) {
-            throw new Error(`Error API: ${response.status}`);
+        console.log('🚀 Enviando al AI con configuración personalizada...');
+
+        const response = await fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyBcFKpanprYBDUdtOs8YiU7iW-mkuv-Bzc',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                topK: 20,
+                topP: 0.85,
+                maxOutputTokens: 3000,
+              }
+            })
           }
+        );
 
-          const data = await response.json();
-          const generatedText = data.candidates[0].content.parts[0].text;
-
-          let jsonText = generatedText;
-          const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            jsonText = jsonMatch[0];
-          }
-
-          const parsedData = JSON.parse(jsonText);
-
-          if (!parsedData.preguntas || parsedData.preguntas.length === 0) {
-            throw new Error('No se generaron preguntas válidas');
-          }
-
-          const questionsToAdd = parsedData.preguntas.map(q => ({
-            ...q,
-            id: Date.now() + Math.random(),
-            audio_pregunta: true,
-            audio_retroalimentacion: true,
-            video_url: '',
-            imagen_url: q.tipo === 'imagen' ? (q.imagen_url || '📚') : '',
-            audio_opciones: ['', '', '', ''],
-            imagen_opciones: q.tipo === 'imagen' ? (q.imagen_opciones || ['🎨', '📚', '✏️', '🌟']) : ['', '', '', '']
-          }));
-
-          setCurrentQuiz(prev => ({
-            ...prev,
-            preguntas: [...prev.preguntas, ...questionsToAdd]
-          }));
-
-          alert(`✅ ${questionsToAdd.length} preguntas generadas exitosamente con IA. Revisa y ajusta según sea necesario.`);
-          setGeneratingQuestions(false);
-          setUploadedDocument(null);
-        } catch (apiError) {
-          console.error('Error con API de Gemini:', apiError);
-          alert('❌ Error al generar preguntas con IA: ' + apiError.message);
-          setGeneratingQuestions(false);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(`Error ${response.status}: ${errorData?.error?.message || 'Error de conexión'}`);
         }
-      };
 
-      reader.readAsText(uploadedDocument);
-    } catch (err) {
-      console.error('Error leyendo documento:', err);
-      alert('❌ Error al leer el documento');
+        const data = await response.json();
+        
+        if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          throw new Error('La IA no generó una respuesta válida');
+        }
+
+        let generatedText = data.candidates[0].content.parts[0].text.trim();
+        
+        if (generatedText.includes('```json')) {
+          generatedText = generatedText.split('```json')[1].split('```')[0].trim();
+        } else if (generatedText.includes('```')) {
+          generatedText = generatedText.split('```')[1].split('```')[0].trim();
+        }
+        
+        const jsonMatch = generatedText.match(/\{[\s\S]*"preguntas"[\s\S]*\}/);
+        if (jsonMatch) {
+          generatedText = jsonMatch[0];
+        }
+
+        const parsedData = JSON.parse(generatedText);
+
+        if (!parsedData?.preguntas || !Array.isArray(parsedData.preguntas) || parsedData.preguntas.length === 0) {
+          throw new Error('No se pudieron extraer preguntas válidas');
+        }
+
+        const questionsToAdd = parsedData.preguntas
+          .filter(q => q.pregunta && Array.isArray(q.opciones) && q.opciones.length >= 2)
+          .map((q, idx) => ({
+            tipo: q.tipo || 'multiple',
+            pregunta: q.pregunta,
+            opciones: q.tipo === 'verdadero_falso' ? ['Verdadero', 'Falso'] : q.opciones.slice(0, 4),
+            respuesta_correcta: typeof q.respuesta_correcta === 'number' ? q.respuesta_correcta : 0,
+            puntos: q.puntos || 10,
+            retroalimentacion_correcta: q.retroalimentacion_correcta || '✓ ¡Correcto!',
+            retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || '✗ Intenta de nuevo',
+            tiempo_limite: q.tiempo_limite || 30,
+            id: Date.now() + idx,
+            audio_pregunta: quizConfig.audio_automatico,
+            audio_retroalimentacion: quizConfig.audio_automatico,
+            video_url: '',
+            imagen_url: '',
+            audio_opciones: ['', '', '', ''],
+            imagen_opciones: q.imagen_opciones || ['🎨', '📚', '✏️', '🌟']
+          }));
+
+        setCurrentQuiz(prev => ({
+          ...prev,
+          preguntas: [...(prev.preguntas || []), ...questionsToAdd]
+        }));
+
+        const tiposCounts = questionsToAdd.reduce((acc, q) => {
+          acc[q.tipo] = (acc[q.tipo] || 0) + 1;
+          return acc;
+        }, {});
+
+        alert(`✅ ¡${questionsToAdd.length} preguntas generadas!\n\n📊 Distribución:\n${Object.entries(tiposCounts).map(([tipo, count]) => `  • ${tipo}: ${count}`).join('\n')}\n\n⭐ Todas personalizadas según tu configuración.`);
+        
+        setGeneratingQuestions(false);
+        setUploadedDocument(null);
+
+      } catch (apiError) {
+        console.error('❌ ERROR:', apiError);
+        alert(`❌ Error: ${apiError.message}`);
+        setGeneratingQuestions(false);
+      }
+    };
+
+    reader.onerror = () => {
+      alert('❌ No se pudo leer el archivo');
       setGeneratingQuestions(false);
-    }
-  };
+    };
+
+    reader.readAsText(uploadedDocument, 'UTF-8');
+
+  } catch (err) {
+    console.error('❌ ERROR GENERAL:', err);
+    alert(`❌ Error: ${err.message}`);
+    setGeneratingQuestions(false);
+  }
+};
+
+// ============================================
+// COMPONENTE UI: Panel de Configuración de Quiz
+// ============================================
+
+const renderQuizConfigPanel = () => (
+  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 space-y-6">
+    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+      <Sparkles className="w-6 h-6 text-blue-600" />
+      ⚙️ Configurar Generador de Preguntas
+    </h3>
+
+    {/* Total de preguntas */}
+    <div>
+      <label className="block text-sm font-semibold text-gray-800 mb-2">
+        📊 Total de preguntas: <span className="text-blue-600">{quizConfig.totalPreguntas}</span>
+      </label>
+      <input
+        type="range"
+        min="3"
+        max="15"
+        value={quizConfig.totalPreguntas}
+        onChange={(e) => setQuizConfig({
+          ...quizConfig,
+          totalPreguntas: parseInt(e.target.value)
+        })}
+        className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
+      />
+      <div className="flex justify-between text-xs text-gray-600 mt-1">
+        <span>3</span>
+        <span>15</span>
+      </div>
+    </div>
+
+    {/* Tipos de preguntas */}
+    <div>
+      <label className="block text-sm font-semibold text-gray-800 mb-3">
+        🎯 Tipos de preguntas (selecciona al menos 1):
+      </label>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { key: 'multiple', label: '📝 Opción Múltiple', emoji: '📋' },
+          { key: 'verdadero_falso', label: '✓✗ Verdadero/Falso', emoji: '☑️' },
+          { key: 'completar', label: '✍️ Completar', emoji: '📝' },
+          { key: 'imagen', label: '🖼️ Imagen/Emoji', emoji: '🎨' },
+          { key: 'audio', label: '🔊 Audio', emoji: '🎵' }
+        ].map(tipo => (
+          <label
+            key={tipo.key}
+            className={`cursor-pointer p-3 rounded-lg border-2 transition-all ${
+              quizConfig.tiposSeleccionados[tipo.key]
+                ? 'border-blue-500 bg-blue-100'
+                : 'border-gray-300 bg-white hover:border-gray-400'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={quizConfig.tiposSeleccionados[tipo.key]}
+              onChange={(e) => setQuizConfig({
+                ...quizConfig,
+                tiposSeleccionados: {
+                  ...quizConfig.tiposSeleccionados,
+                  [tipo.key]: e.target.checked
+                }
+              })}
+              className="mr-2"
+            />
+            <span className="text-sm font-medium">{tipo.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+
+    {/* Dificultad */}
+    <div>
+      <label className="block text-sm font-semibold text-gray-800 mb-2">
+        🔥 Nivel de dificultad:
+      </label>
+      <div className="flex gap-3">
+        {[
+          { value: 'facil', label: '😊 Fácil', color: 'green' },
+          { value: 'medio', label: '😐 Medio', color: 'yellow' },
+          { value: 'dificil', label: '🤔 Difícil', color: 'red' }
+        ].map(nivel => (
+          <button
+            key={nivel.value}
+            onClick={() => setQuizConfig({ ...quizConfig, dificultad: nivel.value })}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+              quizConfig.dificultad === nivel.value
+                ? `bg-${nivel.color}-500 text-white shadow-lg`
+                : `bg-${nivel.color}-100 text-${nivel.color}-800 hover:bg-${nivel.color}-200`
+            }`}
+          >
+            {nivel.label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Opciones adicionales */}
+    <div className="space-y-2">
+      <label className="flex items-center gap-3 cursor-pointer p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
+        <input
+          type="checkbox"
+          checked={quizConfig.audio_automatico}
+          onChange={(e) => setQuizConfig({ ...quizConfig, audio_automatico: e.target.checked })}
+          className="w-4 h-4"
+        />
+        <div>
+          <span className="font-medium text-gray-800">🔊 Audio automático</span>
+          <p className="text-xs text-gray-600">Reproducir preguntas automáticamente</p>
+        </div>
+      </label>
+
+      <label className="flex items-center gap-3 cursor-pointer p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
+        <input
+          type="checkbox"
+          checked={quizConfig.retroalimentacion_detallada}
+          onChange={(e) => setQuizConfig({ ...quizConfig, retroalimentacion_detallada: e.target.checked })}
+          className="w-4 h-4"
+        />
+        <div>
+          <span className="font-medium text-gray-800">💬 Retroalimentación detallada</span>
+          <p className="text-xs text-gray-600">Mostrar información adicional en respuestas</p>
+        </div>
+      </label>
+    </div>
+
+    {/* Resumen */}
+    <div className="bg-blue-100 rounded-lg p-4 border-l-4 border-blue-500">
+      <p className="text-sm text-blue-900 font-medium">
+        ℹ️ Se generarán <strong>{quizConfig.totalPreguntas} preguntas</strong> de tipo{' '}
+        <strong>
+          {Object.entries(quizConfig.tiposSeleccionados)
+            .filter(([_, v]) => v)
+            .map(([k, _]) => k)
+            .join(', ')}
+        </strong>
+        {' '}con dificultad <strong>{quizConfig.dificultad}</strong>.
+      </p>
+    </div>
+  </div>
+);
 
   const addQuestion = () => {
     if (!currentQuestion.pregunta.trim()) {
@@ -1327,7 +1669,6 @@ REGLAS:
       currentQuestion.opciones = ['Verdadero', 'Falso'];
     }
 
-    // Auto-reproducir audio si está habilitado
     if (currentQuestion.audio_pregunta) {
       speakText(currentQuestion.pregunta);
     }
@@ -1460,7 +1801,6 @@ REGLAS:
     setCurrentPreviewQuestion(0);
     setPreviewAnswers({});
 
-    // Auto-reproducir la primera pregunta
     if (resource.contenido_quiz[0]?.audio_pregunta) {
       setTimeout(() => speakText(resource.contenido_quiz[0].pregunta), 500);
     }
@@ -1523,189 +1863,413 @@ REGLAS:
     }
   };
 
-  const generateCourseReport = async (courseId) => {
-    try {
-      const course = courses.find(c => c.id === parseInt(courseId));
-      if (!course) return;
+  // Generar reporte con análisis de IA =====
 
-      await fetchCourseAnalytics(courseId);
+const generateCourseReport = async (courseId) => {
+  try {
+    // ✅ Buscar curso correctamente
+    const course = courses.find(c => String(c.id) === String(courseId));
+    
+    if (!course) {
+      console.error('❌ Curso no encontrado. ID buscado:', courseId);
+      alert('❌ Curso no encontrado. Verifica que el curso exista.');
+      return;
+    }
 
-      // Obtener estudiantes del curso
-      const { data: studentsData, error } = await supabase
-        .from('progreso_usuarios')
-        .select(`
+    console.log('✅ Curso encontrado:', course.titulo);
+
+    // ✅ CORRECCIÓN: Usar 'progreso_estudiantes' (tabla correcta)
+    const { data: progressData, error: progressError } = await supabase
+      .from('progreso_estudiantes')
+      .select(`
+        *,
         usuario_id,
-        usuarios!inner(nombre, email, grupo_id)
-      `)
-        .eq('recursos.curso_id', courseId);
+        recurso_id,
+        usuarios!inner(id, nombre, email, grupo_id),
+        recursos!inner(id, curso_id, titulo, tipo, puntos_recompensa)
+      `);
 
-      const uniqueStudents = [...new Set(studentsData?.map(s => s.usuario_id))];
+    if (progressError) {
+      console.error('❌ Error en consulta de progreso:', progressError);
+      alert('Error al cargar datos de progreso: ' + progressError.message);
+      return;
+    }
 
-      // Generar análisis detallado por estudiante
-      let detailedReport = `
+    // ✅ Filtrar progreso por curso
+    const courseProgressData = progressData?.filter(p => 
+      String(p.recursos?.curso_id) === String(courseId)
+    ) || [];
+
+    console.log(`📊 Total registros de progreso: ${progressData?.length || 0}`);
+    console.log(`📊 Progreso filtrado del curso: ${courseProgressData.length}`);
+
+    // Obtener estudiantes únicos
+    const uniqueStudentIds = [...new Set(courseProgressData.map(p => p.usuario_id))];
+    
+    if (uniqueStudentIds.length === 0) {
+      alert('⚠️ Este curso no tiene estudiantes con progreso registrado todavía.');
+      return;
+    }
+
+    console.log(`👥 Estudiantes únicos: ${uniqueStudentIds.length}`);
+
+    // ✅ Calcular estadísticas generales
+    const completedCount = courseProgressData.filter(p => p.completado).length;
+    const avgProgress = courseProgressData.length > 0 
+      ? Math.round(courseProgressData.reduce((sum, p) => sum + (p.progreso || 0), 0) / courseProgressData.length)
+      : 0;
+    const totalTime = Math.round(
+      (courseProgressData.reduce((sum, p) => sum + (p.tiempo_dedicado || 0), 0) || 0) / 60
+    );
+    const completionRate = Math.round((completedCount / courseProgressData.length) * 100);
+
+    console.log('📊 Estadísticas calculadas');
+
+    // ✅ Recolectar datos de estudiantes con algoritmos de IA
+    const studentsData = [];
+    const studentsToAnalyze = uniqueStudentIds.slice(0, 10);
+    
+    for (const studentId of studentsToAnalyze) {
+      const student = users.find(u => u.id === studentId);
+      
+      if (!student) {
+        console.warn(`⚠️ Usuario no encontrado: ${studentId}`);
+        continue;
+      }
+
+      console.log(`🔍 Analizando estudiante: ${student.nombre}`);
+
+      // ✅ Llamar a los algoritmos de IA
+      const feedback = await generateAdaptiveFeedback(studentId, courseId);
+
+      if (!feedback) {
+        console.warn(`⚠️ No se pudo analizar a: ${student.nombre}`);
+        continue;
+      }
+
+      const grupoNombre = student.grupo_id 
+        ? groups.find(g => g.id === student.grupo_id)?.nombre || 'Sin grupo'
+        : 'Sin grupo';
+
+      studentsData.push({
+        student,
+        feedback,
+        grupo: grupoNombre
+      });
+    }
+
+    console.log(`✅ ${studentsData.length} estudiantes analizados`);
+
+    // ✅ Crear objeto del reporte
+    const reportObj = {
+      course: {
+        titulo: course.titulo,
+        nivel: course.nivel_nombre || 'Sin nivel',
+        fecha: new Date().toLocaleDateString('es-ES', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      },
+      stats: {
+        totalStudents: uniqueStudentIds.length,
+        avgProgress,
+        completedResources: completedCount,
+        totalTime,
+        completionRate
+      },
+      students: studentsData
+    };
+
+    console.log('✅ Reporte generado correctamente');
+    
+    // ✅ Mostrar modal con los datos
+    setCourseReportData(reportObj);
+    setShowCourseReportModal(true);
+
+  } catch (err) {
+    console.error('❌ Error generando reporte:', err);
+    alert('Error al generar el reporte: ' + err.message);
+  }
+};
+
+// ✅ Función para generar texto del reporte (para descargar)
+const generateReportText = () => {
+  if (!courseReportData) return '';
+
+  let text = 
+  `
 ╔════════════════════════════════════════════════════════════════╗
-║          REPORTE DETALLADO DE CURSO CON IA PREDICTIVA         ║
+║          REPORTE DETALLADO DE CURSO CON IA PREDICTIVA          ║
 ╚════════════════════════════════════════════════════════════════╝
 
-📚 CURSO: ${course.titulo}
-📅 FECHA: ${new Date().toLocaleDateString('es-ES')}
-🎯 NIVEL: ${course.nivel_nombre}
+📚 CURSO: ${courseReportData.course.titulo}
+📅 FECHA: ${courseReportData.course.fecha}
+🎯 NIVEL: ${courseReportData.course.nivel}
+👥 ESTUDIANTES ANALIZADOS: ${courseReportData.stats.totalStudents}
 
 ═══════════════════════════════════════════════════════════════
                     ESTADÍSTICAS GENERALES
 ═══════════════════════════════════════════════════════════════
-👥 Total Estudiantes: ${courseAnalytics?.totalStudents || 0}
-📊 Progreso Promedio: ${courseAnalytics?.avgProgress || 0}%
-✅ Recursos Completados: ${courseAnalytics?.completedResources || 0}
-⏱️ Tiempo Total Dedicado: ${courseAnalytics?.totalTime || 0} minutos
 
-═══════════════════════════════════════════════════════════════
-            ANÁLISIS DE APRENDIZAJE POR ESTUDIANTE
-═══════════════════════════════════════════════════════════════
+📊 Progreso Promedio General: ${courseReportData.stats.avgProgress}%
+✅ Recursos Completados: ${courseReportData.stats.completedResources}
+⏱️ Tiempo Total Dedicado: ${courseReportData.stats.totalTime} minutos
+📈 Tasa de Completitud: ${courseReportData.stats.completionRate}%
+
 `;
 
-      for (const studentId of uniqueStudents.slice(0, 10)) {
-        const student = users.find(u => u.id === studentId);
-        if (!student) continue;
-
-        const feedback = await generateAdaptiveFeedback(studentId, courseId);
-
-        if (feedback) {
-          detailedReport += `\n
+  courseReportData.students.forEach(data => {
+    const { student, feedback, grupo } = data;
+    text += `
 ┌────────────────────────────────────────────────────────────┐
-│ ESTUDIANTE: ${student.nombre.padEnd(45)} │
-│ EMAIL: ${student.email.padEnd(48)} │
+│ 👤 ESTUDIANTE: ${student.nombre.padEnd(45)} │
+│ 📧 EMAIL: ${(student.email || 'Sin email').padEnd(48)} │
+│ 🏫 GRUPO: ${grupo.padEnd(48)} │
 └────────────────────────────────────────────────────────────┘
 
 🎯 ESTADO GENERAL: ${feedback.overallStatus}
 
-📈 EFECTIVIDAD DE APRENDIZAJE:
-   • ¿Está aprendiendo realmente? ${feedback.learningEffectiveness?.isLearning ? 'SÍ ✅' : 'NO ❌'}
-   • Confianza del análisis: ${feedback.learningEffectiveness?.confidence.toFixed(1)}%
-   • Promedio de intentos: ${feedback.learningEffectiveness?.indicators.averageAttempts.toFixed(1)}
-   • Tasa de retención: ${feedback.learningEffectiveness?.indicators.retentionRate.toFixed(1)}%
-   • Tendencia de mejora: ${feedback.learningEffectiveness?.indicators.improvementTrend >= 0 ? '+' : ''}${feedback.learningEffectiveness?.indicators.improvementTrend.toFixed(1)}%
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 ANÁLISIS DE APRENDIZAJE (Learning Effectiveness Analysis)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-👁️ NIVEL DE ATENCIÓN:
-   • Calificación: ${feedback.attentionLevel?.level}
-   • Puntaje: ${feedback.attentionLevel?.score}/100
-   • Períodos de inactividad: ${feedback.attentionLevel?.indicators.inactivityPeriods}
-   • Consistencia: ${feedback.attentionLevel?.indicators.consistencyScore.toFixed(1)}
+   ❓ ¿Está aprendiendo realmente?  ${feedback.learningEffectiveness?.isLearning ? '✅ SÍ' : '❌ NO'}
+   
+   📊 Confianza del análisis:       ${feedback.learningEffectiveness?.confidence?.toFixed(1) || 0}%
+   
+   🔢 Indicadores:
+      • Promedio de intentos:        ${feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(1) || 0}
+      • Tiempo por pregunta:         ${feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0) || 0} seg
+      • Tasa de repetición:          ${feedback.learningEffectiveness?.indicators?.repetitionRate?.toFixed(1) || 0}%
+      • Tasa de retención:           ${feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1) || 0}%
+      • Tendencia de mejora:         ${(feedback.learningEffectiveness?.indicators?.improvementTrend || 0) >= 0 ? '+' : ''}${feedback.learningEffectiveness?.indicators?.improvementTrend?.toFixed(1) || 0}%
 
-⚠️ ALERTAS:
-${feedback.learningEffectiveness?.alerts.map(a => `   • ${a}`).join('\n') || '   ✅ Sin alertas'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👁️ ANÁLISIS DE ATENCIÓN EN CLASE (Attention Detection Algorithm)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-💪 FORTALEZAS:
-${feedback.strengths.map(s => `   ✓ ${s}`).join('\n') || '   - Por desarrollar'}
+   📊 Nivel de Atención:            ${feedback.attentionLevel?.level || 'Sin datos'}
+   
+   🎯 Puntaje de Atención:          ${feedback.attentionLevel?.score || 0}/100
+   
+   🔍 Indicadores:
+      • Períodos de inactividad:     ${feedback.attentionLevel?.indicators?.inactivityPeriods || 0}
+      • Consistencia (desv. std):    ${feedback.attentionLevel?.indicators?.consistencyScore?.toFixed(1) || 0}
+      • Índice de foco:              ${feedback.attentionLevel?.indicators?.focusIndex?.toFixed(1) || 0}/100
 
-🎯 ÁREAS DE MEJORA:
-${feedback.weaknesses.map(w => `   ✗ ${w}`).join('\n') || '   ✅ Ninguna identificada'}
+⚠️ ALERTAS DETECTADAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${feedback.learningEffectiveness?.alerts?.length > 0 
+  ? feedback.learningEffectiveness.alerts.map(a => `   ${a}`).join('\n')
+  : '   ✅ No hay alertas'}
 
-📋 RECOMENDACIONES:
-${feedback.recommendations.map(r => `   → ${r}`).join('\n') || '   ✅ Continuar con el buen trabajo'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💪 FORTALEZAS IDENTIFICADAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${feedback.strengths?.length > 0
+  ? feedback.strengths.map(s => `   ✓ ${s}`).join('\n')
+  : '   - Por desarrollar'}
 
-🚀 PLAN DE ACCIÓN:
-${feedback.actionPlan.map(a => `   ${a}`).join('\n')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 ÁREAS DE MEJORA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${feedback.weaknesses?.length > 0
+  ? feedback.weaknesses.map(w => `   ✗ ${w}`).join('\n')
+  : '   ✅ Ninguna identificada'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 RECOMENDACIONES PEDAGÓGICAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${feedback.recommendations?.length > 0
+  ? feedback.recommendations.map(r => `   → ${r}`).join('\n')
+  : '   ✅ Continuar con el buen trabajo'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 PLAN DE ACCIÓN SUGERIDO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${feedback.actionPlan?.length > 0
+  ? feedback.actionPlan.map(a => `   ${a}`).join('\n')
+  : '   ✅ Mantener el progreso actual'}
+
+═══════════════════════════════════════════════════════════════
 
 `;
-        }
-      }
+  });
 
-      detailedReport += `
+  text += `
 ═══════════════════════════════════════════════════════════════
-                    RESUMEN Y CONCLUSIONES
+                    CONCLUSIONES GENERALES
 ═══════════════════════════════════════════════════════════════
 
-Este reporte fue generado usando Inteligencia Artificial predictiva
-que analiza patrones de aprendizaje, atención y retención.
+📊 ALGORITMOS DE IA UTILIZADOS:
+   • LEA (Learning Effectiveness Analysis)
+     → Analiza patrones de aprendizaje real vs memorización
+     → Detecta comprensión profunda mediante intentos y tiempo
+   
+   • ADA (Attention Detection Algorithm)
+     → Monitorea consistencia y concentración
+     → Identifica períodos de distracción
+   
+   • AFS (Adaptive Feedback System)
+     → Genera retroalimentación personalizada
+     → Crea planes de acción individualizados
 
-📊 Algoritmos utilizados:
-   • Learning Effectiveness Analysis (LEA)
-   • Attention Detection Algorithm (ADA)
-   • Adaptive Feedback System (AFS)
-
-⚡ Recomendación General del Sistema:
-${courseAnalytics?.avgProgress >= 70
-          ? '✅ El curso muestra buen desempeño general. Mantener metodología.'
-          : courseAnalytics?.avgProgress >= 50
-            ? '⚠️ Requiere ajustes en la metodología de enseñanza.'
-            : '🚨 URGENTE: Revisar completamente el enfoque pedagógico.'}
+⚡ EVALUACIÓN GENERAL DEL CURSO:
+${courseReportData.stats.avgProgress >= 70
+  ? `   ✅ EXCELENTE: El curso muestra resultados positivos
+   → Metodología efectiva
+   → Estudiantes comprometidos
+   → Continuar con el enfoque actual`
+  : courseReportData.stats.avgProgress >= 50
+    ? `   ⚠️ REGULAR: Hay espacio para mejoras
+   → Revisar metodología de enseñanza
+   → Implementar más actividades interactivas
+   → Reforzar seguimiento individualizado`
+    : `   🚨 CRÍTICO: Se requiere intervención urgente
+   → Revisión completa de metodología
+   → Reunión con equipo pedagógico
+   → Implementar plan de mejora inmediato`}
 
 ═══════════════════════════════════════════════════════════════
-                 Generado por Didactikapp v2.3.0
+           Generado por Didactikapp - IA Educativa
+           Fecha: ${new Date().toLocaleString('es-ES')}
 ═══════════════════════════════════════════════════════════════
 `;
 
-      // Descargar reporte
-      const blob = new Blob([detailedReport], { type: 'text/plain; charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Reporte_IA_${course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+  return text;
+};
 
-      alert('✅ Reporte con análisis de IA generado exitosamente');
-    } catch (err) {
-      console.error('Error generando reporte:', err);
-      alert('Error al generar el reporte');
+// ✅ Función para descargar el reporte
+const handleDownloadReport = () => {
+  const reportText = generateReportText();
+  const blob = new Blob([reportText], { type: 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte_${courseReportData?.course.titulo.replace(/\s+/g, '_')}_${Date.now()}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// ✅ Función para imprimir el reporte
+const handlePrintReport = () => {
+  window.print();
+};
+
+  useEffect(() => {
+  if (!previewQuiz || !currentQuiz.preguntas.length) return;
+
+  const question = currentQuiz.preguntas[currentPreviewQuestion];
+  
+  // Leer la pregunta al cargar
+  setTimeout(() => {
+    speakText(question.pregunta);
+  }, 500);
+
+  // Detectar demora y repetir pregunta
+  const tiempoMax = question.tiempo_limite ? question.tiempo_limite * 1000 * 0.7 : 20000;
+  const timer = setTimeout(() => {
+    if (!previewAnswers[currentPreviewQuestion]) {
+      // Repetir la pregunta automáticamente
+      speakText(question.pregunta);
     }
-  };
+  }, tiempoMax);
 
-  const renderQuestionPreview = () => {
-    if (!currentQuiz.preguntas.length) return null;
+  return () => clearTimeout(timer);
+}, [previewQuiz, currentPreviewQuestion, previewAnswers]);
 
-    const question = currentQuiz.preguntas[currentPreviewQuestion];
-    const answer = previewAnswers[currentPreviewQuestion];
+useEffect(() => {
+  if (!previewQuiz || !currentQuiz.preguntas.length) return;
 
-    return (
-      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 min-h-[500px] flex flex-col">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-              {currentPreviewQuestion + 1}
-            </div>
-            <span className="text-gray-600 font-medium">
-              Pregunta {currentPreviewQuestion + 1} de {currentQuiz.preguntas.length}
-            </span>
+  const question = currentQuiz.preguntas[currentPreviewQuestion];
+  
+  // Leer la pregunta al cargar
+  setTimeout(() => {
+    speakText(question.pregunta);
+    
+    // Leer las opciones después de la pregunta
+    setTimeout(() => {
+      const opciones = question.opciones.join('. ');
+      speakText(`Las opciones son: ${opciones}`);
+    }, 2000);
+  }, 500);
+
+  // Detectar demora y repetir pregunta
+  const tiempoMax = question.tiempo_limite ? question.tiempo_limite * 1000 * 0.7 : 20000;
+  const timer = setTimeout(() => {
+    if (!previewAnswers[currentPreviewQuestion]) {
+      // Repetir la pregunta automáticamente
+      speakText(question.pregunta);
+      
+      // Repetir las opciones después
+      setTimeout(() => {
+        const opciones = question.opciones.join('. ');
+        speakText(`Las opciones son: ${opciones}`);
+      }, 2000);
+    }
+  }, tiempoMax);
+
+  return () => clearTimeout(timer);
+}, [previewQuiz, currentPreviewQuestion, previewAnswers]);
+
+const renderQuestionPreview = () => {
+  if (!currentQuiz.preguntas.length) return null;
+
+  const question = currentQuiz.preguntas[currentPreviewQuestion];
+  const answer = previewAnswers[currentPreviewQuestion];
+
+  return (
+    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 min-h-[500px] flex flex-col">
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+            {currentPreviewQuestion + 1}
           </div>
-          <div className="flex gap-2">
-            {currentQuiz.preguntas.map((_, idx) => (
-              <div
-                key={idx}
-                className={`w-3 h-3 rounded-full ${idx === currentPreviewQuestion ? 'bg-purple-500' : 'bg-gray-300'
-                  }`}
-              />
-            ))}
-          </div>
+          <span className="text-gray-600 font-medium">
+            Pregunta {currentPreviewQuestion + 1} de {currentQuiz.preguntas.length}
+          </span>
         </div>
+        <div className="flex gap-2">
+          {currentQuiz.preguntas.map((_, idx) => (
+            <div
+              key={idx}
+              className={`w-3 h-3 rounded-full ${idx === currentPreviewQuestion ? 'bg-purple-500' : 'bg-gray-300'}`}
+            />
+          ))}
+        </div>
+      </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {question.video_url && (
-            <div className="mb-6 w-full max-w-2xl">
-              <video
-                controls
-                className="w-full rounded-2xl shadow-lg"
-                src={question.video_url}
-              >
-                Tu navegador no soporta video
-              </video>
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {question.video_url && (
+          <div className="mb-6 w-full max-w-2xl">
+            <video
+              controls
+              className="w-full rounded-2xl shadow-lg"
+              src={question.video_url}
+            >
+              Tu navegador no soporta video
+            </video>
+          </div>
+        )}
+
+        {question.imagen_url && !question.video_url && (
+          <div className="mb-6">
+            <div className="w-48 h-48 bg-white rounded-2xl shadow-lg flex items-center justify-center overflow-hidden transform hover:scale-105 transition-transform">
+              <span className="text-6xl">{question.imagen_url}</span>
             </div>
-          )}
+          </div>
+        )}
 
-          {question.imagen_url && !question.video_url && (
-            <div className="mb-6">
-              <div className="w-48 h-48 bg-white rounded-2xl shadow-lg flex items-center justify-center overflow-hidden transform hover:scale-105 transition-transform">
-                <span className="text-6xl">{question.imagen_url}</span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 mb-8">
-            <h3 className="text-3xl font-bold text-gray-800 text-center leading-relaxed">
-              {question.pregunta}
-            </h3>
-            {question.audio_pregunta && (
+        <div className="flex items-center gap-3 mb-8">
+          <h3 className="text-3xl font-bold text-gray-800 text-center leading-relaxed">
+            {question.pregunta}
+          </h3>
+          {question.audio_pregunta && (
+            <>
               <button
                 onClick={() => speakText(question.pregunta)}
                 className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110"
@@ -1713,91 +2277,109 @@ ${courseAnalytics?.avgProgress >= 70
               >
                 <Volume2 className="w-5 h-5" />
               </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-            {question.opciones.map((opcion, idx) => (
               <button
-                key={idx}
-                onClick={() => handlePreviewAnswer(currentPreviewQuestion, idx)}
-                disabled={answer !== undefined}
-                className={`p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 ${answer === undefined
-                    ? 'bg-white hover:bg-purple-50 hover:border-purple-300 border-2 border-gray-200 text-gray-700'
-                    : answer.selected === idx
-                      ? answer.isCorrect
-                        ? 'bg-green-500 text-white border-2 border-green-600 animate-bounce'
-                        : 'bg-red-500 text-white border-2 border-red-600'
-                      : idx === question.respuesta_correcta
-                        ? 'bg-green-500 text-white border-2 border-green-600'
-                        : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                  }`}
+                onClick={() => {
+                  const opciones = question.opciones.join('. ');
+                  speakText(`Las opciones son: ${opciones}`);
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110"
+                title="Escuchar opciones"
               >
-                <div className="flex items-center justify-between">
-                  {question.tipo === 'imagen' && question.imagen_opciones[idx] ? (
-                    <div className="flex flex-col items-center gap-2 w-full">
-                      <span className="text-4xl">{question.imagen_opciones[idx]}</span>
-                      <span className="text-sm">{opcion}</span>
-                    </div>
-                  ) : (
-                    <span>{opcion}</span>
-                  )}
-                  {answer !== undefined && answer.selected === idx && (
-                    answer.isCorrect ?
-                      <CheckCircle className="w-6 h-6" /> :
-                      <XCircle className="w-6 h-6" />
-                  )}
-                </div>
+                <Volume2 className="w-5 h-5" />
               </button>
-            ))}
-          </div>
-
-          {answer && (
-            <div className={`mt-6 p-4 rounded-xl text-center ${answer.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-              <p className="text-xl font-bold">
-                {answer.isCorrect ? question.retroalimentacion_correcta : question.retroalimentacion_incorrecta}
-              </p>
-            </div>
+            </>
           )}
         </div>
 
-        <div className="flex justify-between mt-6">
-          <button
-            onClick={() => {
-              if (currentPreviewQuestion > 0) {
-                setCurrentPreviewQuestion(currentPreviewQuestion - 1);
-                const prevQuestion = currentQuiz.preguntas[currentPreviewQuestion - 1];
-                if (prevQuestion?.audio_pregunta) {
-                  setTimeout(() => speakText(prevQuestion.pregunta), 300);
-                }
-              }
-            }}
-            disabled={currentPreviewQuestion === 0}
-            className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            ← Anterior
-          </button>
-
-          <button
-            onClick={() => {
-              if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                const nextQuestion = currentQuiz.preguntas[currentPreviewQuestion + 1];
-                if (nextQuestion?.audio_pregunta) {
-                  setTimeout(() => speakText(nextQuestion.pregunta), 300);
-                }
-              }
-            }}
-            disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
-            className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Siguiente →
-          </button>
+        <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
+          {question.opciones.map((opcion, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                handlePreviewAnswer(currentPreviewQuestion, idx);
+                setTimeout(() => speakText(opcion), 300);
+              }}
+              disabled={answer !== undefined}
+              className={`p-6 rounded-xl font-semibold text-lg transition-all transform hover:scale-105 ${
+                answer === undefined
+                  ? 'bg-white hover:bg-purple-50 hover:border-purple-300 border-2 border-gray-200 text-gray-700'
+                  : answer.selected === idx
+                    ? answer.isCorrect
+                      ? 'bg-green-500 text-white border-2 border-green-600 animate-bounce'
+                      : 'bg-red-500 text-white border-2 border-red-600'
+                    : idx === question.respuesta_correcta
+                      ? 'bg-green-500 text-white border-2 border-green-600'
+                      : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                {question.tipo === 'imagen' && question.imagen_opciones[idx] ? (
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <span className="text-4xl">{question.imagen_opciones[idx]}</span>
+                    <span className="text-sm">{opcion}</span>
+                  </div>
+                ) : (
+                  <span>{opcion}</span>
+                )}
+                {answer !== undefined && answer.selected === idx && (
+                  answer.isCorrect ? (
+                    <CheckCircle className="w-6 h-6" />
+                  ) : (
+                    <XCircle className="w-6 h-6" />
+                  )
+                )}
+              </div>
+            </button>
+          ))}
         </div>
+
+        {answer && (
+          <div className={`mt-6 p-4 rounded-xl text-center ${answer.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            <p className="text-xl font-bold">
+              {answer.isCorrect ? question.retroalimentacion_correcta : question.retroalimentacion_incorrecta}
+            </p>
+          </div>
+        )}
       </div>
-    );
-  };
+
+      <div className="flex justify-between mt-6">
+        <button
+          onClick={() => {
+            if (currentPreviewQuestion > 0) {
+              setCurrentPreviewQuestion(currentPreviewQuestion - 1);
+              setPreviewAnswers({});
+              const prevQuestion = currentQuiz.preguntas[currentPreviewQuestion - 1];
+              if (prevQuestion?.audio_pregunta) {
+                setTimeout(() => speakText(prevQuestion.pregunta), 300);
+              }
+            }
+          }}
+          disabled={currentPreviewQuestion === 0}
+          className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          ← Anterior
+        </button>
+
+        <button
+          onClick={() => {
+            if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
+              setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+              setPreviewAnswers({});
+              const nextQuestion = currentQuiz.preguntas[currentPreviewQuestion + 1];
+              if (nextQuestion?.audio_pregunta) {
+                setTimeout(() => speakText(nextQuestion.pregunta), 300);
+              }
+            }
+          }}
+          disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
+          className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+  );
+};
 
   const generateAIRecommendations = () => {
     const recommendations = [];
@@ -2825,31 +3407,64 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     </div>
                   </div>
 
-                  {/* SELECTOR DE PERFILES */}
-                  {(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
-                    <div className="px-4 py-2 border-b">
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Cambiar Perfil</p>
-                      <div className="space-y-1">
-                        {[currentUser.rol, ...currentUser.roles_adicionales].map((rol, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              // Aquí puedes implementar lógica para cambiar la vista según el rol
-                              alert(`Cambiar a perfil: ${rol}`);
-                              // navigate(`/${rol === 'admin' ? 'admin' : 'dashboard'}`);
-                            }}
-                            className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center gap-2 ${rol === currentUser.rol ? 'bg-blue-50 border border-blue-200' : ''
-                              }`}
-                          >
-                            <div className={`w-2 h-2 rounded-full ${getRoleBadgeColor(rol).includes('red') ? 'bg-red-500' : getRoleBadgeColor(rol).includes('blue') ? 'bg-blue-500' : getRoleBadgeColor(rol).includes('green') ? 'bg-green-500' : 'bg-gray-500'}`} />
-                            <span className="capitalize">{rol}</span>
-                            {rol === currentUser.rol && <span className="ml-auto text-xs text-blue-600">● Activo</span>}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
+{/* SELECTOR DE PERFILES MEJORADO */}
+// ✅ REEMPLAZA ESTA SECCIÓN EN TU CÓDIGO
+// Busca: "SELECTOR DE PERFILES MEJORADO"
+
+{(currentUser?.roles_adicionales && currentUser.roles_adicionales.length > 0) && (
+  <div className="px-4 py-2 border-b">
+    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">🔄 Cambiar Perfil</p>
+    <div className="space-y-1">
+      {[currentUser.rol, ...currentUser.roles_adicionales]
+        .filter((rol, index, self) => self.indexOf(rol) === index)
+        .map((rol, idx) => {
+          const roleInfo = availableRoles.find(r => r.value === rol);
+          const isActive = rol === currentUser.rol;
+          
+          return (
+            <button
+              key={idx}
+              onClick={() => {
+                if (isActive) {
+                  setMenuOpen(false);
+                  alert('✅ Ya estás usando este perfil');
+                  return;
+                }
+                
+                // ✅ CAMBIO CLAVE: Actualizar el rol directamente sin navigate()
+                const updatedUser = {
+                  ...currentUser,
+                  rol: rol
+                };
+                
+                setCurrentUser(updatedUser);
+                setMenuOpen(false);
+                setActiveTab('dashboard');
+                
+                // ✅ Mostrar confirmación
+                alert(`✅ Perfil cambiado a: ${roleInfo?.label || rol}`);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors flex items-center justify-between gap-2 ${
+                isActive ? 'bg-blue-50 border-2 border-blue-300 font-semibold' : 'border border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  roleInfo?.color === 'red' ? 'bg-red-500' :
+                  roleInfo?.color === 'blue' ? 'bg-blue-500' :
+                  roleInfo?.color === 'green' ? 'bg-green-500' :
+                  'bg-gray-500'
+                }`} />
+                <span className="capitalize">{roleInfo?.label || rol}</span>
+              </div>
+              {isActive && <span className="text-xs text-blue-600 font-bold">● ACTIVO</span>}
+            </button>
+          );
+        })}
+    </div>
+  </div>
+)}
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
@@ -3827,7 +4442,334 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             )}
           </div>
         )}
+
+
+        {/* MODAL DEL REPORTE CON LOS ALGORITMOS - VERSIÓN CORREGIDA */}
+{showCourseReportModal && courseReportData && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="bg-white rounded-3xl max-w-5xl w-full shadow-2xl my-8 overflow-hidden">
+      
+      {/* HEADER */}
+      <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-8">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <BarChart3 className="w-8 h-8" />
+              <div>
+                <h2 className="text-3xl font-bold">📊 Reporte Analítico</h2>
+                <p className="text-sm text-blue-100">Análisis Detallado con IA Predictiva</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCourseReportModal(false)}
+            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-4 pt-6 border-t border-white border-opacity-20">
+          <div>
+            <p className="text-xs font-semibold text-blue-100">CURSO</p>
+            <p className="text-lg font-bold">{courseReportData.course.titulo}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-blue-100">NIVEL</p>
+            <p className="text-lg font-bold">{courseReportData.course.nivel}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-blue-100">FECHA</p>
+            <p className="text-lg font-bold">{courseReportData.course.fecha}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENIDO SCROLLEABLE */}
+      <div className="overflow-y-auto max-h-[calc(90vh-300px)] p-8 space-y-8">
+        
+        {/* ESTADÍSTICAS GENERALES */}
+        <section>
+          <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600"></div>
+            Estadísticas Generales
+          </h3>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Estudiantes', value: courseReportData.stats.totalStudents, icon: '👥', color: 'from-blue-500 to-blue-600' },
+              { label: 'Progreso Promedio', value: `${courseReportData.stats.avgProgress}%`, icon: '📈', color: 'from-green-500 to-green-600' },
+              { label: 'Recursos Completados', value: courseReportData.stats.completedResources, icon: '✅', color: 'from-purple-500 to-purple-600' },
+              { label: 'Tiempo Total', value: `${courseReportData.stats.totalTime}m`, icon: '⏱️', color: 'from-orange-500 to-orange-600' }
+            ].map((stat, idx) => (
+              <div key={idx} className={`bg-gradient-to-br ${stat.color} rounded-xl p-5 text-white shadow-lg`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-3xl">{stat.icon}</div>
+                </div>
+                <p className="text-xs font-semibold text-white text-opacity-90">{stat.label}</p>
+                <p className="text-2xl font-bold mt-2">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ANÁLISIS POR ESTUDIANTE */}
+        <section>
+          <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600"></div>
+            Análisis de Estudiantes
+          </h3>
+
+          <div className="space-y-6">
+            {courseReportData.students.map((data, idx) => {
+              const { student, feedback, grupo } = data;
+              return (
+                <div key={idx} className="bg-gray-50 rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                  
+                  {/* HEADER ESTUDIANTE */}
+                  <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-2xl font-bold">
+                          {student.nombre?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold">{student.nombre}</h4>
+                          <p className="text-sm text-slate-300">{student.email}</p>
+                          <span className="text-xs font-semibold mt-2 inline-block bg-white bg-opacity-20 px-2 py-1 rounded">
+                            {grupo}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-lg font-bold">{feedback.overallStatus}</p>
+                    </div>
+                  </div>
+
+                  {/* CONTENIDO ESTUDIANTE */}
+                  <div className="p-6 space-y-6">
+                    
+                    {/* CUADROS DE ALGORITMOS */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      
+                      {/* LEA */}
+                      <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-300">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="text-xs font-bold text-blue-700 uppercase">LEA</p>
+                            <p className="text-xs text-blue-600">Aprendizaje Real</p>
+                          </div>
+                          <span className="text-2xl">{feedback.learningEffectiveness?.isLearning ? '✅' : '❌'}</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs font-semibold text-gray-700">Confianza</span>
+                              <span className="text-xs font-bold text-blue-600">{feedback.learningEffectiveness?.confidence?.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${feedback.learningEffectiveness?.confidence || 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Intentos:</span>
+                              <span className="font-bold">{feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(1)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tiempo:</span>
+                              <span className="font-bold">{feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0)}s</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Retención:</span>
+                              <span className="font-bold">{feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ADA */}
+                      <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-300">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="text-xs font-bold text-purple-700 uppercase">ADA</p>
+                            <p className="text-xs text-purple-600">Atención</p>
+                          </div>
+                          <span className="text-2xl">👁️</span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-xs font-semibold text-gray-700">Puntuación</span>
+                              <span className="text-xs font-bold text-purple-600">{feedback.attentionLevel?.score || 0}/100</span>
+                            </div>
+                            <div className="w-full bg-purple-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${
+                                  feedback.attentionLevel?.score >= 70 ? 'bg-green-500' :
+                                  feedback.attentionLevel?.score >= 50 ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${(feedback.attentionLevel?.score || 0)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div className={`text-center py-2 rounded text-xs font-bold ${
+                            feedback.attentionLevel?.score >= 70 ? 'bg-green-200 text-green-800' :
+                            feedback.attentionLevel?.score >= 50 ? 'bg-yellow-200 text-yellow-800' :
+                            'bg-red-200 text-red-800'
+                          }`}>
+                            {feedback.attentionLevel?.level}
+                          </div>
+
+                          <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Inactividad:</span>
+                              <span className="font-bold">{feedback.attentionLevel?.indicators?.inactivityPeriods}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Foco:</span>
+                              <span className="font-bold">{feedback.attentionLevel?.indicators?.focusIndex?.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* AFS */}
+                      <div className="bg-green-50 rounded-xl p-4 border-2 border-green-300">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="text-xs font-bold text-green-700 uppercase">AFS</p>
+                            <p className="text-xs text-green-600">Retroalimentación</p>
+                          </div>
+                          <span className="text-2xl">🎯</span>
+                        </div>
+
+                        <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
+                          {feedback.strengths?.length > 0 && (
+                            <div>
+                              <p className="font-bold text-green-700">✓ {feedback.strengths.length} Fortalezas</p>
+                            </div>
+                          )}
+
+                          {feedback.weaknesses?.length > 0 && (
+                            <div className="border-t pt-1">
+                              <p className="font-bold text-red-700">✗ {feedback.weaknesses.length} Debilidades</p>
+                            </div>
+                          )}
+
+                          {feedback.actionPlan?.length > 0 && (
+                            <div className="border-t pt-1">
+                              <p className="font-bold text-blue-700">📋 {feedback.actionPlan.length} Acciones</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* FORTALEZAS Y DEBILIDADES */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-green-50 rounded-xl p-4 border-2 border-green-300">
+                        <h5 className="font-bold text-green-800 mb-3 text-sm flex items-center gap-2">
+                          💪 Fortalezas
+                        </h5>
+                        <div className="space-y-1">
+                          {feedback.strengths?.length > 0 ? (
+                            feedback.strengths.map((s, i) => (
+                              <p key={i} className="text-xs text-gray-700">✓ {s}</p>
+                            ))
+                          ) : (
+                            <p className="text-xs text-gray-500">Por desarrollar</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-red-50 rounded-xl p-4 border-2 border-red-300">
+                        <h5 className="font-bold text-red-800 mb-3 text-sm flex items-center gap-2">
+                          🎯 Áreas de Mejora
+                        </h5>
+                        <div className="space-y-1">
+                          {feedback.weaknesses?.length > 0 ? (
+                            feedback.weaknesses.map((w, i) => (
+                              <p key={i} className="text-xs text-gray-700">✗ {w}</p>
+                            ))
+                          ) : (
+                            <p className="text-xs text-gray-500">Ninguna identificada</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RECOMENDACIONES */}
+                    {feedback.recommendations?.length > 0 && (
+                      <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-300">
+                        <h5 className="font-bold text-blue-800 mb-3 text-sm">💡 Recomendaciones</h5>
+                        <div className="space-y-2">
+                          {feedback.recommendations.map((r, i) => (
+                            <p key={i} className="text-xs text-gray-700 bg-white rounded-lg p-2">→ {r}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PLAN DE ACCIÓN */}
+                    {feedback.actionPlan?.length > 0 && (
+                      <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-300">
+                        <h5 className="font-bold text-purple-800 mb-3 text-sm">🚀 Plan de Acción</h5>
+                        <div className="space-y-2">
+                          {feedback.actionPlan.map((action, i) => (
+                            <p key={i} className="text-xs text-gray-700 bg-white rounded-lg p-2 border-l-4 border-purple-400">
+                              {i + 1}. {action}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* FOOTER CON BOTONES */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-4 justify-end">
+        <button
+          onClick={() => setShowCourseReportModal(false)}
+          className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors flex items-center gap-2"
+        >
+          <X className="w-5 h-5" />
+          Cerrar
+        </button>
+        <button
+          onClick={handlePrintReport}
+          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+        >
+          <Printer className="w-5 h-5" />
+          Imprimir
+        </button>
+        <button
+          onClick={handleDownloadReport}
+          className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+        >
+          <Download className="w-5 h-5" />
+          Descargar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       </main>
+
+      
 
       {/* QUIZ BUILDER MODAL */}
       {showQuizBuilder && (
