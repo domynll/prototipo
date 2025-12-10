@@ -8,6 +8,205 @@ import {
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url,).href;
+
+// Componente de Gráfica de Barras Horizontales
+const ExcelHorizontalBarChart = ({ title, data, colors }) => {
+  const maxValue = Math.max(...data.map(d => d.value));
+
+  return (
+    <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-4">{title}</h4>
+      <div className="space-y-3">
+        {data.map((item, idx) => (
+          <div key={idx}>
+            <div className="flex justify-between mb-1">
+              <span className="text-xs font-semibold text-gray-700">{item.label}</span>
+              <span className="text-xs font-bold text-gray-800">{item.value}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 flex items-center justify-end pr-2"
+                style={{
+                  width: `${(item.value / maxValue) * 100}%`,
+                  backgroundColor: colors[idx % colors.length],
+                }}
+              >
+                <span className="text-xs font-bold text-white">
+                  {Math.round((item.value / maxValue) * 100)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Componente de Gráfica de Línea (Progreso en el tiempo)
+const ExcelLineChart = ({ title, data, color }) => {
+  const maxValue = Math.max(...data.map(d => d.value));
+  const points = data.map((d, i) => ({
+    x: (i / (data.length - 1)) * 100,
+    y: 100 - ((d.value / maxValue) * 80)
+  }));
+
+  const pathD = points.map((p, i) =>
+    `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+  ).join(' ');
+
+  return (
+    <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-4">{title}</h4>
+      <div className="relative h-48">
+        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {/* Grid */}
+          {[0, 25, 50, 75, 100].map(y => (
+            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.2" />
+          ))}
+
+          {/* Área bajo la línea */}
+          <path
+            d={`${pathD} L 100 100 L 0 100 Z`}
+            fill={`${color}30`}
+          />
+
+          {/* Línea principal */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke={color}
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Puntos */}
+          {points.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="1.5" fill={color} />
+          ))}
+        </svg>
+
+        {/* Labels */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-600 mt-2">
+          {data.map((d, i) => (
+            <span key={i}>{d.label}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de Gráfica de Dona (Donut Chart)
+const ExcelDonutChart = ({ title, data, colors }) => {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  let currentAngle = -90;
+
+  const slices = data.map((item, idx) => {
+    const percentage = (item.value / total) * 100;
+    const angle = (percentage / 100) * 360;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angle;
+    currentAngle = endAngle;
+
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+
+    const x1 = 50 + 40 * Math.cos(startRad);
+    const y1 = 50 + 40 * Math.sin(startRad);
+    const x2 = 50 + 40 * Math.cos(endRad);
+    const y2 = 50 + 40 * Math.sin(endRad);
+
+    const largeArc = angle > 180 ? 1 : 0;
+
+    return {
+      path: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`,
+      color: colors[idx % colors.length],
+      percentage: percentage.toFixed(1),
+      label: item.label,
+      value: item.value
+    };
+  });
+
+  return (
+    <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-4">{title}</h4>
+      <div className="flex items-center gap-4">
+        <div className="relative w-32 h-32">
+          <svg viewBox="0 0 100 100" className="transform -rotate-90">
+            {slices.map((slice, idx) => (
+              <path
+                key={idx}
+                d={slice.path}
+                fill={slice.color}
+                className="hover:opacity-80 transition-opacity cursor-pointer"
+              />
+            ))}
+            {/* Centro blanco */}
+            <circle cx="50" cy="50" r="25" fill="white" />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-xl font-bold text-gray-800">{total}</div>
+              <div className="text-xs text-gray-600">Total</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-2">
+          {slices.map((slice, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: slice.color }}
+              />
+              <span className="text-xs text-gray-700 flex-1">{slice.label}</span>
+              <span className="text-xs font-bold text-gray-800">
+                {slice.value} ({slice.percentage}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente de Gráfica de Columnas
+const ExcelColumnChart = ({ title, data, colors }) => {
+  const maxValue = Math.max(...data.map(d => d.value));
+
+  return (
+    <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+      <h4 className="text-sm font-bold text-gray-800 mb-4">{title}</h4>
+      <div className="flex items-end justify-between gap-2 h-40">
+        {data.map((item, idx) => (
+          <div key={idx} className="flex-1 flex flex-col items-center">
+            <div className="w-full flex flex-col items-center justify-end flex-1">
+              <span className="text-xs font-bold text-gray-800 mb-1">{item.value}</span>
+              <div
+                className="w-full rounded-t-lg transition-all duration-700 relative group"
+                style={{
+                  height: `${(item.value / maxValue) * 100}%`,
+                  backgroundColor: colors[idx % colors.length],
+                  minHeight: '20px'
+                }}
+              >
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+              </div>
+            </div>
+            <span className="text-xs text-gray-600 mt-2 text-center">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 // Componente de Gráfico de Barras
 const BarChart = ({ title, data, color, maxValue }) => {
@@ -200,6 +399,7 @@ export default function EnhancedAdminPanel() {
   const [resources, setResources] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [documentText, setDocumentText] = useState("");
 
   // Estados de UI
   const [loading, setLoading] = useState(true);
@@ -1117,209 +1317,342 @@ export default function EnhancedAdminPanel() {
 
   // VERSIÓN CON IA - RÁPIDA Y CONFIABLE
 
-  const generateAIAnalytics = async () => {
+  const generateAIAnalyticsImproved = async () => {
+    console.log('=== INICIO generateAIAnalyticsImproved ===');
+
     setLoadingAI(true);
-    console.log("🤖 Iniciando análisis con IA...");
+    setShowDetailedAnalytics(true);
+
+    console.log('✅ Estados iniciales configurados');
+    console.log('📊 Users:', users?.length);
+    console.log('📚 Courses:', courses?.length);
+    console.log('📝 Resources:', resources?.length);
 
     try {
-      // Calcular datos del sistema
-      const totalStudents = users?.filter((u) => u.rol === "estudiante").length || 0;
-      const activeStudents = users?.filter((u) => u.rol === "estudiante" && u.activo).length || 0;
-      const activePct = totalStudents > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0;
+      console.log('🔍 Intentando calcular métricas básicas...');
 
-      const engagementRate = analytics?.engagementRate || 0;
-      const completionRate = analytics?.completionRate || 0;
-      const avgTimePerResource = analytics?.avgTimePerResource || 0;
-      const courseCount = courses?.length || 0;
-      const resourceCount = resources?.length || 0;
+      // PASO 1: Métricas básicas síncronas
+      const totalStudents = users?.filter(u => u.rol === 'estudiante')?.length || 0;
+      const activeStudents = users?.filter(u => u.rol === 'estudiante' && u.activo)?.length || 0;
+      const inactiveStudents = totalStudents - activeStudents;
 
-      console.log("📊 Datos calculados");
+      console.log('✅ Estudiantes calculados:', { totalStudents, activeStudents, inactiveStudents });
 
-      // PROMPT SIMPLIFICADO Y DIRECTO
-      const prompt = `Eres un analista educativo. Analiza estos datos y responde SOLO en JSON válido:
+      // PASO 2: Engagement (última semana)
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
 
-Sistema: ${totalStudents} estudiantes, ${activeStudents} activos (${activePct}%)
-Métricas: Compromiso ${engagementRate}% | Completitud ${completionRate}% | Promedio ${avgTimePerResource}min
-Contenido: ${courseCount} cursos, ${resourceCount} recursos
+      const engagedStudents = users?.filter(u => {
+        if (!u.ultimo_acceso) return false;
+        return new Date(u.ultimo_acceso) > lastWeek;
+      })?.length || 0;
 
-Genera 3 insights y 3 recomendaciones en este formato EXACTO:
-{
-  "insights": [
-    "Insight sobre la actividad estudiantil",
-    "Insight sobre progreso o completitud",
-    "Insight sobre contenido o recursos"
-  ],
-  "recommendations": [
-    {
-      "title": "Mejora de Actividad",
-      "description": "Acción específica basada en datos",
-      "type": "positive"
-    },
-    {
-      "title": "Optimización de Contenido",
-      "description": "Sugerencia concreta",
-      "type": "warning"
-    },
-    {
-      "title": "Estrategia de Engagement",
-      "description": "Plan de acción",
-      "type": "opportunity"
-    }
-  ]
-}
+      const engagementRate = totalStudents > 0
+        ? Math.round((engagedStudents / totalStudents) * 100)
+        : 0;
 
-Responde SOLO el JSON, sin explicaciones.`;
+      console.log('✅ Engagement calculado:', { engagedStudents, engagementRate });
 
-      console.log("🚀 Enviando a IA...");
+      // PASO 3: Construir métricas completas
+      const metrics = {
+        students: {
+          total: totalStudents,
+          active: activeStudents,
+          inactive: inactiveStudents,
+        },
+        content: {
+          courses: courses?.length || 0,
+          resources: resources?.length || 0,
+          achievements: achievements?.length || 0,
+        },
+        engagement: {
+          rate: engagementRate,
+          activeCount: engagedStudents,
+        },
+        progress: {
+          average: analytics?.completionRate || 0,
+          completionRate: analytics?.completionRate || 0,
+          totalActivities: 0,
+          completedActivities: 0,
+          totalTimeSpent: analytics?.avgTimePerResource || 0,
+        },
+      };
 
-      // Llamada a IA con timeout agresivo
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.warn("⏱️ Timeout de IA - usando fallback");
-        controller.abort();
-      }, 8000); // 8 segundos máximo
+      console.log('✅ Métricas construidas:', metrics);
 
-      const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyDtyQgSqzFMV_M6w6iOvjrKlNe5NdK4gb8",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-              temperature: 0.2,
-              topK: 10,
-              topP: 0.7,
-              maxOutputTokens: 400,
-            },
-          }),
-          signal: controller.signal,
-        }
+      // PASO 4: Calcular salud del sistema
+      const healthScore = Math.min(
+        100,
+        Math.max(0, Math.round(
+          (metrics.engagement.rate * 0.3 +
+            metrics.progress.completionRate * 0.4 +
+            metrics.progress.average * 0.3)
+        ))
       );
 
-      clearTimeout(timeoutId);
+      console.log('✅ Health Score calculado:', healthScore);
 
-      if (!response.ok) {
-        console.warn("⚠️ Error en API:", response.status);
-        throw new Error("API_ERROR");
+      // PASO 5: Generar insights
+      const insights = [
+        `📊 Sistema con ${metrics.students.total} estudiantes: ${metrics.students.active} activos y ${metrics.students.inactive} inactivos`,
+        `🎯 Engagement del ${metrics.engagement.rate}% con ${metrics.engagement.activeCount} estudiantes activos esta semana`,
+        `📈 Progreso promedio del ${metrics.progress.average}% y completitud del ${metrics.progress.completionRate}%`,
+        `📚 Contenido: ${metrics.content.courses} cursos, ${metrics.content.resources} recursos, ${metrics.content.achievements} logros`,
+      ];
+
+      console.log('✅ Insights generados:', insights.length);
+
+      // PASO 6: Generar recomendaciones
+      const recommendations = [];
+
+      if (metrics.engagement.rate < 50) {
+        recommendations.push({
+          title: '🎯 Aumentar Engagement',
+          description: `Solo ${metrics.engagement.rate}% de estudiantes están activos. Implementa gamificación y actividades interactivas.`,
+          priority: 'high',
+        });
+      } else {
+        recommendations.push({
+          title: '✅ Engagement Excelente',
+          description: `${metrics.engagement.rate}% de engagement. Mantén las estrategias actuales.`,
+          priority: 'low',
+        });
       }
 
-      const data = await response.json();
-      console.log("✅ Respuesta recibida");
-
-      let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-      if (!aiText) {
-        throw new Error("EMPTY_RESPONSE");
+      if (metrics.progress.completionRate < 40) {
+        recommendations.push({
+          title: '📈 Mejorar Completitud',
+          description: `${metrics.progress.completionRate}% de actividades completadas. Considera reducir complejidad o añadir incentivos.`,
+          priority: 'high',
+        });
+      } else {
+        recommendations.push({
+          title: '✅ Completitud Buena',
+          description: `${metrics.progress.completionRate}% completadas. Continúa monitoreando el progreso.`,
+          priority: 'low',
+        });
       }
 
-      // Limpiar JSON
-      aiText = aiText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-
-      // Buscar JSON
-      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-
-      if (!jsonMatch) {
-        console.warn("❌ No hay JSON en respuesta");
-        throw new Error("NO_JSON");
+      if (metrics.students.inactive > 0) {
+        recommendations.push({
+          title: '👥 Reactivar Estudiantes',
+          description: `${metrics.students.inactive} estudiantes inactivos. Envía recordatorios y contenido motivacional.`,
+          priority: 'medium',
+        });
       }
 
-      const aiData = JSON.parse(jsonMatch[0]);
-
-      // Validar que tenga la estructura correcta
-      if (!aiData.insights || !aiData.recommendations) {
-        throw new Error("INVALID_STRUCTURE");
+      if (metrics.content.resources < 10) {
+        recommendations.push({
+          title: '📚 Agregar Más Recursos',
+          description: `Solo tienes ${metrics.content.resources} recursos. Usa el generador de IA para crear contenido rápidamente.`,
+          priority: 'medium',
+        });
       }
 
-      console.log("🎉 IA procesada correctamente");
+      console.log('✅ Recomendaciones generadas:', recommendations.length);
 
-      // Establecer datos
-      setAiMetrics({
-        totalStudents,
-        activeStudents,
-        averageProgress: completionRate,
-        engagementRate,
-        completionRate,
-        avgTimePerResource,
-        courseCount,
-        resourceCount,
-        trends: {
-          studentsChange: Math.floor(Math.random() * 15 - 5),
-          engagementChange: Math.floor(Math.random() * 10 - 3),
-          progressChange: Math.floor(Math.random() * 12 - 4),
-          completionChange: Math.floor(Math.random() * 8 - 2),
-        }
-      });
+      // PASO 7: Guardar resultados
+      const finalMetrics = {
+        ...metrics,
+        systemHealth: {
+          status: healthScore >= 70 ? 'healthy' : healthScore >= 50 ? 'warning' : 'critical',
+          score: healthScore,
+        },
+        timestamp: new Date(),
+      };
 
-      setAiInsights(aiData.insights);
-      setAiRecommendations(aiData.recommendations);
+      console.log('✅ Métricas finales preparadas');
+      console.log('🔄 Guardando en estados...');
+
+      setAiMetrics(finalMetrics);
+      console.log('✅ aiMetrics guardado');
+
+      setAiInsights(insights);
+      console.log('✅ aiInsights guardado');
+
+      setAiRecommendations(recommendations);
+      console.log('✅ aiRecommendations guardado');
+
+      setLoadingAI(false);
+      console.log('✅ loadingAI = false');
+
+      console.log('=== FIN generateAIAnalyticsImproved EXITOSO ===');
 
     } catch (error) {
-      console.error("❌ Error con IA:", error.message);
-      console.log("📋 Usando análisis local como fallback...");
+      console.error('❌❌❌ ERROR CRÍTICO:', error);
+      console.error('Stack:', error.stack);
 
-      // FALLBACK: Análisis local si IA falla
-      const totalStudents = users?.filter((u) => u.rol === "estudiante").length || 0;
-      const activeStudents = users?.filter((u) => u.rol === "estudiante" && u.activo).length || 0;
-      const activePct = totalStudents > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0;
-      const engagementRate = analytics?.engagementRate || 0;
-      const completionRate = analytics?.completionRate || 0;
-      const courseCount = courses?.length || 0;
-      const resourceCount = resources?.length || 0;
-
-      const fallbackInsights = [
-        `📊 Tu sistema tiene ${totalStudents} estudiantes distribuidos en ${courseCount} cursos`,
-        `👥 ${activeStudents} estudiantes activos (${activePct}%) con ${engagementRate}% de compromiso`,
-        `📈 Completitud general: ${completionRate}% | Tiempo promedio: ${analytics?.avgTimePerResource || 0} minutos`
-      ];
-
-      const fallbackRecommendations = [
-        {
-          title: "Monitorear Actividad",
-          description: `Enfoque en los ${totalStudents - activeStudents} estudiantes inactivos`,
-          type: activePct > 70 ? "positive" : "warning"
+      // Fallback básico
+      const fallbackMetrics = {
+        students: {
+          total: users?.filter(u => u.rol === 'estudiante')?.length || 0,
+          active: users?.filter(u => u.rol === 'estudiante' && u.activo)?.length || 0,
+          inactive: 0,
         },
-        {
-          title: "Expandir Contenido",
-          description: `Considera añadir más recursos. Actualmente tienes ${resourceCount} disponibles.`,
-          type: "opportunity"
+        content: {
+          courses: courses?.length || 0,
+          resources: resources?.length || 0,
+          achievements: achievements?.length || 0,
         },
+        engagement: {
+          rate: 0,
+          activeCount: 0,
+        },
+        progress: {
+          average: 0,
+          completionRate: 0,
+          totalActivities: 0,
+          completedActivities: 0,
+          totalTimeSpent: 0,
+        },
+        systemHealth: {
+          status: 'warning',
+          score: 50,
+        },
+        timestamp: new Date(),
+      };
+
+      fallbackMetrics.students.inactive = fallbackMetrics.students.total - fallbackMetrics.students.active;
+
+      console.log('⚠️ Usando fallback metrics');
+      setAiMetrics(fallbackMetrics);
+      setAiInsights([
+        '📊 Sistema inicializado',
+        '⚠️ Error al calcular métricas: ' + error.message,
+        `👥 Total: ${fallbackMetrics.students.total} estudiantes`,
+      ]);
+      setAiRecommendations([
         {
-          title: "Optimizar Engagement",
-          description: `Aumenta interactividad para mejorar el compromiso actual (${engagementRate}%)`,
-          type: "warning"
-        }
-      ];
+          title: '⚠️ Error en análisis',
+          description: 'Revisa la consola para más detalles',
+          priority: 'high',
+        },
+      ]);
 
-      setAiMetrics({
-        totalStudents,
-        activeStudents,
-        averageProgress: completionRate,
-        engagementRate,
-        completionRate,
-        avgTimePerResource: analytics?.avgTimePerResource || 0,
-        courseCount,
-        resourceCount,
-        trends: {
-          studentsChange: 0,
-          engagementChange: 0,
-          progressChange: 0,
-          completionChange: 0,
-        }
-      });
-
-      setAiInsights(fallbackInsights);
-      setAiRecommendations(fallbackRecommendations);
-
-      console.log("✅ Fallback completado");
-    } finally {
       setLoadingAI(false);
-      console.log("🏁 Análisis finalizado");
+      console.log('=== FIN generateAIAnalyticsImproved CON ERROR ===');
+    }
+  };
+
+  const calculateRealSystemMetrics = async () => {
+    console.log('📊 Calculando métricas de Supabase...');
+
+    try {
+      // CONSULTA 1: Estudiantes y su estado
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('usuarios')
+        .select('id, activo, ultimo_acceso, created_at')
+        .eq('rol', 'estudiante');
+
+      if (studentsError) {
+        console.error('Error estudiantes:', studentsError);
+        throw studentsError;
+      }
+
+      const totalStudents = studentsData?.length || 0;
+      const activeStudents = studentsData?.filter(u => u.activo)?.length || 0;
+      const inactiveStudents = totalStudents - activeStudents;
+
+      console.log(`✅ Estudiantes: ${totalStudents}`);
+
+      // CONSULTA 2: Engagement (última semana)
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
+
+      const engagedStudents = studentsData?.filter(u => {
+        if (!u.ultimo_acceso) return false;
+        return new Date(u.ultimo_acceso) > lastWeek;
+      })?.length || 0;
+
+      const engagementRate = totalStudents > 0
+        ? Math.round((engagedStudents / totalStudents) * 100)
+        : 0;
+
+      console.log(`✅ Engagement: ${engagementRate}%`);
+
+      // CONSULTA 3: Cursos y Recursos
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('cursos')
+        .select('id')
+        .eq('activo', true);
+
+      if (coursesError) throw coursesError;
+
+      const { data: resourcesData, error: resourcesError } = await supabase
+        .from('recursos')
+        .select('id, tipo')
+        .eq('activo', true);
+
+      if (resourcesError) throw resourcesError;
+
+      console.log(`✅ Contenido: ${coursesData?.length || 0} cursos, ${resourcesData?.length || 0} recursos`);
+
+      // CONSULTA 4: Progreso de estudiantes
+      const { data: progressData, error: progressError } = await supabase
+        .from('progreso_estudiantes')
+        .select('progreso, completado, tiempo_dedicado');
+
+      if (progressError) throw progressError;
+
+      const completedActivities = progressData?.filter(p => p.completado)?.length || 0;
+      const totalActivities = progressData?.length || 0;
+
+      const avgProgress = totalActivities > 0
+        ? Math.round(progressData.reduce((sum, p) => sum + (p.progreso || 0), 0) / totalActivities)
+        : 0;
+
+      const completionRate = totalActivities > 0
+        ? Math.round((completedActivities / totalActivities) * 100)
+        : 0;
+
+      const totalTimeSpent = Math.round(
+        (progressData?.reduce((sum, p) => sum + (p.tiempo_dedicado || 0), 0) || 0) / 60
+      );
+
+      console.log(`✅ Progreso: ${avgProgress}% | Completitud: ${completionRate}%`);
+
+      // CONSULTA 5: Logros
+      const { data: achievementsData, error: achievementsError } = await supabase
+        .from('logros')
+        .select('id')
+        .eq('activo', true);
+
+      if (achievementsError) throw achievementsError;
+
+      console.log(`✅ Logros: ${achievementsData?.length || 0}`);
+
+      // RETORNAR MÉTRICAS COMPLETAS
+      const metrics = {
+        students: {
+          total: totalStudents,
+          active: activeStudents,
+          inactive: inactiveStudents,
+        },
+        content: {
+          courses: coursesData?.length || 0,
+          resources: resourcesData?.length || 0,
+          achievements: achievementsData?.length || 0,
+        },
+        engagement: {
+          rate: engagementRate,
+          activeCount: engagedStudents,
+        },
+        progress: {
+          average: avgProgress,
+          completionRate,
+          totalActivities,
+          completedActivities,
+          totalTimeSpent,
+        },
+        timestamp: new Date(),
+      };
+
+      console.log('✅ Métricas completas:', metrics);
+      return metrics;
+
+    } catch (err) {
+      console.error('❌ Error en métricas:', err);
+      return null;
     }
   };
 
@@ -2038,424 +2371,341 @@ Responde SOLO el JSON, sin explicaciones.`;
     }
   };
 
-  // ===== FUNCIÓN CORREGIDA: Manejo de documentos con mejor validación =====
-  const handleDocumentUpload = (event) => {
+  const extractTextFromPDF = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map(item => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      }
+
+      return fullText.trim();
+    } catch (error) {
+      console.error('Error extrayendo PDF:', error);
+      throw new Error('No se pudo procesar el PDF. Intenta con otro archivo.');
+    }
+  };
+
+  const handleDocumentUpload = async (event) => {
     const file = event.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    setError(null);
+    setLoading(true);
+
+    try {
       const validTypes = [
-        "text/plain",
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        'application/pdf',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       ];
+
       if (!validTypes.includes(file.type)) {
-        alert(
-          "⚠️ Formato no válido. Solo se aceptan archivos TXT, PDF, DOC o DOCX"
-        );
-        event.target.value = "";
+        setError('⚠️ Formato no válido. Solo se aceptan TXT, PDF, DOC o DOCX');
+        event.target.value = '';
+        setLoading(false);
         return;
       }
 
       if (file.size > 5 * 1024 * 1024) {
-        alert("⚠️ El archivo es demasiado grande. Máximo 5MB");
-        event.target.value = "";
+        setError('⚠️ El archivo es demasiado grande. Máximo 5MB');
+        event.target.value = '';
+        setLoading(false);
         return;
       }
 
+      let text = '';
+
+      if (file.type === 'application/pdf') {
+        text = await extractTextFromPDF(file);
+      } else {
+        text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error('Error leyendo archivo'));
+          reader.readAsText(file, 'UTF-8');
+        });
+      }
+
+      if (!text || text.trim().length < 100) {
+        setError(
+          '❌ El documento es muy corto. Necesita al menos 100 caracteres'
+        );
+        setLoading(false);
+        return;
+      }
+
+      text = text
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s\.¿?¡!áéíóúñ,;:-]/g, '')
+        .trim();
+
+      setDocumentText(text);
       setUploadedDocument(file);
+      setLoading(false);
+
+      alert(`✅ Documento cargado (${text.length} caracteres)`);
+    } catch (err) {
+      setError(`❌ Error: ${err.message}`);
+      setLoading(false);
     }
   };
 
-  const generateQuestionsFromDocument = async () => {
-    if (!uploadedDocument) {
-      alert("⚠️ Por favor, sube un documento primero");
+  const generateQuestionsWithAI = async () => {
+    if (!documentText) {
+      setError('⚠️ Por favor, sube un documento primero');
       return;
     }
 
     setGeneratingQuestions(true);
+    setError(null);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const text = e.target.result;
+      let cleanText = documentText.replace(/\s+/g, ' ').trim();
 
-        if (!text || text.trim().length < 100) {
-          alert(
-            "❌ El documento está vacío o es muy corto.\n\nPor favor sube un documento con al menos 100 caracteres de contenido educativo."
-          );
-          setGeneratingQuestions(false);
-          return;
+      const MAX_CHARS = 15000;
+      if (cleanText.length > MAX_CHARS) {
+        cleanText = cleanText.substring(0, MAX_CHARS);
+        const lastPoint = cleanText.lastIndexOf('.');
+        if (lastPoint > MAX_CHARS - 500) {
+          cleanText = cleanText.substring(0, lastPoint + 1);
         }
+      }
 
-        console.log("📄 DOCUMENTO LEÍDO");
-        console.log("⚙️ Configuración:", quizConfig);
+      console.log(`📄 Documento: ${cleanText.length} caracteres`);
 
-        try {
-          // ============================================
-          // CONSTRUIR PROMPT CON CONFIGURACIÓN DEL USUARIO
-          // ============================================
+      const num = quizConfig.totalPreguntas || 5;
 
-          const tiposHabilitados = Object.entries(quizConfig.tiposSeleccionados)
-            .filter(([_, enabled]) => enabled)
-            .map(([tipo, _]) => tipo);
+      const prompt = `Eres profesor de básica elemental (6-10 años).
 
-          if (tiposHabilitados.length === 0) {
-            alert("⚠️ Debes seleccionar al menos un tipo de pregunta");
-            setGeneratingQuestions(false);
-            return;
+Lee este texto y genera EXACTAMENTE ${num} preguntas simples.
+- Máximo 15 palabras por pregunta
+- Lenguaje para niños
+- 4 opciones cada pregunta
+- Solo 1 respuesta correcta
+
+TEXTO:
+"${cleanText}"
+
+FORMATO:
+P1: ¿Pregunta?
+A) Opción
+B) Opción
+C) Opción
+D) Opción
+R: A
+
+Genera ${num} preguntas.`;
+
+      try {
+        const response = await fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDuJcvWLZnCAlKY1gS7wi_5ESHQBSnEJeE',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 4096,
+              },
+            }),
           }
+        );
 
-          const distribucion = {};
-          tiposHabilitados.forEach((tipo) => {
-            distribucion[tipo] = Math.ceil(
-              quizConfig.totalPreguntas / tiposHabilitados.length
-            );
-          });
+        if (!response.ok) throw new Error(`Error: ${response.status}`);
 
-          const nivelDificultad = {
-            facil: "simple y directa",
-            medio: "moderadamente desafiante",
-            dificil: "desafiante, requiere análisis profundo",
-          };
+        const data = await response.json();
+        let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-          const prompt = `INSTRUCCIONES CRÍTICAS - MODO PERSONALIZADO:
+        if (!aiText) throw new Error('Sin respuesta');
 
-Tu ÚNICA tarea es analizar el documento y generar preguntas EXCLUSIVAMENTE basadas en su contenido.
+        const questions = parseQuestionsImproved(aiText);
 
-⚠️ PROHIBICIONES ABSOLUTAS:
-❌ NO inventar información
-❌ NO deducir información no mencionada
-❌ NO usar conocimiento general
-❌ NO inferir conceptos no explícitos
-❌ SOLO usar lo que aparece EXACTAMENTE en el documento
+        if (questions.length === 0) throw new Error('No hay preguntas');
 
-═══════════════════════════════════════════════════════════════
-CONFIGURACIÓN SOLICITADA POR EL USUARIO:
-═══════════════════════════════════════════════════════════════
-📊 Total de preguntas: ${quizConfig.totalPreguntas}
-🎯 Tipos de preguntas habilitados: ${tiposHabilitados.join(", ")}
-📈 Distribución: ${Object.entries(distribucion)
-              .map(([tipo, count]) => `${tipo} (${count})`)
-              .join(", ")}
-🔥 Dificultad: ${nivelDificultad[quizConfig.dificultad]}
-🔊 Audio automático: ${quizConfig.audio_automatico ? "Sí" : "No"}
-💬 Retroalimentación: ${quizConfig.retroalimentacion_detallada ? "Detallada" : "Simple"
-            }
+        const generatedQuestions = questions.map((q, idx) => ({
+          id: `ai_${Date.now()}_${idx}`,
+          tipo: 'multiple',
+          pregunta: q.pregunta,
+          opciones: q.opciones,
+          respuesta_correcta: q.respuesta_correcta,
+          puntos: 10,
+          retroalimentacion_correcta: '¡Excelente! 🎉',
+          retroalimentacion_incorrecta: '¡Intenta otra vez! 💪',
+          audio_pregunta: true,
+          audio_retroalimentacion: true,
+          video_url: '',
+          imagen_url: '',
+          audio_opciones: ['', '', '', ''],
+          imagen_opciones: ['🎨', '📚', '✏️', '🌟'],
+          tiempo_limite: 45,
+        }));
 
-═══════════════════════════════════════════════════════════════
-DOCUMENTO COMPLETO:
-═══════════════════════════════════════════════════════════════
-${text}
-═══════════════════════════════════════════════════════════════
+        setCurrentQuiz({ preguntas: generatedQuestions });
+        setShowQuizBuilder(true);
 
-📝 GENERA EXACTAMENTE ${quizConfig.totalPreguntas} PREGUNTAS:
-
-${tiposHabilitados.includes("multiple")
-              ? `
-✓ PREGUNTAS DE OPCIÓN MÚLTIPLE (${distribucion["multiple"]}):
-  - Pregunta sobre información específica del documento
-  - 4 opciones: 1 correcta (exacta del documento), 3 plausibles pero NO en el documento
-  - Dificultad: ${nivelDificultad[quizConfig.dificultad]}
-`
-              : ""
-            }
-
-${tiposHabilitados.includes("verdadero_falso")
-              ? `
-✓ PREGUNTAS VERDADERO/FALSO (${distribucion["verdadero_falso"]}):
-  - Afirmaciones basadas directamente en el documento
-  - Claramente verdaderas o falsas según el contenido
-  - Verificables en el texto
-`
-              : ""
-            }
-
-${tiposHabilitados.includes("completar")
-              ? `
-✓ PREGUNTAS PARA COMPLETAR (${distribucion["completar"]}):
-  - Frases incompletas del documento
-  - Palabras clave omitidas que aparecen en el texto
-  - 4 opciones: 1 correcta, 3 incorrectas pero similares
-`
-              : ""
-            }
-
-${tiposHabilitados.includes("imagen")
-              ? `
-✓ PREGUNTAS CON IMAGEN (${distribucion["imagen"]}):
-  - Conceptos del documento representados con emojis
-  - Seleccionar emoji que mejor representa un concepto
-  - 4 opciones de emojis relacionados
-`
-              : ""
-            }
-
-${tiposHabilitados.includes("audio")
-              ? `
-✓ PREGUNTAS DE AUDIO (${distribucion["audio"]}):
-  - Palabras o conceptos clave del documento
-  - "Si escucharas esta palabra del documento, ¿cuál sería?"
-  - Opciones relacionadas al vocabulario del texto
-`
-              : ""
-            }
-
-FORMATO JSON REQUERIDO:
-
-{
-  "preguntas": [
-    ${tiposHabilitados.includes("multiple")
-              ? `{
-      "tipo": "multiple",
-      "pregunta": "Según el documento, ¿[información específica que está en el texto]?",
-      "opciones": [
-        "[Respuesta correcta exacta del documento]",
-        "[Opción plausible pero NO en el documento]",
-        "[Opción plausible pero NO en el documento]",
-        "[Opción plausible pero NO en el documento]"
-      ],
-      "respuesta_correcta": 0,
-      "puntos": 10,
-      "retroalimentacion_correcta": "${quizConfig.retroalimentacion_detallada
-                ? "✓ ¡Correcto! El documento confirma: [cita breve]"
-                : "✓ ¡Correcto!"
-              }",
-      "retroalimentacion_incorrecta": "${quizConfig.retroalimentacion_detallada
-                ? "✗ Revisa el documento donde dice..."
-                : "✗ Revisa el documento"
-              }",
-      "tiempo_limite": 30,
-      "audio_pregunta": ${quizConfig.audio_automatico}
-    },`
-              : ""
-            }
-    ${tiposHabilitados.includes("verdadero_falso")
-              ? `{
-      "tipo": "verdadero_falso",
-      "pregunta": "¿Es verdadero que [afirmación que está en el documento]?",
-      "opciones": ["Verdadero", "Falso"],
-      "respuesta_correcta": 0,
-      "puntos": 10,
-      "retroalimentacion_correcta": "${quizConfig.retroalimentacion_detallada
-                ? "✓ Correcto. El documento lo confirma."
-                : "✓ ¡Correcto!"
-              }",
-      "retroalimentacion_incorrecta": "${quizConfig.retroalimentacion_detallada
-                ? "✗ El documento dice lo contrario"
-                : "✗ No es correcto"
-              }",
-      "tiempo_limite": 20,
-      "audio_pregunta": ${quizConfig.audio_automatico}
-    },`
-              : ""
-            }
-    ${tiposHabilitados.includes("completar")
-              ? `{
-      "tipo": "completar",
-      "pregunta": "Completa: [inicio de frase del documento] ___",
-      "opciones": [
-        "[final exacto del documento]",
-        "[palabra similar pero incorrecta]",
-        "[palabra similar pero incorrecta]",
-        "[palabra similar pero incorrecta]"
-      ],
-      "respuesta_correcta": 0,
-      "puntos": 10,
-      "retroalimentacion_correcta": "✓ ¡Exacto! Así aparece en el documento",
-      "retroalimentacion_incorrecta": "✗ Busca esa frase exacta",
-      "tiempo_limite": 25
-    },`
-              : ""
-            }
-    ${tiposHabilitados.includes("imagen")
-              ? `{
-      "tipo": "imagen",
-      "pregunta": "¿Qué emoji representa mejor el concepto de [concepto del documento]?",
-      "opciones": [
-        "[Concepto del documento]",
-        "[Concepto no relacionado]",
-        "[Concepto no relacionado]",
-        "[Concepto no relacionado]"
-      ],
-      "imagen_opciones": ["🎨", "📚", "🔬", "🌍"],
-      "respuesta_correcta": 0,
-      "puntos": 15,
-      "retroalimentacion_correcta": "✓ ¡Bien! Ese emoji representa el concepto",
-      "retroalimentacion_incorrecta": "✗ Piensa en el significado",
-      "tiempo_limite": 30
-    },`
-              : ""
-            }
-    ${tiposHabilitados.includes("audio")
-              ? `{
-      "tipo": "audio",
-      "pregunta": "El documento menciona la palabra '[palabra clave del documento]'. ¿Cuál es su significado en este contexto?",
-      "opciones": [
-        "[Significado correcto según el documento]",
-        "[Significado incorrecto pero plausible]",
-        "[Significado incorrecto pero plausible]",
-        "[Significado incorrecto pero plausible]"
-      ],
-      "respuesta_correcta": 0,
-      "puntos": 15,
-      "retroalimentacion_correcta": "✓ ¡Correcto! Eso es lo que significa en el documento",
-      "retroalimentacion_incorrecta": "✗ Revisa el contexto en el documento",
-      "tiempo_limite": 25,
-      "audio_pregunta": true
-    }`
-              : ""
-            }
-  ]
-}
-
-⚠️ VALIDACIONES FINALES:
-✓ TODAS las respuestas correctas ESTÁN en el documento
-✓ Cantidad de preguntas: ${quizConfig.totalPreguntas}
-✓ Tipos solicitados: ${tiposHabilitados.join(", ")}
-✓ Dificultad: ${nivelDificultad[quizConfig.dificultad]}
-✓ Devuelve SOLO JSON, sin explicaciones adicionales`;
-
-          console.log("🚀 Enviando al AI con configuración personalizada...");
-
-          const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyDtyQgSqzFMV_M6w6iOvjrKlNe5NdK4gb8",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                  temperature: 0.3,
-                  topK: 20,
-                  topP: 0.85,
-                  maxOutputTokens: 3000,
-                },
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(
-              `Error ${response.status}: ${errorData?.error?.message || "Error de conexión"
-              }`
-            );
-          }
-
-          const data = await response.json();
-
-          if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-            throw new Error("La IA no generó una respuesta válida");
-          }
-
-          let generatedText = data.candidates[0].content.parts[0].text.trim();
-
-          if (generatedText.includes("```json")) {
-            generatedText = generatedText
-              .split("```json")[1]
-              .split("```")[0]
-              .trim();
-          } else if (generatedText.includes("```")) {
-            generatedText = generatedText
-              .split("```")[1]
-              .split("```")[0]
-              .trim();
-          }
-
-          const jsonMatch = generatedText.match(
-            /\{[\s\S]*"preguntas"[\s\S]*\}/
-          );
-          if (jsonMatch) {
-            generatedText = jsonMatch[0];
-          }
-
-          const parsedData = JSON.parse(generatedText);
-
-          if (
-            !parsedData?.preguntas ||
-            !Array.isArray(parsedData.preguntas) ||
-            parsedData.preguntas.length === 0
-          ) {
-            throw new Error("No se pudieron extraer preguntas válidas");
-          }
-
-          const questionsToAdd = parsedData.preguntas
-            .filter(
-              (q) =>
-                q.pregunta &&
-                Array.isArray(q.opciones) &&
-                q.opciones.length >= 2
-            )
-            .map((q, idx) => ({
-              tipo: q.tipo || "multiple",
-              pregunta: q.pregunta,
-              opciones:
-                q.tipo === "verdadero_falso"
-                  ? ["Verdadero", "Falso"]
-                  : q.opciones.slice(0, 4),
-              respuesta_correcta:
-                typeof q.respuesta_correcta === "number"
-                  ? q.respuesta_correcta
-                  : 0,
-              puntos: q.puntos || 10,
-              retroalimentacion_correcta:
-                q.retroalimentacion_correcta || "✓ ¡Correcto!",
-              retroalimentacion_incorrecta:
-                q.retroalimentacion_incorrecta || "✗ Intenta de nuevo",
-              tiempo_limite: q.tiempo_limite || 30,
-              id: Date.now() + idx,
-              audio_pregunta: quizConfig.audio_automatico,
-              audio_retroalimentacion: quizConfig.audio_automatico,
-              video_url: "",
-              imagen_url: "",
-              audio_opciones: ["", "", "", ""],
-              imagen_opciones: q.imagen_opciones || ["🎨", "📚", "✏️", "🌟"],
-            }));
-
-          setCurrentQuiz((prev) => ({
-            ...prev,
-            preguntas: [...(prev.preguntas || []), ...questionsToAdd],
-          }));
-
-          const tiposCounts = questionsToAdd.reduce((acc, q) => {
-            acc[q.tipo] = (acc[q.tipo] || 0) + 1;
-            return acc;
-          }, {});
-
-          alert(
-            `✅ ¡${questionsToAdd.length
-            } preguntas generadas!\n\n📊 Distribución:\n${Object.entries(
-              tiposCounts
-            )
-              .map(([tipo, count]) => `  • ${tipo}: ${count}`)
-              .join("\n")}\n\n⭐ Todas personalizadas según tu configuración.`
-          );
-
-          setGeneratingQuestions(false);
-          setUploadedDocument(null);
-        } catch (apiError) {
-          console.error("❌ ERROR:", apiError);
-          alert(`❌ Error: ${apiError.message}`);
-          setGeneratingQuestions(false);
-        }
-      };
-
-      reader.onerror = () => {
-        alert("❌ No se pudo leer el archivo");
+        alert(`✅ ${generatedQuestions.length} preguntas generadas.\n\n💡 Puedes editarlas antes de guardar.`);
+        setUploadedDocument(null);
+        setDocumentText('');
         setGeneratingQuestions(false);
-      };
+      } catch (aiError) {
+        console.warn('⚠️ IA no disponible');
 
-      reader.readAsText(uploadedDocument, "UTF-8");
+        const questions = generateQuestionsFromDocumentImproved(cleanText, num);
+        const generatedQuestions = questions.map((q, idx) => ({
+          id: `local_${Date.now()}_${idx}`,
+          tipo: 'multiple',
+          pregunta: q.pregunta,
+          opciones: q.opciones,
+          respuesta_correcta: q.respuesta_correcta,
+          puntos: 10,
+          retroalimentacion_correcta: '¡Excelente! 🎉',
+          retroalimentacion_incorrecta: '¡Intenta otra vez! 💪',
+          audio_pregunta: true,
+          audio_retroalimentacion: true,
+          video_url: '',
+          imagen_url: '',
+          audio_opciones: ['', '', '', ''],
+          imagen_opciones: ['🎨', '📚', '✏️', '🌟'],
+          tiempo_limite: 45,
+        }));
+
+        setCurrentQuiz({ preguntas: generatedQuestions });
+        setShowQuizBuilder(true);
+
+        alert(`📊 ${generatedQuestions.length} preguntas generadas (sin IA).`);
+        setUploadedDocument(null);
+        setDocumentText('');
+        setGeneratingQuestions(false);
+      }
     } catch (err) {
-      console.error("❌ ERROR GENERAL:", err);
-      alert(`❌ Error: ${err.message}`);
+      setError(`❌ Error: ${err.message}`);
       setGeneratingQuestions(false);
     }
   };
 
-  // ============================================
+  const generateQuestionsFromDocumentImproved = (text, numQuestions) => {
+    const questions = [];
+    const oraciones = text
+      .split(/[.!?]+/)
+      .map(o => o.trim())
+      .filter(o => o.length > 30);
+
+    if (oraciones.length < numQuestions) {
+      return generateQuestionsFromParagraphs(text.split(/\n\n+/), numQuestions);
+    }
+
+    const step = Math.max(1, Math.floor(oraciones.length / numQuestions));
+    const selected = [];
+
+    for (let i = 0; i < oraciones.length && selected.length < numQuestions; i += step) {
+      selected.push(oraciones[i]);
+    }
+
+    selected.forEach((sentence) => {
+      const words = sentence.split(/\s+/).filter(w => w.length > 3);
+      if (words.length < 3) return;
+
+      const opciones = [
+        sentence.substring(0, 60) + (sentence.length > 60 ? '...' : ''),
+        `Habla sobre ${words[0]}`,
+        `Se refiere a ${words[1]}`,
+        'No está relacionado',
+      ];
+
+      questions.push({
+        pregunta: `¿Cuál es la idea? "${sentence.substring(0, 50)}..."`,
+        opciones,
+        respuesta_correcta: 0,
+      });
+    });
+
+    return questions.slice(0, numQuestions);
+  };
+
+  const generateQuestionsFromParagraphs = (parrafos, numQuestions) => {
+    const questions = [];
+    const step = Math.max(1, Math.floor(parrafos.length / numQuestions));
+
+    for (let i = 0; i < parrafos.length && questions.length < numQuestions; i += step) {
+      const p = parrafos[i];
+      const words = p.split(/\s+/).filter(w => w.length > 3);
+
+      if (words.length < 5) continue;
+
+      questions.push({
+        pregunta: `¿Cuál es el tema? "${p.substring(0, 40)}..."`,
+        opciones: [
+          `Sobre ${words[0]}`,
+          `De ${words[1]}`,
+          'De historia',
+          'Sin relación',
+        ],
+        respuesta_correcta: 0,
+      });
+    }
+
+    return questions;
+  };
+
+
+  // Función auxiliar para procesar respuesta de IA
+  const processAIResponse = (data) => {
+    console.log("✅ Respuesta de Gemini recibida");
+
+    let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!aiText || aiText.trim().length === 0) {
+      throw new Error("La IA no devolvió ninguna respuesta. El documento puede estar vacío o en un formato no compatible.");
+    }
+
+    console.log("📝 Respuesta IA:", aiText.substring(0, 500));
+
+    const questions = parseQuestionsSimple(aiText);
+
+    if (questions.length === 0) {
+      throw new Error("No se pudieron extraer preguntas del texto. Asegúrate de que el documento tenga contenido educativo claro.");
+    }
+
+    const generatedQuestions = questions.map((q, idx) => ({
+      id: Date.now() + idx,
+      tipo: "multiple",
+      pregunta: q.pregunta,
+      opciones: q.opciones,
+      respuesta_correcta: q.respuesta_correcta,
+      puntos: 10,
+      retroalimentacion_correcta: "¡Excelente! 🎉 ¡Muy bien!",
+      retroalimentacion_incorrecta: "¡Intenta otra vez! 💪 Puedes hacerlo mejor",
+      audio_pregunta: true,
+      audio_retroalimentacion: true,
+      video_url: "",
+      imagen_url: "",
+      audio_opciones: ["", "", "", ""],
+      imagen_opciones: ["🎨", "📚", "✏️", "🌟"],
+      tiempo_limite: 45,
+    }));
+
+    setCurrentQuiz({ preguntas: generatedQuestions });
+    console.log(`🎉 ${generatedQuestions.length} preguntas generadas exitosamente`);
+
+    alert(`✅ ¡Éxito! Se generaron ${generatedQuestions.length} preguntas basadas en el documento (${documentText.length} caracteres procesados)`);
+
+    setUploadedDocument(null);
+    setDocumentText("");
+  };
+
   // COMPONENTE UI: Panel de Configuración de Quiz
-  // ============================================
+
 
   const renderQuizConfigPanel = () => (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 space-y-6">
@@ -4492,7 +4742,10 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowDetailedAnalytics(true)}
+                  onClick={() => {
+                    console.log('🔘 Botón clickeado');
+                    generateAIAnalyticsImproved();
+                  }}
                   className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -4948,205 +5201,343 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
 
 
-  const renderDetailedAnalytics = () => {
+  const renderDetailedAnalyticsImproved = () => {
     if (loadingAI) {
       return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-12">
-            <div className="text-center">
-              <RefreshCw className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-3" />
-              <p className="text-gray-600 font-semibold">Generando análisis con IA...</p>
-            </div>
+          <div className="bg-white rounded-2xl p-12 text-center">
+            <RefreshCw className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-3" />
+            <p className="text-gray-600 font-semibold">Generando análisis con IA...</p>
           </div>
         </div>
       );
     }
 
-    const aiTips = {
-      estudiantes: `Hay ${aiMetrics?.activeStudents} estudiantes activos de ${aiMetrics?.totalStudents}. Considera estrategias para activar inactivos.`,
-      compromiso: `${aiMetrics?.engagementRate}% de compromiso. ${aiMetrics?.trends?.engagementChange > 0 ? "¡En aumento!" : "Necesita impulso."}`,
-      progreso: `El progreso promedio es ${aiMetrics?.averageProgress}%. Refuerza conceptos débiles.`,
-      completitud: `${aiMetrics?.completionRate}% de completitud. Mejora incentivos para completar.`,
-      tiempo: `Los estudiantes dedican ${aiMetrics?.avgTimePerResource} min promedio. ${aiMetrics?.avgTimePerResource > 10 ? "Tiempo adecuado" : "Aumenta tiempo dedicado"}`,
-      recursos: `Tienes ${aiMetrics?.resourceCount} recursos en ${aiMetrics?.courseCount} cursos.`,
-    };
-
-    const MetricCard = ({ icon: Icon, title, value, unit, change, color, aiTip }) => {
-      const trend = change >= 0;
+    if (!aiMetrics) {
       return (
-        <div
-          className={`bg-gradient-to-br ${color} rounded-xl p-6 text-white shadow-lg hover:shadow-2xl transition-all transform hover:scale-105 cursor-pointer`}
-          onClick={() => setExpandedMetric(expandedMetric === title ? null : title)}
-        >
-          <div className="flex items-start justify-between mb-4">
-            <div className="bg-white bg-opacity-20 rounded-lg p-3">
-              <Icon className="w-6 h-6" />
-            </div>
-            {change !== undefined && (
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${trend ? "bg-green-500 bg-opacity-40" : "bg-red-500 bg-opacity-40"}`}>
-                {trend ? "📈" : "📉"}
-                <span className="text-sm font-bold">{Math.abs(change)}%</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mb-3">
-            <p className="text-sm font-semibold text-white text-opacity-90">{title}</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-4xl font-black">{value}</span>
-              <span className="text-lg text-white text-opacity-75">{unit}</span>
-            </div>
-          </div>
-
-          {expandedMetric === title && aiTip && (
-            <div className="mt-4 pt-4 border-t border-white border-opacity-30">
-              <div className="flex gap-2 items-start">
-                <Sparkles className="w-4 h-4 flex-shrink-0 mt-1" />
-                <p className="text-sm text-white text-opacity-95">{aiTip}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const AIInsightCard = ({ insight, index }) => {
-      const getIcon = () => {
-        if (insight.includes("ERROR") || insight.includes("ALERTA")) return "ALERTA";
-        if (insight.includes("OK") || insight.includes("BIEN")) return "OK";
-        if (insight.includes("AUMENTO") || insight.includes("MEJORA")) return "AUMENTO";
-        return "INFO";
-      };
-
-      const getColor = () => {
-        const icon = getIcon();
-        if (icon === "ALERTA") return "from-orange-50 to-orange-100 border-orange-300";
-        if (icon === "OK") return "from-green-50 to-green-100 border-green-300";
-        if (icon === "AUMENTO") return "from-blue-50 to-blue-100 border-blue-300";
-        return "from-purple-50 to-purple-100 border-purple-300";
-      };
-
-      return (
-        <div className={`bg-gradient-to-r ${getColor()} rounded-xl p-4 border-2`} style={{ animation: `fadeIn 0.5s ease-out ${index * 100}ms both` }}>
-          <p className="text-sm text-gray-800 font-medium">{insight}</p>
-        </div>
-      );
-    };
-
-    const RecommendationCard = ({ rec }) => {
-      const bgColor = rec.type === "positive" ? "from-green-50 to-green-100 border-green-300" : rec.type === "warning" ? "from-orange-50 to-orange-100 border-orange-300" : "from-blue-50 to-blue-100 border-blue-300";
-      const icon = rec.type === "positive" ? "✓" : rec.type === "warning" ? "!" : "?";
-
-      return (
-        <div className={`bg-gradient-to-r ${bgColor} rounded-xl p-4 border-2`}>
-          <div className="flex items-start gap-3">
-            <span className="text-2xl font-bold">{icon}</span>
-            <div>
-              <h4 className="font-bold text-gray-800 mb-1">{rec.title}</h4>
-              <p className="text-sm text-gray-700">{rec.description}</p>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 text-center max-w-md">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-3" />
+            <p className="text-gray-700 font-semibold">No hay datos disponibles</p>
+            <button
+              onClick={() => setShowDetailedAnalytics(false)}
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       );
-    };
+    }
+
+    // Preparar datos para gráficas
+    const studentDistributionData = [
+      { label: 'Activos', value: aiMetrics.students?.active || 0 },
+      { label: 'Inactivos', value: aiMetrics.students?.inactive || 0 },
+    ];
+
+    const contentDistributionData = [
+      { label: 'Cursos', value: aiMetrics.content?.courses || 0 },
+      { label: 'Recursos', value: aiMetrics.content?.resources || 0 },
+      { label: 'Logros', value: aiMetrics.content?.achievements || 0 },
+    ];
+
+    const performanceData = [
+      { label: 'Engagement', value: aiMetrics.engagement?.rate || 0 },
+      { label: 'Progreso', value: aiMetrics.progress?.average || 0 },
+      { label: 'Completitud', value: aiMetrics.progress?.completionRate || 0 },
+    ];
+
+    const timeSeriesData = [
+      { label: 'Sem 1', value: 45 },
+      { label: 'Sem 2', value: 52 },
+      { label: 'Sem 3', value: 48 },
+      { label: 'Sem 4', value: aiMetrics.engagement?.rate || 60 },
+    ];
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-xl m-2 text-white p-6 z-10">
+        <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+
+          {/* HEADER */}
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white p-8 z-10 rounded-t-2xl">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="w-8 h-8" />
-                <div>
-                  <h1 className="text-3xl font-black">Dashboard Analítico Inteligente</h1>
-                  <p className="text-sm text-purple-100">Análisis generado por IA basado en datos reales</p>
-                </div>
+              <div>
+                <h1 className="text-3xl font-black mb-1 flex items-center gap-3">
+                  📊 Panel de Análisis Avanzado
+                  <span className="text-lg bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                    {aiMetrics.timestamp.toLocaleDateString('es-ES')}
+                  </span>
+                </h1>
+                <p className="text-purple-100">
+                  Métricas en tiempo real con visualizaciones interactivas
+                </p>
               </div>
-              <button onClick={() => setShowDetailedAnalytics(false)} className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowDetailedAnalytics(false)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all"
+              >
                 <X className="w-6 h-6" />
               </button>
             </div>
           </div>
 
           <div className="p-8 space-y-8">
-            <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Activity className="w-6 h-6 text-blue-600" />
-                Métricas en Tiempo Real
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <MetricCard icon={Users} title="Estudiantes Activos" value={aiMetrics?.activeStudents} unit={`de ${aiMetrics?.totalStudents}`} change={aiMetrics?.trends?.studentsChange} color="from-blue-500 to-blue-600" aiTip={aiTips.estudiantes} />
-                <MetricCard icon={Activity} title="Tasa de Compromiso" value={aiMetrics?.engagementRate} unit="%" change={aiMetrics?.trends?.engagementChange} color="from-green-500 to-green-600" aiTip={aiTips.compromiso} />
-                <MetricCard icon={Target} title="Progreso Promedio" value={aiMetrics?.averageProgress} unit="%" change={aiMetrics?.trends?.progressChange} color="from-orange-500 to-orange-600" aiTip={aiTips.progreso} />
-                <MetricCard icon={CheckCircle} title="Tasa de Completitud" value={aiMetrics?.completionRate} unit="%" change={aiMetrics?.trends?.completionChange} color="from-purple-500 to-purple-600" aiTip={aiTips.completitud} />
-                <MetricCard icon={Clock} title="Tiempo Promedio" value={aiMetrics?.avgTimePerResource} unit="min" change={Math.floor(Math.random() * 10 - 5)} color="from-pink-500 to-pink-600" aiTip={aiTips.tiempo} />
-                <MetricCard icon={BookOpen} title="Recursos Creados" value={aiMetrics?.resourceCount} unit={`en ${aiMetrics?.courseCount} cursos`} change={Math.floor(Math.random() * 15)} color="from-indigo-500 to-indigo-600" aiTip={aiTips.recursos} />
+
+            {/* SALUD DEL SISTEMA - Grande y destacado */}
+            <section className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white shadow-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-blue-100 uppercase tracking-wide mb-2">
+                    Estado General del Sistema
+                  </p>
+                  <div className="flex items-end gap-4">
+                    <h2 className="text-6xl font-black">
+                      {aiMetrics.systemHealth?.score || 0}<span className="text-3xl">%</span>
+                    </h2>
+                    <div className="mb-2">
+                      <p className="text-2xl font-bold">
+                        {aiMetrics.systemHealth?.status === 'healthy'
+                          ? '✅ Excelente'
+                          : aiMetrics.systemHealth?.status === 'warning'
+                            ? '⚠️ Advertencia'
+                            : '🚨 Crítico'}
+                      </p>
+                      <p className="text-sm text-blue-100">Salud del sistema</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medidor circular */}
+                <div className="relative w-40 h-40">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.2)"
+                      strokeWidth="12"
+                    />
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="12"
+                      strokeDasharray={`${(aiMetrics.systemHealth?.score || 0) * 4.4} 440`}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-4xl">
+                      {aiMetrics.systemHealth?.score >= 70 ? '😊' :
+                        aiMetrics.systemHealth?.score >= 50 ? '😐' : '😟'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </section>
 
+            {/* GRÁFICAS PRINCIPALES */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Brain className="w-6 h-6 text-purple-600" />
-                Insights Generados por IA
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
+                Análisis Visual de Datos
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {aiInsights.map((insight, idx) => (
-                  <AIInsightCard key={idx} insight={insight} index={idx} />
-                ))}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Gráfica de Dona - Distribución de Estudiantes */}
+                <ExcelDonutChart
+                  title="👥 Distribución de Estudiantes"
+                  data={studentDistributionData}
+                  colors={['#10b981', '#ef4444']}
+                />
+
+                {/* Gráfica de Columnas - Performance */}
+                <ExcelColumnChart
+                  title="📊 Métricas de Rendimiento"
+                  data={performanceData}
+                  colors={['#3b82f6', '#8b5cf6', '#ec4899']}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Gráfica de Barras - Contenido */}
+                <ExcelHorizontalBarChart
+                  title="📚 Distribución de Contenido"
+                  data={contentDistributionData}
+                  colors={['#f59e0b', '#10b981', '#6366f1']}
+                />
+
+                {/* Gráfica de Línea - Tendencia */}
+                <ExcelLineChart
+                  title="📈 Tendencia de Engagement"
+                  data={timeSeriesData}
+                  color="#8b5cf6"
+                />
               </div>
             </section>
 
+            {/* MÉTRICAS DETALLADAS EN TARJETAS */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-purple-600" />
-                Recomendaciones Estratégicas
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-green-600 to-blue-600 rounded-full"></div>
+                Métricas Detalladas
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {aiRecommendations.map((rec, idx) => (
-                  <RecommendationCard key={idx} rec={rec} />
-                ))}
-              </div>
-            </section>
 
-            <section className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                Resumen de Sistema
-              </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                  <p className="text-xs font-bold text-blue-700 uppercase">Total Cursos</p>
-                  <p className="text-3xl font-black text-blue-800 mt-2">{aiMetrics?.courseCount}</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                  <p className="text-xs font-bold text-green-700 uppercase">Total Recursos</p>
-                  <p className="text-3xl font-black text-green-800 mt-2">{aiMetrics?.resourceCount}</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                  <p className="text-xs font-bold text-purple-700 uppercase">Estudiantes</p>
-                  <p className="text-3xl font-black text-purple-800 mt-2">{aiMetrics?.totalStudents}</p>
-                </div>
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
-                  <p className="text-xs font-bold text-orange-700 uppercase">Activos</p>
-                  <p className="text-3xl font-black text-orange-800 mt-2">{Math.round((aiMetrics?.activeStudents / aiMetrics?.totalStudents) * 100)}%</p>
-                </div>
+                {[
+                  {
+                    label: 'Total Estudiantes',
+                    value: aiMetrics.students?.total,
+                    icon: '👥',
+                    color: 'from-blue-500 to-blue-600',
+                    detail: `${aiMetrics.students?.active} activos`
+                  },
+                  {
+                    label: 'Engagement',
+                    value: `${aiMetrics.engagement?.rate}%`,
+                    icon: '🎯',
+                    color: 'from-green-500 to-green-600',
+                    detail: `${aiMetrics.engagement?.activeCount} esta semana`
+                  },
+                  {
+                    label: 'Progreso Avg',
+                    value: `${aiMetrics.progress?.average}%`,
+                    icon: '📈',
+                    color: 'from-purple-500 to-purple-600',
+                    detail: 'Promedio general'
+                  },
+                  {
+                    label: 'Completitud',
+                    value: `${aiMetrics.progress?.completionRate}%`,
+                    icon: '✅',
+                    color: 'from-orange-500 to-orange-600',
+                    detail: 'Actividades finalizadas'
+                  },
+                  {
+                    label: 'Cursos',
+                    value: aiMetrics.content?.courses,
+                    icon: '📚',
+                    color: 'from-pink-500 to-pink-600',
+                    detail: 'Cursos activos'
+                  },
+                  {
+                    label: 'Recursos',
+                    value: aiMetrics.content?.resources,
+                    icon: '📝',
+                    color: 'from-indigo-500 to-indigo-600',
+                    detail: 'Material disponible'
+                  },
+                  {
+                    label: 'Logros',
+                    value: aiMetrics.content?.achievements,
+                    icon: '🏆',
+                    color: 'from-yellow-500 to-yellow-600',
+                    detail: 'Logros desbloqueables'
+                  },
+                  {
+                    label: 'Tiempo Total',
+                    value: `${aiMetrics.progress?.totalTimeSpent}m`,
+                    icon: '⏱️',
+                    color: 'from-red-500 to-red-600',
+                    detail: 'Tiempo dedicado'
+                  },
+                ].map((stat, idx) => (
+                  <div
+                    key={idx}
+                    className={`bg-gradient-to-br ${stat.color} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+                  >
+                    <div className="text-3xl mb-2">{stat.icon}</div>
+                    <p className="text-xs font-semibold text-white text-opacity-90 uppercase">
+                      {stat.label}
+                    </p>
+                    <p className="text-3xl font-black mt-1">{stat.value}</p>
+                    <p className="text-xs text-white text-opacity-75 mt-1">{stat.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* INSIGHTS */}
+            <section>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-yellow-600 to-orange-600 rounded-full"></div>
+                💡 Insights Generados por IA
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {aiInsights?.map((insight, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 hover:shadow-md transition-all"
+                  >
+                    <p className="text-sm text-gray-800 font-medium flex items-start gap-2">
+                      <span className="text-blue-600 font-bold">•</span>
+                      {insight}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* RECOMENDACIONES */}
+            <section>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+                <div className="w-1 h-8 bg-gradient-to-b from-red-600 to-pink-600 rounded-full"></div>
+                🎯 Recomendaciones de Acción
+              </h2>
+              <div className="space-y-3">
+                {aiRecommendations?.map((rec, idx) => {
+                  const priorityColors = {
+                    high: 'from-red-50 to-red-100 border-red-300',
+                    medium: 'from-yellow-50 to-yellow-100 border-yellow-300',
+                    low: 'from-green-50 to-green-100 border-green-300',
+                  };
+
+                  const priorityIcons = {
+                    high: '🔴',
+                    medium: '🟡',
+                    low: '🟢',
+                  };
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`bg-gradient-to-r ${priorityColors[rec.priority]} border-2 rounded-xl p-5 hover:shadow-lg transition-all`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <span className="text-3xl">{priorityIcons[rec.priority]}</span>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-800 text-lg mb-1">{rec.title}</h3>
+                          <p className="text-sm text-gray-700">{rec.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           </div>
-        </div>
 
-        <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+          {/* FOOTER */}
+          <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-4 justify-end rounded-b-2xl">
+            <button
+              onClick={() => setShowDetailedAnalytics(false)}
+              className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-all"
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={generateAIAnalyticsImproved}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Actualizar Análisis
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -5252,24 +5643,15 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ícono/Emoji
                 </label>
-                <div className="grid grid-cols-8 gap-2">
-                  {achievementEmojis.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() =>
-                        setNewAchievementData({
-                          ...newAchievementData,
-                          icono: emoji,
-                        })
-                      }
-                      className={`w-10 h-10 rounded-lg text-xl transition-all ${newAchievementData.icono === emoji
-                        ? "bg-yellow-200 scale-110"
-                        : "bg-gray-100 hover:bg-gray-200"
-                        }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-8 gap-2"> {achievementEmojis.map((emoji, index) => (<button key={`achievement_${index}`} onClick={() => setNewAchievementData({ ...newAchievementData, icono: emoji, })}
+                  className={`w-10 h-10 rounded-lg text-xl transition-all ${newAchievementData.icono === emoji
+                    ? "bg-yellow-200 scale-110"
+                    : "bg-gray-100 hover:bg-gray-200"
+                    }`}
+                >
+                  {emoji}
+                </button>
+                ))}
                 </div>
               </div>
             </div>
@@ -7548,7 +7930,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
                       {uploadedDocument && (
                         <button
-                          onClick={generateQuestionsFromDocument}
+                          onClick={generateQuestionsWithAI}
                           disabled={generatingQuestions}
                           className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
@@ -7716,10 +8098,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-2xl"
                   >
                     <option value="">Ninguno</option>
-                    {emojis.map((emoji) => (
-                      <option key={emoji} value={emoji}>
-                        {emoji}
-                      </option>
+                    {emojis.map((emoji, index) => (<option key={`emoji_${index}_${emoji}`} value={emoji}> {emoji} </option>
                     ))}
                   </select>
                 </div>
@@ -8029,7 +8408,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       )}
 
       {/* MODAL DE ANÁLISIS DETALLADO */}
-      {showDetailedAnalytics && renderDetailedAnalytics()}
+      {showDetailedAnalytics && renderDetailedAnalyticsImproved()}
 
       <footer className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-600">
