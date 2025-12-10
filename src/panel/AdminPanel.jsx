@@ -794,7 +794,7 @@ export default function EnhancedAdminPanel() {
           "💡 Cambiar estrategia de enseñanza - demasiados intentos fallidos"
         );
         feedback.teacherDecisions.push(
-          "🎮 Incluir elementos lúdicos para mejorar engagement"
+          "🎮 Incluir elementos lúdicos para mejorar compromiso"
         );
       }
 
@@ -1351,7 +1351,7 @@ export default function EnhancedAdminPanel() {
         ? Math.round((engagedStudents / totalStudents) * 100)
         : 0;
 
-      console.log('✅ Engagement calculado:', { engagedStudents, engagementRate });
+      console.log('✅ Compromiso calculado:', { engagedStudents, engagementRate });
 
       // PASO 3: Construir métricas completas
       const metrics = {
@@ -1395,7 +1395,7 @@ export default function EnhancedAdminPanel() {
       // PASO 5: Generar insights
       const insights = [
         `📊 Sistema con ${metrics.students.total} estudiantes: ${metrics.students.active} activos y ${metrics.students.inactive} inactivos`,
-        `🎯 Engagement del ${metrics.engagement.rate}% con ${metrics.engagement.activeCount} estudiantes activos esta semana`,
+        `🎯 Compromiso del ${metrics.engagement.rate}% con ${metrics.engagement.activeCount} estudiantes activos esta semana`,
         `📈 Progreso promedio del ${metrics.progress.average}% y completitud del ${metrics.progress.completionRate}%`,
         `📚 Contenido: ${metrics.content.courses} cursos, ${metrics.content.resources} recursos, ${metrics.content.achievements} logros`,
       ];
@@ -1407,14 +1407,14 @@ export default function EnhancedAdminPanel() {
 
       if (metrics.engagement.rate < 50) {
         recommendations.push({
-          title: '🎯 Aumentar Engagement',
+          title: '🎯 Aumentar Compromiso',
           description: `Solo ${metrics.engagement.rate}% de estudiantes están activos. Implementa gamificación y actividades interactivas.`,
           priority: 'high',
         });
       } else {
         recommendations.push({
-          title: '✅ Engagement Excelente',
-          description: `${metrics.engagement.rate}% de engagement. Mantén las estrategias actuales.`,
+          title: '✅ Compromiso Excelente',
+          description: `${metrics.engagement.rate}% de compromiso. Mantén las estrategias actuales.`,
           priority: 'low',
         });
       }
