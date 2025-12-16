@@ -3,12 +3,14 @@ import {
   Users, Settings, BookOpen, LogOut, Edit2, Trash2, Plus, Save, X, GraduationCap, AlertCircle,
   RefreshCw, Award, MessageCircle, BarChart3, FileText, Play, Image, Headphones, Gamepad2, HelpCircle,
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle, Eye, Sparkles, Upload, Mic, Video,
-  Volume2, Download, Move, ChevronUp, ChevronDown, Clock, Activity, TrendingDown, Filter, UserCheck,
-  UserX, FileUp, Brain, Search, PieChart, BarChart2, LineChart, Printer,
+  Volume2, Download, Move, ChevronUp, ChevronDown, ChevronRight, Clock, Activity, TrendingDown, Filter, UserCheck,
+  UserX, FileUp, Brain, Search, PieChart, BarChart2, LineChart, Printer, Loader, Send, Copy,
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import * as pdfjsLib from 'pdfjs-dist';
+import KarinMascot from "../KarinMascot";
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url,).href;
 
@@ -516,7 +518,27 @@ export default function EnhancedAdminPanel() {
     icono: "🏆",
     puntos_requeridos: 100,
   });
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [targetRole, setTargetRole] = useState(null);
+  const [reauthPassword, setReauthPassword] = useState("");
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthError, setReauthError] = useState(null);
+  const [activeRoleView, setActiveRoleView] = useState(null);
   const [courseReportData, setCourseReportData] = useState(null);
+
+  // ===== GENERADOR DE CONTENIDO =====
+  const [showContentGenerator, setShowContentGenerator] = useState(false);
+  const [viewingContent, setViewingContent] = useState(null);
+  const [editingContent, setEditingContent] = useState(null);
+  const [showContentViewer, setShowContentViewer] = useState(false);
+  const [contentGeneratorTab, setContentGeneratorTab] = useState('generator');
+  const [contentType, setContentType] = useState('quiz');
+  const [generatorPrompt, setGeneratorPrompt] = useState('');
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState(null);
+  const [contentLibrary, setContentLibrary] = useState([]);
+  const [expandedContentId, setExpandedContentId] = useState(null);
+  const [editingInPlace, setEditingInPlace] = useState(null);
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState("");
@@ -905,25 +927,94 @@ export default function EnhancedAdminPanel() {
     { value: "admin", label: "Admin", color: "red" },
   ];
 
+  const contentTypes = [
+    {
+      id: 'quiz',
+      name: 'Quiz Interactivo',
+      icon: '❓',
+      description: 'Preguntas de múltiple opción con retroalimentación',
+      color: 'from-blue-500 to-blue-600',
+      prompt: 'Crea un quiz con 5 preguntas sobre...',
+    },
+    {
+      id: 'game',
+      name: 'Juego Educativo',
+      icon: '🎮',
+      description: 'Juegos interactivos para aprender jugando',
+      color: 'from-purple-500 to-purple-600',
+      prompt: 'Crea un juego educativo sobre...',
+    },
+    {
+      id: 'exercise',
+      name: 'Ejercicios Prácticos',
+      icon: '📝',
+      description: 'Actividades para practicar y reforzar',
+      color: 'from-green-500 to-green-600',
+      prompt: 'Crea 10 ejercicios prácticos sobre...',
+    },
+    {
+      id: 'story',
+      name: 'Historia Educativa',
+      icon: '📖',
+      description: 'Narrativas interactivas para aprender',
+      color: 'from-orange-500 to-orange-600',
+      prompt: 'Crea una historia educativa sobre...',
+    },
+    {
+      id: 'challenge',
+      name: 'Desafío Semanal',
+      icon: '⚡',
+      description: 'Retos con puntos y recompensas',
+      color: 'from-red-500 to-red-600',
+      prompt: 'Crea un desafío educativo sobre...',
+    },
+  ];
+
   useEffect(() => {
     checkAuthAndRole();
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      loadAllData();
+    if (!currentUser) return;
+
+    // Detectar rol según la ruta actual
+    const path = window.location.pathname;
+    let currentRole = 'admin'; // Por defecto admin si estamos en /admin
+
+    if (path.includes('/teacher')) {
+      currentRole = 'docente';
+    } else if (path.includes('/student')) {
+      currentRole = 'estudiante';
+    }
+
+    // Validar que el usuario tenga ese rol
+    const allRoles = [currentUser.rol, ...(currentUser.roles_adicionales || [])];
+    if (allRoles.includes(currentRole)) {
+      setActiveRoleView(currentRole);
+      localStorage.setItem(`activeRole_${currentUser.id}`, currentRole);
+      console.log('✅ Rol activo detectado desde URL:', currentRole);
+    } else {
+      // Si no tiene el rol, usar el rol principal
+      setActiveRoleView(currentUser.rol);
+      localStorage.setItem(`activeRole_${currentUser.id}`, currentUser.rol);
     }
   }, [currentUser]);
 
   useEffect(() => {
-    if (!currentUser || !currentUser.id) return;
+    if (currentUser) {
+      loadAllData();
+      loadContentLibrary(); // Cargar contenido generado
+    }
+  }, [currentUser]);
 
-    console.log("🔄 Iniciando sincronización de acceso en tiempo real...");
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    console.log("🔄 Iniciando actualización de último acceso...");
 
     const updateLastAccess = async () => {
       try {
         const now = new Date().toISOString();
-
         const { error } = await supabase
           .from("usuarios")
           .update({ ultimo_acceso: now })
@@ -932,7 +1023,7 @@ export default function EnhancedAdminPanel() {
         if (error) {
           console.error("❌ Error en updateLastAccess:", error);
         } else {
-          console.log("✅ BD actualizada:", now);
+          console.log("✅ Último acceso actualizado:", now);
         }
       } catch (err) {
         console.error("❌ Error:", err);
@@ -942,25 +1033,13 @@ export default function EnhancedAdminPanel() {
     // Actualizar inmediatamente
     updateLastAccess();
 
-    // Actualizar cada 10 segundos
-    const interval = setInterval(updateLastAccess, 10000);
+    // Actualizar cada 30 segundos (no cada 10)
+    const interval = setInterval(updateLastAccess, 30000);
 
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Recargar lista de usuarios cada 12 segundos
-  useEffect(() => {
-    if (!currentUser) return;
 
-    console.log("🔄 Iniciando refresco automático de usuarios...");
-
-    const interval = setInterval(() => {
-      console.log("🔄 Refrescando lista de usuarios...");
-      fetchUsers();
-    }, 12000);
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
 
   const checkAuthAndRole = async () => {
     try {
@@ -991,55 +1070,91 @@ export default function EnhancedAdminPanel() {
     }
   };
 
+  // ✅ VALIDACIÓN DE ACCESO (SIN BUCLE INFINITO)
   useEffect(() => {
-    if (!currentUser) return;
-    const isAdmin =
-      currentUser.rol === "admin" ||
-      currentUser.roles_adicionales?.includes("admin");
-    if (!isAdmin) {
-      navigate("/dashboard");
+    if (!currentUser || !activeRoleView) {
+      return;
     }
-  }, [currentUser, navigate]);
 
-  const handleRoleSwitch = async (newRol) => {
+    // Obtener TODOS los roles del usuario
+    const allRoles = [currentUser.rol, ...(currentUser.roles_adicionales || [])].filter(
+      (rol, index, self) => self.indexOf(rol) === index
+    );
+
+    // Validar que el activeRoleView sea válido
+    if (!allRoles.includes(activeRoleView)) {
+      setActiveRoleView(currentUser.rol);
+      localStorage.removeItem(`activeRole_${currentUser.id}`);
+      return;
+    }
+    console.log("✅ Rol validado:", activeRoleView);
+
+  }, [currentUser, activeRoleView]);
+
+
+  const confirmRoleSwitch = async () => {
+    if (!reauthPassword.trim()) {
+      setReauthError("❌ Debes ingresar tu contraseña");
+      return;
+    }
+
+    if (!targetRole) {
+      setReauthError("❌ No se seleccionó rol");
+      return;
+    }
+
+    setReauthLoading(true);
+    setReauthError(null);
+
     try {
-      const allRoles = [
-        currentUser.rol,
-        ...(currentUser.roles_adicionales || []),
-      ];
-      if (!allRoles.includes(newRol)) {
-        alert("❌ No tienes acceso a este rol");
+      const { error } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: reauthPassword,
+      });
+
+      if (error) {
+        setReauthError("❌ Contraseña incorrecta");
+        setReauthLoading(false);
         return;
       }
 
-      if (!confirm(`¿Cambiar a ${newRol}? Se cerrará la sesión actual.`)) {
+      const allRoles = [currentUser.rol, ...(currentUser.roles_adicionales || [])];
+      if (!allRoles.includes(targetRole)) {
+        setReauthError("❌ No tienes acceso a este rol");
+        setReauthLoading(false);
         return;
       }
 
-      // Actualizar rol en BD ANTES de logout
-      const { error: updateError } = await supabase
-        .from("usuarios")
-        .update({ rol: newRol })
-        .eq("id", currentUser.id);
+      // ✅ GUARDAR el rol antes de navegar
+      localStorage.setItem(`activeRole_${currentUser.id}`, targetRole);
 
-      if (updateError) throw updateError;
-
-      // Cerrar sesión
-      await supabase.auth.signOut();
-
-      // Redirigir al login
+      // ✅ Cerrar modal primero
+      setShowReauthModal(false);
+      setReauthPassword("");
+      setReauthError(null);
       setMenuOpen(false);
-      navigate("/login");
 
-      // Mostrar mensaje
-      setTimeout(() => {
-        alert(
-          `✅ Rol actualizado a ${newRol}. Por favor, inicia sesión nuevamente.`
-        );
-      }, 500);
+      // ✅ RUTAS CORRECTAS según App.jsx
+      const routes = {
+        admin: "/admin",
+        docente: "/teacher",
+        estudiante: "/student"
+      };
+
+      console.log(`🔄 Cambiando a rol: ${targetRole}`);
+      console.log(`🚀 Navegando a: ${routes[targetRole] || "/"}`);
+
+      // Navegar inmediatamente
+      const targetRoute = routes[targetRole] || "/";
+      navigate(targetRoute, { replace: true });
+
+      // ✅ Resetear estado después de navegar
+      setTargetRole(null);
+
     } catch (error) {
-      console.error("❌ Error:", error);
-      alert("Error al cambiar de rol: " + error.message);
+      setReauthError(`❌ Error: ${error.message}`);
+    } finally {
+      setReauthLoading(false);
     }
   };
 
@@ -1162,6 +1277,34 @@ export default function EnhancedAdminPanel() {
       setAchievements(data || []);
     } catch (err) {
       console.error("Error cargando logros:", err);
+    }
+  };
+
+  // Cargar biblioteca de contenido generado
+  const loadContentLibrary = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contenido_generado')
+        .select('*')
+        .eq('created_by', currentUser.auth_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedContent = data?.map(item => ({
+        id: item.id,
+        type: item.type,
+        prompt: item.prompt,
+        title: item.title,
+        createdAt: new Date(item.created_at).toLocaleString('es-ES'),
+        content: item.content,
+        status: item.status,
+      })) || [];
+
+      setContentLibrary(formattedContent);
+    } catch (err) {
+      console.warn('Error cargando biblioteca:', err);
+      // No bloqueamos si falla
     }
   };
 
@@ -1992,6 +2135,944 @@ export default function EnhancedAdminPanel() {
     }
   };
 
+
+  // Función para generar contenido con IA usando Gemini
+
+  // ✅ SOLUCIÓN CORRECTA - SIN ERRORES
+
+  const generateContentWithAI = async () => {
+    if (!generatorPrompt.trim()) {
+      alert('Por favor escribe qué contenido deseas generar');
+      return;
+    }
+
+    setGeneratingContent(true);
+
+    try {
+      const selectedType = contentTypes.find(c => c.id === contentType);
+
+      // Prompts optimizados para Groq (rápido y preciso)
+      const systemPrompts = {
+        quiz: `Eres un profesor creando quizzes para primaria.
+
+TAREA: Crea 5 preguntas sobre: "${generatorPrompt}"
+
+INSTRUCCIONES:
+- Preguntas simples (máximo 15 palabras)
+- 4 opciones cada una
+- Solo 1 respuesta correcta
+- Explicaciones claras
+- Lenguaje para niños 6-10 años
+
+FORMATO JSON OBLIGATORIO (SOLO JSON, SIN TEXTO):
+{
+  "questions": [
+    {
+      "id": 1,
+      "text": "¿Pregunta aquí?",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correct": 0,
+      "explanation": "Explicación breve"
+    },
+    {
+      "id": 2,
+      "text": "Otra pregunta?",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correct": 2,
+      "explanation": "Explicación"
+    },
+    {
+      "id": 3,
+      "text": "Tercera pregunta?",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correct": 1,
+      "explanation": "Explicación"
+    },
+    {
+      "id": 4,
+      "text": "Cuarta pregunta?",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correct": 3,
+      "explanation": "Explicación"
+    },
+    {
+      "id": 5,
+      "text": "Quinta pregunta?",
+      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+      "correct": 0,
+      "explanation": "Explicación"
+    }
+  ],
+  "totalPoints": 50,
+  "timeLimit": 300
+}`,
+
+        game: `Eres un diseñador de juegos educativos.
+
+TAREA: Diseña un juego educativo sobre: "${generatorPrompt}"
+
+FORMATO JSON (SOLO JSON):
+{
+  "name": "Nombre creativo del juego",
+  "description": "Descripción breve del juego",
+  "levels": 3,
+  "mechanics": ["Mecánica de juego 1", "Mecánica de juego 2", "Mecánica de juego 3"],
+  "rewards": ["Recompensa 1", "Recompensa 2", "Recompensa 3"],
+  "instructions": ["Instrucción paso 1", "Instrucción paso 2", "Instrucción paso 3"]
+}`,
+
+        exercise: `Eres un profesor creando ejercicios prácticos.
+
+TAREA: Crea 10 ejercicios sobre: "${generatorPrompt}"
+
+FORMATO JSON (SOLO JSON):
+{
+  "exercises": [
+    {
+      "id": 1,
+      "instruction": "Instrucción clara del ejercicio",
+      "example": "Ejemplo de cómo resolverlo",
+      "difficulty": "facil"
+    },
+    {
+      "id": 2,
+      "instruction": "Segundo ejercicio",
+      "example": "Ejemplo",
+      "difficulty": "facil"
+    },
+    {
+      "id": 3,
+      "instruction": "Tercer ejercicio",
+      "example": "Ejemplo",
+      "difficulty": "medio"
+    },
+    {
+      "id": 4,
+      "instruction": "Cuarto",
+      "example": "Ejemplo",
+      "difficulty": "medio"
+    },
+    {
+      "id": 5,
+      "instruction": "Quinto",
+      "example": "Ejemplo",
+      "difficulty": "medio"
+    },
+    {
+      "id": 6,
+      "instruction": "Sexto",
+      "example": "Ejemplo",
+      "difficulty": "dificil"
+    },
+    {
+      "id": 7,
+      "instruction": "Séptimo",
+      "example": "Ejemplo",
+      "difficulty": "dificil"
+    },
+    {
+      "id": 8,
+      "instruction": "Octavo",
+      "example": "Ejemplo",
+      "difficulty": "dificil"
+    },
+    {
+      "id": 9,
+      "instruction": "Noveno",
+      "example": "Ejemplo",
+      "difficulty": "dificil"
+    },
+    {
+      "id": 10,
+      "instruction": "Décimo",
+      "example": "Ejemplo",
+      "difficulty": "dificil"
+    }
+  ],
+  "difficulty": "medio",
+  "estimatedTime": 45
+}`,
+
+        story: `Eres un escritor de historias educativas.
+
+TAREA: Crea una historia educativa sobre: "${generatorPrompt}"
+
+FORMATO JSON (SOLO JSON):
+{
+  "title": "Título de la historia",
+  "chapters": 5,
+  "description": "Descripción breve de la historia",
+  "keywords": ["palabra_clave_1", "palabra_clave_2", "palabra_clave_3"],
+  "moralLesson": "La lección educativa principal de la historia"
+}`,
+
+        challenge: `Eres un experto en crear desafíos educativos.
+
+TAREA: Crea un desafío semanal sobre: "${generatorPrompt}"
+
+FORMATO JSON (SOLO JSON):
+{
+  "title": "Título del desafío",
+  "difficulty": "medio",
+  "reward": "Descripción de la recompensa",
+  "duration": "7 días",
+  "tasks": ["Tarea 1 a completar", "Tarea 2 a completar", "Tarea 3 a completar"],
+  "criteria": ["Criterio de éxito 1", "Criterio de éxito 2"]
+}`
+      };
+
+      const prompt = systemPrompts[contentType] || systemPrompts.quiz;
+
+      // Llamar a Groq API
+      console.log('🚀 Enviando solicitud a Groq...');
+
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY || '';
+
+      if (!apiKey) {
+        console.error('❌ API Key no configurada');
+        throw new Error('API Key de Groq no está configurada en .env.local');
+      }
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un asistente experto en educación que crea contenido educativo de alta calidad. SIEMPRE respondes SOLO con JSON válido, sin explicaciones adicionales.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048,
+          top_p: 1,
+          stream: false
+        })
+      });
+
+      console.log('📨 Respuesta recibida:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData?.error?.message || `Error Groq: ${response.status}`;
+        console.error('❌ Error de Groq:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      let aiText = data?.choices?.[0]?.message?.content || '';
+
+      if (!aiText || aiText.trim().length === 0) {
+        throw new Error('Groq no devolvió respuesta válida');
+      }
+
+      console.log('📝 Respuesta de IA (primeros 200 chars):', aiText.substring(0, 200));
+
+      // Limpiar JSON
+      aiText = aiText
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .replace(/^[^{]*/, '')
+        .trim();
+
+      // Parsear JSON
+      let parsedContent;
+      try {
+        parsedContent = JSON.parse(aiText);
+        console.log('✅ JSON parseado exitosamente');
+      } catch (parseError) {
+        console.error('❌ Error parseando JSON:', parseError);
+        console.log('Texto que se intentó parsear:', aiText);
+        throw new Error('La IA devolvió un formato inválido. Intenta con otro prompt.');
+      }
+
+      // Validar estructura básica
+      if (!parsedContent || typeof parsedContent !== 'object') {
+        throw new Error('Contenido inválido recibido de la IA');
+      }
+
+      const newContent = {
+        id: Date.now(),
+        type: contentType,
+        prompt: generatorPrompt,
+        title: `${selectedType.name}: ${generatorPrompt.substring(0, 40)}${generatorPrompt.length > 40 ? '...' : ''}`,
+        createdAt: new Date().toLocaleString('es-ES'),
+        content: parsedContent,
+        status: 'generated',
+      };
+
+      console.log('✅ Contenido generado:', newContent.id);
+
+      setGeneratedContent(newContent);
+      setContentLibrary([newContent, ...contentLibrary]);
+      setGeneratorPrompt('');
+      if (contentType === 'quiz' && currentUser?.id && courses.length > 0) { try { const defaultCourse = courses[0]; const newQuizResource = { titulo: newContent.title, descripcion: `Quiz generado con IA: ${generatorPrompt}`, tipo: 'quiz', curso_id: defaultCourse.id, contenido_quiz: newContent.content.questions || [], puntos_recompensa: (newContent.content.questions?.length || 0) * 10, tiempo_estimado: (newContent.content.questions?.length || 0) * 2, orden: 1, activo: true, created_by: currentUser.id, created_at: new Date().toISOString(), }; const { data: insertedData, error: insertError } = await supabase.from('recursos').insert([newQuizResource]).select(); if (!insertError && insertedData) { console.log('✅ Quiz guardado en recursos:', insertedData); await fetchResources(); } } catch (autoCreateError) { console.warn('⚠️ Error auto-creando recurso:', autoCreateError?.message); } }
+      // Guardar en Supabase sin bloquear
+      if (currentUser?.auth_id && supabase) {
+        try {
+          await supabase
+            .from('contenido_generado')
+            .insert([{
+              type: contentType,
+              prompt: generatorPrompt,
+              title: newContent.title,
+              content: parsedContent,
+              created_by: currentUser.auth_id,
+              status: 'generated'
+            }]);
+          console.log('💾 Contenido guardado en BD');
+        } catch (dbError) {
+          console.warn('⚠️ No se guardó en BD:', dbError?.message);
+        }
+      }
+
+      alert('✅ ¡Contenido generado exitosamente con Groq!');
+      setGeneratingContent(false);
+
+    } catch (error) {
+      console.error('❌ Error generando contenido:', error);
+
+      let userMessage = '❌ Error al generar contenido:\n\n';
+
+      if (error.message.includes('API_KEY')) {
+        userMessage += 'Problema: API Key no configurada\n\n💡 Solución: Verifica que VITE_GROQ_API_KEY esté en .env.local';
+      } else if (error.message.includes('formato')) {
+        userMessage += 'Problema: La IA devolvió un formato inválido\n\n💡 Solución: Intenta con un prompt más específico';
+      } else if (error.message.includes('Network')) {
+        userMessage += 'Problema: Error de conexión\n\n💡 Solución: Verifica tu conexión a internet';
+      } else {
+        userMessage += error.message;
+      }
+
+      userMessage += '\n\n¿Deseas usar contenido predeterminado en su lugar?';
+
+      const useFallback = confirm(userMessage);
+
+      if (useFallback) {
+        try {
+          const selectedType = contentTypes.find(c => c.id === contentType);
+          const mockContent = generateMockContent(contentType, generatorPrompt);
+
+          const newContent = {
+            id: Date.now(),
+            type: contentType,
+            prompt: generatorPrompt,
+            title: `${selectedType.name}: ${generatorPrompt.substring(0, 40)}${generatorPrompt.length > 40 ? '...' : ''}`,
+            createdAt: new Date().toLocaleString('es-ES'),
+            content: mockContent,
+            status: 'generated-fallback',
+          };
+
+          setGeneratedContent(newContent);
+          setContentLibrary([newContent, ...contentLibrary]);
+          setGeneratorPrompt('');
+
+          alert('✅ Contenido generado en modo fallback\n\n💡 Nota: Puedes editarlo después para personalizarlo');
+        } catch (fallbackError) {
+          alert('❌ Error incluso en fallback: ' + fallbackError.message);
+        }
+      }
+
+      setGeneratingContent(false);
+    }
+  };
+
+  // Función para generar contenido mock mejorado
+  const generateMockContent = (type, prompt) => {
+    const words = prompt.split(' ').filter(w => w.length > 3);
+    const mainTopic = words[0] || 'tema';
+
+    const baseContent = {
+      quiz: {
+        questions: [
+          {
+            id: 1,
+            text: `¿Qué es ${mainTopic}?`,
+            options: [
+              `Es un concepto relacionado con ${prompt}`,
+              'Es algo completamente diferente',
+              'No existe',
+              'Es una herramienta tecnológica'
+            ],
+            correct: 0,
+            explanation: `${mainTopic} está directamente relacionado con ${prompt}`
+          },
+          {
+            id: 2,
+            text: `¿Para qué sirve estudiar ${mainTopic}?`,
+            options: [
+              'No sirve para nada',
+              `Para comprender mejor ${prompt}`,
+              'Solo para pasar el tiempo',
+              'Es obligatorio y aburrido'
+            ],
+            correct: 1,
+            explanation: `Estudiar ${mainTopic} nos ayuda a entender ${prompt} completamente`
+          },
+          {
+            id: 3,
+            text: `¿Cuál es un ejemplo de ${mainTopic}?`,
+            options: [
+              'Un videojuego',
+              'Una mascota',
+              `Un caso relacionado con ${prompt}`,
+              'Una película'
+            ],
+            correct: 2,
+            explanation: `Los ejemplos de ${mainTopic} están relacionados con ${prompt}`
+          },
+          {
+            id: 4,
+            text: `¿Cómo se aplica ${mainTopic} en la vida real?`,
+            options: [
+              'No se puede aplicar',
+              `Se usa diariamente en situaciones de ${prompt}`,
+              'Solo en laboratorios',
+              'Únicamente en libros'
+            ],
+            correct: 1,
+            explanation: `${mainTopic} tiene aplicaciones prácticas en ${prompt}`
+          },
+          {
+            id: 5,
+            text: `¿Por qué es importante ${mainTopic}?`,
+            options: [
+              'No es importante',
+              'Solo para exámenes',
+              `Porque nos ayuda a resolver problemas de ${prompt}`,
+              'Es una moda pasajera'
+            ],
+            correct: 2,
+            explanation: `${mainTopic} es fundamental para entender ${prompt}`
+          }
+        ],
+        totalPoints: 50,
+        timeLimit: 300
+      },
+      game: {
+        name: `Aventura de ${mainTopic}`,
+        description: `Explora el mundo de ${prompt} mientras aprendes jugando`,
+        levels: 3,
+        mechanics: [
+          `Recolecta items relacionados con ${mainTopic}`,
+          `Responde preguntas sobre ${prompt}`,
+          `Completa desafíos educativos`,
+          'Desbloquea logros especiales'
+        ],
+        rewards: [
+          '⭐ 50 puntos por nivel completado',
+          `🏆 Medalla de ${mainTopic}`,
+          '💎 Logro especial de maestro',
+          '🎖️ Certificado digital'
+        ],
+        instructions: [
+          `Aprende los conceptos básicos de ${prompt}`,
+          `Practica con ejercicios de ${mainTopic}`,
+          'Completa el desafío final',
+          'Comparte tu progreso'
+        ]
+      },
+      exercise: {
+        exercises: [
+          {
+            id: 1,
+            instruction: `Define con tus palabras qué es ${mainTopic}`,
+            example: `Por ejemplo: ${mainTopic} es...`,
+            difficulty: 'facil'
+          },
+          {
+            id: 2,
+            instruction: `Menciona 3 características de ${prompt}`,
+            example: 'Característica 1..., Característica 2...',
+            difficulty: 'facil'
+          },
+          {
+            id: 3,
+            instruction: `Da un ejemplo real de ${mainTopic}`,
+            example: 'Un ejemplo es...',
+            difficulty: 'medio'
+          },
+          {
+            id: 4,
+            instruction: `¿Cómo se relaciona ${mainTopic} con tu vida diaria?`,
+            example: 'En mi vida diaria...',
+            difficulty: 'medio'
+          },
+          {
+            id: 5,
+            instruction: `Explica la importancia de ${prompt}`,
+            example: 'Es importante porque...',
+            difficulty: 'medio'
+          },
+          {
+            id: 6,
+            instruction: `Compara ${mainTopic} con otro concepto similar`,
+            example: 'Se parece a... pero se diferencia en...',
+            difficulty: 'dificil'
+          },
+          {
+            id: 7,
+            instruction: `Crea un problema sobre ${prompt} y resuélvelo`,
+            example: 'Problema: ... Solución: ...',
+            difficulty: 'dificil'
+          },
+          {
+            id: 8,
+            instruction: `Diseña una actividad para enseñar ${mainTopic}`,
+            example: 'Actividad: ...',
+            difficulty: 'dificil'
+          },
+          {
+            id: 9,
+            instruction: `¿Qué preguntas tienes sobre ${prompt}?`,
+            example: 'Me gustaría saber...',
+            difficulty: 'medio'
+          },
+          {
+            id: 10,
+            instruction: `Reflexiona sobre lo que aprendiste de ${mainTopic}`,
+            example: 'Lo más importante que aprendí es...',
+            difficulty: 'medio'
+          }
+        ],
+        difficulty: 'medio',
+        estimatedTime: 45
+      },
+      story: {
+        title: `El Viaje de ${mainTopic}`,
+        chapters: 5,
+        description: `Una aventura educativa donde descubrirás los secretos de ${prompt}. Acompaña a nuestros personajes mientras exploran y aprenden.`,
+        keywords: [mainTopic, ...words.slice(1, 5), 'aventura', 'aprendizaje', 'descubrimiento'],
+        moralLesson: `La importancia de comprender ${mainTopic} y aplicarlo en la vida real`
+      },
+      challenge: {
+        title: `Desafío Master: ${mainTopic}`,
+        difficulty: 'experto',
+        reward: '⭐ 100 puntos + 🏆 Trofeo de Maestro + 💎 Logro Especial',
+        duration: '7 días',
+        tasks: [
+          `Completa el quiz sobre ${prompt}`,
+          `Resuelve 10 ejercicios prácticos de ${mainTopic}`,
+          `Lee la historia educativa completa`,
+          `Crea tu propio ejemplo de ${prompt}`,
+          `Comparte lo aprendido con un compañero`
+        ],
+        criteria: [
+          'Comprensión profunda del tema',
+          'Aplicación práctica de conceptos',
+          'Creatividad en las soluciones',
+          'Capacidad de explicar a otros'
+        ]
+      }
+    };
+    return baseContent[type] || baseContent.quiz;
+  };
+
+  // FUNCIÓN PARA ABRIR VISOR (CORREGIDA)
+
+  const viewGeneratedContent = (item) => {
+    console.log('👁️ Abriendo visor para:', item);
+
+    //  Asegurar que editingContent sea una copia profunda
+    const deepCopy = JSON.parse(JSON.stringify({
+      ...item,
+      content: item.content || {}
+    }));
+
+    setViewingContent(item);
+    setEditingContent(deepCopy);
+    setShowContentViewer(true);
+
+    console.log('✅ Visor abierto con contenido:', deepCopy.title);
+  };
+
+  // Función para guardar cambios editados
+  const saveEditedContent = async () => {
+    if (!editingContent) return;
+
+    try {
+      // Si es contenido generado (en biblioteca)
+      if (editingContent.id && editingContent.id.toString().includes('temp') === false) {
+        const { error } = await supabase
+          .from('contenido_generado')
+          .update({
+            content: editingContent.content,
+            title: editingContent.title
+          })
+          .eq('id', editingContent.id)
+          .eq('created_by', currentUser.auth_id);
+
+        if (error) throw error;
+
+        // Actualizar biblioteca local
+        setContentLibrary(contentLibrary.map(item =>
+          item.id === editingContent.id ? editingContent : item
+        ));
+
+        alert('✅ Cambios guardados correctamente');
+      } else {
+        // Si es un recurso
+        const { error } = await supabase
+          .from("recursos")
+          .update({
+            contenido_quiz: editingContent.content,
+            titulo: editingContent.title
+          })
+          .eq("id", editingContent.id)
+          .select();
+
+        if (error) throw error;
+
+        await fetchResources();
+        alert('✅ Recurso actualizado correctamente');
+      }
+    } catch (error) {
+      console.error('Error guardando:', error);
+      alert('❌ Error al guardar cambios');
+    }
+  };
+
+  // Función para eliminar contenido
+  const deleteGeneratedContent = async (id) => {
+    if (!confirm('¿Eliminar este contenido?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('contenido_generado')
+        .delete()
+        .eq('id', id)
+        .eq('created_by', currentUser.auth_id);
+
+      if (error) throw error;
+
+      setContentLibrary(contentLibrary.filter(item => item.id !== id));
+      if (generatedContent?.id === id) {
+        setGeneratedContent(null);
+      }
+
+      alert('✅ Contenido eliminado correctamente');
+    } catch (error) {
+      console.error('Error eliminando:', error);
+      alert('❌ Error al eliminar el contenido');
+    }
+  };
+
+  // Función para descargar contenido (MEJORADA)
+  const downloadContentFile = (item) => {
+    try {
+      let fileContent = '';
+      let fileName = '';
+      let fileType = 'application/json';
+
+      switch (item.type) {
+        case 'quiz':
+          fileName = `Quiz_${item.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
+          fileType = 'text/plain;charset=utf-8';
+          fileContent = `
+╔════════════════════════════════════════════════════════════════╗
+║                    QUIZ INTERACTIVO                            ║
+║                   Generado con Didactikapp                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+📚 Título: ${item.title}
+📝 Prompt original: ${item.prompt}
+📅 Fecha de creación: ${item.createdAt}
+⭐ Puntos totales: ${item.content.totalPoints}
+⏱️ Tiempo límite: ${item.content.timeLimit} segundos
+📊 Total de preguntas: ${item.content.questions?.length || 0}
+
+════════════════════════════════════════════════════════════════
+                        PREGUNTAS
+════════════════════════════════════════════════════════════════
+
+${item.content.questions?.map((q, i) => `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pregunta ${i + 1}:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❓ ${q.text}
+
+Opciones:
+${q.options?.map((opt, j) => `   ${j === q.correct ? '✅ CORRECTA' : '⭕'} ${String.fromCharCode(65 + j)}) ${opt}`).join('\n')}
+
+💡 Explicación: ${q.explanation || 'Sin explicación'}
+
+`).join('') || 'Sin preguntas'}
+
+════════════════════════════════════════════════════════════════
+          Generado por Didactikapp - Educación Básica Elemental
+════════════════════════════════════════════════════════════════
+          `;
+          break;
+
+        case 'game':
+          fileName = `Juego_${item.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
+          fileType = 'text/plain;charset=utf-8';
+          fileContent = `
+╔════════════════════════════════════════════════════════════════╗
+║                    JUEGO EDUCATIVO                             ║
+║                   Generado con Didactikapp                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+🎮 Nombre: ${item.content.name}
+📝 Descripción: ${item.content.description}
+🎲 Niveles: ${item.content.levels}
+📅 Fecha de creación: ${item.createdAt}
+
+════════════════════════════════════════════════════════════════
+                   MECÁNICAS DEL JUEGO
+════════════════════════════════════════════════════════════════
+
+${item.content.mechanics?.map((m, i) => `${i + 1}. ${m}`).join('\n') || 'Sin mecánicas'}
+
+════════════════════════════════════════════════════════════════
+                      RECOMPENSAS
+════════════════════════════════════════════════════════════════
+
+${item.content.rewards?.map((r, i) => `${i + 1}. ${r}`).join('\n') || 'Sin recompensas'}
+
+════════════════════════════════════════════════════════════════
+                     INSTRUCCIONES
+════════════════════════════════════════════════════════════════
+
+${item.content.instructions?.map((ins, i) => `${i + 1}. ${ins}`).join('\n') || 'Sin instrucciones'}
+
+════════════════════════════════════════════════════════════════
+          Generado por Didactikapp - Educación Básica Elemental
+════════════════════════════════════════════════════════════════
+          `;
+          break;
+
+        case 'exercise':
+          fileName = `Ejercicios_${item.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.txt`;
+          fileType = 'text/plain;charset=utf-8';
+          fileContent = `
+╔════════════════════════════════════════════════════════════════╗
+║                  EJERCICIOS PRÁCTICOS                          ║
+║                   Generado con Didactikapp                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+📚 Título: ${item.title}
+📊 Dificultad: ${item.content.difficulty}
+⏱️ Tiempo estimado: ${item.content.estimatedTime} minutos
+📝 Total de ejercicios: ${item.content.exercises?.length || 0}
+
+════════════════════════════════════════════════════════════════
+                       EJERCICIOS
+════════════════════════════════════════════════════════════════
+
+${item.content.exercises?.map((ex) => `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ejercicio ${ex.id} (${ex.difficulty.toUpperCase()}):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Instrucción: ${ex.instruction}
+
+💡 Ejemplo: ${ex.example || 'Sin ejemplo'}
+
+`).join('') || 'Sin ejercicios'}
+
+════════════════════════════════════════════════════════════════
+          Generado por Didactikapp - Educación Básica Elemental
+════════════════════════════════════════════════════════════════
+          `;
+          break;
+
+        default:
+          fileName = `${item.type}_${Date.now()}.json`;
+          fileContent = JSON.stringify(item, null, 2);
+          fileType = 'application/json';
+      }
+
+      const blob = new Blob([fileContent], { type: fileType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl z-[70] animate-slideIn';
+      notification.innerHTML = `
+        <div class="flex items-center gap-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          <div>
+            <p class="font-bold">✅ Descarga Exitosa</p>
+            <p class="text-sm opacity-90">${fileName}</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
+
+    } catch (error) {
+      console.error('Error descargando:', error);
+      alert('❌ Error al descargar el archivo: ' + error.message);
+    }
+  };
+
+  // ✅ BLOQUE 1: FUNCIÓN CONVERTIR CONTENIDO A RECURSO (CORREGIDA)
+  const convertContentToResource = async (item) => {
+    try {
+      // 1. Validar cursos
+      if (!courses || courses.length === 0) {
+        alert('⚠️ No hay cursos disponibles. Crea un curso primero.');
+        return;
+      }
+
+      // 2. Cerrar visor de contenido
+      setShowContentViewer(false);
+
+      // 3. Crear modal para seleccionar curso
+      const selectedCourseId = await new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4';
+
+        modal.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+          <h3 class="text-2xl font-bold text-gray-800 mb-4">
+            📚 Convertir a Recurso
+          </h3>
+          <p class="text-gray-600 mb-6">
+            Selecciona el curso donde quieres agregar este contenido:
+          </p>
+
+          <div class="space-y-3 mb-6 max-h-64 overflow-y-auto">
+            ${courses
+            .map(
+              (c) => `
+              <button
+                class="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all course-button"
+                data-course-id="${c.id}"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 rounded-lg flex items-center justify-center"
+                       style="background-color:${c.color}20">
+                    <span class="text-2xl">📖</span>
+                  </div>
+                  <div class="flex-1">
+                    <p class="font-bold text-gray-800">${c.titulo}</p>
+                    <p class="text-xs text-gray-600">
+                      ${c.nivel_nombre || 'Sin nivel'}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            `
+            )
+            .join('')}
+          </div>
+
+          <button
+            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-xl font-semibold transition-all cancel-btn"
+          >
+            Cancelar
+          </button>
+        </div>
+      `;
+
+        document.body.appendChild(modal);
+
+        // ✅ EVENT LISTENERS CORRECTOS
+        const courseButtons = modal.querySelectorAll('.course-button');
+        courseButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const courseId = btn.getAttribute('data-course-id');
+            console.log('✅ Curso seleccionado:', courseId);
+            modal.remove();
+            resolve(courseId); // ← RETORNA STRING
+          });
+        });
+
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        cancelBtn.addEventListener('click', () => {
+          modal.remove();
+          resolve(null);
+        });
+      });
+
+      // 4. Si canceló
+      if (!selectedCourseId) {
+        console.log('❌ Usuario canceló la selección');
+        return;
+      }
+
+      // ✅ CONVERSIÓN CORRECTA: Buscar curso con conversión de tipos
+      const selectedCourse = courses.find(
+        (c) => String(c.id) === String(selectedCourseId)
+      );
+
+      if (!selectedCourse) {
+        console.error('❌ Curso no encontrado. Buscado:', selectedCourseId);
+        console.log('📚 Cursos disponibles:', courses.map(c => ({ id: c.id, titulo: c.titulo })));
+        alert('❌ No se pudo encontrar el curso seleccionado');
+        return;
+      }
+
+      console.log('✅ Curso encontrado:', selectedCourse.titulo);
+
+      // 5. Crear estructura del recurso
+      const resourceData = {
+        titulo: item.title || `Recurso: ${item.type}`,
+        descripcion: `Contenido generado: ${item.prompt}`,
+        tipo: item.type === 'quiz' ? 'quiz' : 'video',
+        curso_id: selectedCourse.id, // ← USAR ID DEL CURSO
+        contenido_quiz: item.content || null,
+        puntos_recompensa: item.type === 'quiz' ? 50 : 10,
+        tiempo_estimado: 10,
+        orden: 1,
+        activo: true,
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+      };
+
+      console.log('📝 Datos del recurso a crear:', resourceData);
+
+      // 6. Insertar en Supabase
+      const { data, error } = await supabase
+        .from('recursos')
+        .insert([resourceData])
+        .select();
+
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Recurso creado:', data);
+
+      // 7. Actualizar lista de recursos
+      await fetchResources();
+
+      // 8. Notificación de éxito
+      alert(`✅ ¡Contenido convertido a recurso correctamente!
+    
+Recurso: ${resourceData.titulo}
+Curso: ${selectedCourse.titulo}
+Tipo: ${resourceData.tipo}`);
+
+    } catch (error) {
+      console.error('❌ Error al convertir contenido:', error);
+      alert(`❌ Error: ${error.message}`);
+    }
+  };
+
+
+
   const updateUserRole = async (userId, newRole) => {
     try {
       const { error } = await supabase
@@ -2460,6 +3541,8 @@ export default function EnhancedAdminPanel() {
     }
   };
 
+  // GUARDAR QUIZ AI COMO RECURSO AUTOMÁTICAMENTE
+
   const generateQuestionsWithAI = async () => {
     if (!documentText) {
       setError('⚠️ Por favor, sube un documento primero');
@@ -2481,8 +3564,6 @@ export default function EnhancedAdminPanel() {
         }
       }
 
-      console.log(`📄 Documento: ${cleanText.length} caracteres`);
-
       const num = quizConfig.totalPreguntas || 5;
 
       const prompt = `Eres profesor de básica elemental (6-10 años).
@@ -2492,6 +3573,7 @@ Lee este texto y genera EXACTAMENTE ${num} preguntas simples.
 - Lenguaje para niños
 - 4 opciones cada pregunta
 - Solo 1 respuesta correcta
+- Explicaciones claras
 
 TEXTO:
 "${cleanText}"
@@ -2527,7 +3609,15 @@ Genera ${num} preguntas.`;
         const data = await response.json();
         let aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        if (!aiText) throw new Error('Sin respuesta');
+        if (!aiText || aiText.trim().length === 0) {
+          throw new Error('Sin respuesta');
+        }
+
+        aiText = aiText
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .replace(/^[^P]*/gm, '')
+          .trim();
 
         const questions = parseQuestionsImproved(aiText);
 
@@ -2551,15 +3641,49 @@ Genera ${num} preguntas.`;
           tiempo_limite: 45,
         }));
 
+        //  CREAR RECURSO AUTOMÁTICAMENTE CON EL QUIZ
+        if (!selectedResource && currentUser && courses.length > 0) {
+          const defaultCourse = courses[0]; // Usar el primer curso por defecto
+
+          const newQuizResource = {
+            titulo: `Quiz: ${documentText.substring(0, 40)}...`,
+            descripcion: `Quiz generado automáticamente con IA basado en: ${documentText.substring(0, 100)}`,
+            tipo: 'quiz',
+            curso_id: defaultCourse.id,
+            contenido_quiz: generatedQuestions,
+            puntos_recompensa: generatedQuestions.length * 10,
+            tiempo_estimado: (generatedQuestions.length * 45) / 60,
+            orden: 1,
+            activo: true,
+            created_by: currentUser.id,
+            created_at: new Date().toISOString(),
+          };
+
+          console.log('💾 Guardando quiz como recurso:', newQuizResource);
+
+          const { data: insertedData, error: insertError } = await supabase
+            .from('recursos')
+            .insert([newQuizResource])
+            .select();
+
+          if (insertError) {
+            console.warn('⚠️ No se guardó en recursos:', insertError.message);
+          } else {
+            console.log('✅ Quiz guardado en recursos:', insertedData);
+            await fetchResources(); // Actualizar lista de recursos
+          }
+        }
+
         setCurrentQuiz({ preguntas: generatedQuestions });
         setShowQuizBuilder(true);
 
-        alert(`✅ ${generatedQuestions.length} preguntas generadas.\n\n💡 Puedes editarlas antes de guardar.`);
+        alert(`✅ ${generatedQuestions.length} preguntas generadas y guardadas como recurso`);
         setUploadedDocument(null);
         setDocumentText('');
         setGeneratingQuestions(false);
+
       } catch (aiError) {
-        console.warn('⚠️ IA no disponible');
+        console.warn('⚠️ IA no disponible, usando modo fallback');
 
         const questions = generateQuestionsFromDocumentImproved(cleanText, num);
         const generatedQuestions = questions.map((q, idx) => ({
@@ -2583,7 +3707,7 @@ Genera ${num} preguntas.`;
         setCurrentQuiz({ preguntas: generatedQuestions });
         setShowQuizBuilder(true);
 
-        alert(`📊 ${generatedQuestions.length} preguntas generadas (sin IA).`);
+        alert(`📊 ${generatedQuestions.length} preguntas generadas (modo offline).`);
         setUploadedDocument(null);
         setDocumentText('');
         setGeneratingQuestions(false);
@@ -2658,6 +3782,7 @@ Genera ${num} preguntas.`;
     return questions;
   };
 
+  const parseQuestionsImproved = (aiText) => { const questions = []; const lines = aiText.split('\n').filter(l => l.trim()); let currentQuestion = null; lines.forEach(line => { line = line.trim(); if (/^P\d+:|^Pregunta \d+:|\d+\./i.test(line)) { if (currentQuestion) questions.push(currentQuestion); currentQuestion = { pregunta: line.replace(/^P\d+:|^Pregunta \d+:|\d+\./, '').trim(), opciones: [], respuesta_correcta: 0 }; } else if (/^[A-D]\)|^[A-D]\./.test(line) && currentQuestion) { currentQuestion.opciones.push(line.replace(/^[A-D]\)|^[A-D]\./, '').trim()); } else if (/^R:|^Respuesta:/i.test(line) && currentQuestion) { const respuesta = line.replace(/^R:|^Respuesta:/i, '').trim().toUpperCase(); const index = ['A', 'B', 'C', 'D'].indexOf(respuesta.charAt(0)); if (index !== -1) currentQuestion.respuesta_correcta = index; } }); if (currentQuestion) questions.push(currentQuestion); return questions; }; const parseQuestionsSimple = (aiText) => { return parseQuestionsImproved(aiText); };
 
   // Función auxiliar para procesar respuesta de IA
   const processAIResponse = (data) => {
@@ -2941,48 +4066,6 @@ Genera ${num} preguntas.`;
     }
   };
 
-  const saveQuizToResource = async () => {
-    if (currentQuiz.preguntas.length === 0) {
-      alert("Debes agregar al menos una pregunta");
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("recursos")
-        .update({
-          contenido_quiz: currentQuiz.preguntas,
-          metadata: {
-            total_preguntas: currentQuiz.preguntas.length,
-            puntos_totales: currentQuiz.preguntas.reduce(
-              (sum, q) => sum + q.puntos,
-              0
-            ),
-            tiene_audio: currentQuiz.preguntas.some(
-              (q) => q.audio_pregunta || q.audio_opciones.some((a) => a)
-            ),
-            tiene_video: currentQuiz.preguntas.some((q) => q.video_url),
-            tiene_imagenes: currentQuiz.preguntas.some(
-              (q) => q.imagen_url || q.imagen_opciones.some((i) => i)
-            ),
-          },
-        })
-        .eq("id", selectedResource.id);
-
-      if (error) throw error;
-
-      fetchResources();
-      setCurrentQuiz({ preguntas: [] });
-      setShowQuizBuilder(false);
-      setSelectedResource(null);
-      setUploadedDocument(null);
-      alert("✅ Quiz guardado exitosamente");
-    } catch (err) {
-      console.error("Error guardando quiz:", err);
-      alert("Error al guardar el quiz");
-    }
-  };
-
   const handlePreviewAnswer = (questionIndex, optionIndex) => {
     const question = currentQuiz.preguntas[questionIndex];
     const isCorrect = optionIndex === question.respuesta_correcta;
@@ -3001,58 +4084,262 @@ Genera ${num} preguntas.`;
     }
   };
 
+  // FUNCIÓN DE VOZ MEJORADA Y NATURAL
+
   const speakText = (text) => {
     if ("speechSynthesis" in window) {
+      // Cancelar cualquier síntesis anterior
       window.speechSynthesis.cancel();
+
+      // Crear nuevo utterance
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "es-ES";
-      utterance.rate = 0.9;
-      utterance.pitch = 1.1;
+
+      // CONFIGURACIÓN PARA VOZ NATURAL Y CLARA
+      utterance.lang = "es-ES"; // Español España (mejor calidad)
+      utterance.rate = 0.85; // Velocidad lenta para niños (0.85 = 85%)
+      utterance.pitch = 1.2; // Tono un poco más alto (amigable para niños)
+      utterance.volume = 1; // Volumen máximo
+
+      // Seleccionar la mejor voz disponible
+      const voices = window.speechSynthesis.getVoices();
+
+      // Buscar voz en español natural
+      let selectedVoice = voices.find(voice =>
+        voice.lang === 'es-ES' && voice.name.includes('Google')
+      );
+
+      // Si no hay Google, buscar cualquier voz en español
+      if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang.startsWith('es'));
+      }
+
+      // Si no hay español, usar la primera voz disponible
+      if (!selectedVoice) {
+        selectedVoice = voices[0];
+      }
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+
+      // Eventos de síntesis
+      utterance.onstart = () => {
+        console.log('🔊 Iniciando reproducción de voz');
+      };
+
+      utterance.onend = () => {
+        console.log('✅ Voz finalizada');
+      };
+
+      utterance.onerror = (event) => {
+        console.error('❌ Error en síntesis:', event.error);
+      };
+
+      // Reproducir
       window.speechSynthesis.speak(utterance);
+    } else {
+      console.warn('⚠️ Síntesis de voz no disponible en este navegador');
     }
   };
 
+  // Cargar voces al iniciar 
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      console.log('🎤 Voces disponibles cargadas');
+    };
+  }
+
+  // ✅ FUNCIÓN 1: ABRIR EDITOR DE QUIZ (CORREGIDA)
   const openQuizBuilder = (resource) => {
+    console.log('✏️ Abriendo editor para:', resource.titulo);
+
     setSelectedResource(resource);
     setShowQuizBuilder(true);
     setActiveTab("resources");
-    if (resource.contenido_quiz && resource.contenido_quiz.length > 0) {
-      setCurrentQuiz({ preguntas: resource.contenido_quiz });
+
+    // ✅ MAPEO CORRECTO DE PREGUNTAS
+    if (resource.contenido_quiz && Array.isArray(resource.contenido_quiz) && resource.contenido_quiz.length > 0) {
+      console.log('📝 Preguntas encontradas:', resource.contenido_quiz.length);
+
+      const preguntasFormateadas = resource.contenido_quiz.map((q, idx) => ({
+        id: q.id || `quiz_${Date.now()}_${idx}`,
+        tipo: q.tipo || 'multiple',
+        pregunta: q.pregunta || q.text || '',
+        opciones: q.opciones || q.options || ['', '', '', ''],
+        respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+        puntos: q.puntos ?? 10,
+        retroalimentacion_correcta: q.retroalimentacion_correcta || '¡Excelente! 🎉',
+        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || '¡Intenta otra vez! 💪',
+        audio_pregunta: q.audio_pregunta !== false,
+        audio_retroalimentacion: q.audio_retroalimentacion !== false,
+        video_url: q.video_url || '',
+        imagen_url: q.imagen_url || '',
+        audio_opciones: q.audio_opciones || ['', '', '', ''],
+        imagen_opciones: q.imagen_opciones || ['🎨', '📚', '✏️', '🌟'],
+        tiempo_limite: q.tiempo_limite ?? 45,
+      }));
+
+      setCurrentQuiz({ preguntas: preguntasFormateadas });
+      console.log('✅ Quiz cargado exitosamente');
     } else {
+      console.log('🆕 Creando quiz vacío');
       setCurrentQuiz({ preguntas: [] });
     }
   };
 
+  // ✅ FUNCIÓN 2: CERRAR EDITOR
   const closeQuizBuilder = () => {
+    console.log('❌ Cerrando editor');
     setShowQuizBuilder(false);
     setCurrentQuiz({ preguntas: [] });
     setSelectedResource(null);
     setUploadedDocument(null);
+    setDocumentText('');
+    setCurrentQuestion({
+      tipo: "multiple",
+      pregunta: "",
+      audio_pregunta: true,
+      video_url: "",
+      imagen_url: "",
+      opciones: ["", "", "", ""],
+      audio_opciones: ["", "", "", ""],
+      imagen_opciones: ["", "", "", ""],
+      respuesta_correcta: 0,
+      puntos: 10,
+      retroalimentacion_correcta: "¡Excelente! 🎉",
+      retroalimentacion_incorrecta: "¡Inténtalo de nuevo! 💪",
+      audio_retroalimentacion: true,
+      tiempo_limite: 0,
+    });
   };
 
+  // ✅ FUNCIÓN 3: ABRIR VISTA PREVIA (CORREGIDA)
   const openPreview = (resource) => {
-    if (!resource.contenido_quiz || resource.contenido_quiz.length === 0) {
-      alert("Este quiz no tiene preguntas aún");
-      return;
+    console.log('👁️ Abriendo vista previa de:', resource.titulo);
+
+    // ✅ Verificar si hay preguntas
+    let quizQuestions = resource.contenido_quiz;
+
+    if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
+      // Si no hay preguntas en recurso, buscar en biblioteca de contenido
+      const generatedQuiz = contentLibrary.find(
+        item => item.type === 'quiz' && item.title === resource.titulo
+      );
+
+      if (generatedQuiz && generatedQuiz.content?.questions) {
+        quizQuestions = generatedQuiz.content.questions;
+        console.log('📚 Preguntas encontradas en biblioteca:', quizQuestions.length);
+      } else {
+        alert("⚠️ Este quiz no tiene preguntas aún");
+        return;
+      }
     }
+
+    // Usar las preguntas encontradas
+    resource.contenido_quiz = quizQuestions;
+    // ✅ MAPEO CORRECTO DE PREGUNTAS PARA PREVIEW
+    const preguntasFormateadas = resource.contenido_quiz.map((q, idx) => ({
+      id: q.id || `preview_${Date.now()}_${idx}`,
+      tipo: q.tipo || 'multiple',
+      pregunta: q.pregunta || q.text || '',
+      opciones: q.opciones || q.options || ['', '', '', ''],
+      respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+      puntos: q.puntos ?? 10,
+      retroalimentacion_correcta: q.retroalimentacion_correcta || '¡Excelente! 🎉',
+      retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || '¡Intenta otra vez! 💪',
+      audio_pregunta: q.audio_pregunta !== false,
+      audio_retroalimentacion: q.audio_retroalimentacion !== false,
+      video_url: q.video_url || '',
+      imagen_url: q.imagen_url || '',
+      imagen_opciones: q.imagen_opciones || ['🎨', '📚', '✏️', '🌟'],
+      tiempo_limite: q.tiempo_limite ?? 45,
+    }));
+
     setSelectedResource(resource);
-    setCurrentQuiz({ preguntas: resource.contenido_quiz });
+    setCurrentQuiz({ preguntas: preguntasFormateadas });
     setPreviewQuiz(true);
     setCurrentPreviewQuestion(0);
     setPreviewAnswers({});
+    setOptionListenState({});
+    setSelectedOption(null);
 
-    if (resource.contenido_quiz[0]?.audio_pregunta) {
-      setTimeout(() => speakText(resource.contenido_quiz[0].pregunta), 500);
-    }
+    console.log('✅ Vista previa abierta con', preguntasFormateadas.length, 'preguntas');
+
+    // ✅ REPRODUCIR PRIMERA PREGUNTA AUTOMÁTICAMENTE
+    setTimeout(() => {
+      if (preguntasFormateadas[0]?.audio_pregunta) {
+        speakText(preguntasFormateadas[0].pregunta);
+        console.log('🔊 Reproduciendo primera pregunta');
+      }
+    }, 600);
   };
 
+  // ✅ FUNCIÓN 4: CERRAR VISTA PREVIA
   const closePreview = () => {
+    console.log('❌ Cerrando vista previa');
     window.speechSynthesis.cancel();
     setPreviewQuiz(false);
     setPreviewAnswers({});
     setOptionListenState({});
     setCurrentPreviewQuestion(0);
     setSelectedResource(null);
+    setSelectedOption(null);
+  };
+
+  // ✅ FUNCIÓN 5: GUARDAR QUIZ A RECURSO (MEJORADA)
+  const saveQuizToResource = async () => {
+    if (currentQuiz.preguntas.length === 0) {
+      alert("⚠️ Debes agregar al menos una pregunta");
+      return;
+    }
+
+    if (!selectedResource) {
+      alert("❌ No hay recurso seleccionado");
+      return;
+    }
+
+    try {
+      console.log('💾 Guardando quiz con', currentQuiz.preguntas.length, 'preguntas');
+
+      const updateData = {
+        contenido_quiz: currentQuiz.preguntas,
+        metadata: {
+          total_preguntas: currentQuiz.preguntas.length,
+          puntos_totales: currentQuiz.preguntas.reduce((sum, q) => sum + (q.puntos || 10), 0),
+          tiene_audio: currentQuiz.preguntas.some((q) => q.audio_pregunta),
+          tiene_video: currentQuiz.preguntas.some((q) => q.video_url),
+          tiene_imagenes: currentQuiz.preguntas.some((q) => q.imagen_url || q.imagen_opciones?.some((i) => i)),
+          actualizado_en: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from("recursos")
+        .update(updateData)
+        .eq("id", selectedResource.id)
+        .select();
+
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Quiz guardado:', data);
+
+      await fetchResources();
+      closeQuizBuilder();
+
+      alert(`✅ Quiz guardado correctamente
+    
+📚 Recurso: ${selectedResource.titulo}
+📝 Preguntas: ${currentQuiz.preguntas.length}
+⭐ Puntos: ${updateData.metadata.puntos_totales}`);
+
+    } catch (err) {
+      console.error("❌ Error:", err);
+      alert(`Error al guardar: ${err.message}`);
+    }
   };
 
   const fetchStudentProgress = async (studentId) => {
@@ -3818,488 +5105,208 @@ ${courseReportData.stats.avgProgress >= 70
     return () => clearTimeout(timer);
   }, [previewQuiz, currentPreviewQuestion, previewAnswers]);
 
+  // ✅ QUIZ REDISEÑADO PARA NIÑOS
+
   const renderQuestionPreview = () => {
     if (!currentQuiz.preguntas.length) return null;
 
     const question = currentQuiz.preguntas[currentPreviewQuestion];
     const answer = previewAnswers[currentPreviewQuestion];
 
-    // Mascota educativa - Expresiones y animaciones según el estado
-    const getMascotState = () => {
+    // 🐢 Estado de Karin (estilo Duolingo)
+    const getKarinState = () => {
       if (answer?.isCorrect) {
         return {
-          animation: 'celebrate',
-          message: "¡Increíble! ¡Lo lograste! 🎉",
-          bgColor: 'from-green-400 to-green-600',
-          eyesLeft: '25%',
-          eyesTop: '35%',
-          mouth: 'M 30 50 Q 40 60, 50 50',
-          expression: '😄'
+          state: "happy",
+          message: "¡Excelente! Respuesta correcta 🎉",
         };
       }
+
       if (answer && !answer.isCorrect) {
         return {
-          animation: 'encourage',
-          message: "¡Casi! Inténtalo otra vez 💪",
-          bgColor: 'from-orange-400 to-orange-600',
-          eyesLeft: '28%',
-          eyesTop: '38%',
-          mouth: 'M 30 55 Q 40 52, 50 55',
-          expression: '😊'
+          state: "encourage",
+          message: "No pasa nada, intentémoslo otra vez 💚",
         };
       }
+
       if (selectedOption !== null) {
         return {
-          animation: 'thinking',
-          message: "¿Estás seguro? Presiona el botón verde ✅",
-          bgColor: 'from-blue-400 to-blue-600',
-          eyesLeft: '20%',
-          eyesTop: '35%',
-          mouth: 'M 30 53 Q 40 53, 50 53',
-          expression: '🤔'
+          state: "idle",
+          message: "Cuando estés listo, presiona “Revisar”",
         };
       }
+
       return {
-        animation: 'idle',
-        message: "¡Hola! Escucha cada opción y elige 🔊",
-        bgColor: 'from-green-400 to-green-600',
-        eyesLeft: '25%',
-        eyesTop: '35%',
-        mouth: 'M 30 52 Q 40 55, 50 52',
-        expression: '😊'
+        state: "idle",
+        message: "Lee la pregunta y elige la respuesta correcta",
       };
     };
 
-    const mascotState = getMascotState();
-
-    const handleOptionClick = (idx) => {
-      // Si ya confirmó la respuesta, no hacer nada
-      if (answer !== undefined) return;
-
-      // Reproducir audio de la opción
-      speakText(question.opciones[idx]);
-
-      // Seleccionar la opción (puede cambiar cuantas veces quiera)
-      setSelectedOption(idx);
-      setMascotAnimation('thinking');
-
-      // Marcar como escuchada
-      const optionKey = `${currentPreviewQuestion}-${idx}`;
-      setOptionListenState({ ...optionListenState, [optionKey]: true });
-    };
-
-    const handleConfirmAnswer = () => {
-      if (selectedOption === null) {
-        speakText("Debes seleccionar una opción primero");
-        setMascotAnimation('shake');
-        setTimeout(() => setMascotAnimation('idle'), 500);
-        return;
-      }
-
-      // Confirmar respuesta
-      handlePreviewAnswer(currentPreviewQuestion, selectedOption);
-
-      const isCorrect = selectedOption === question.respuesta_correcta;
-      setMascotAnimation(isCorrect ? 'celebrate' : 'encourage');
-    };
+    const karin = getKarinState();
 
     return (
-      <div className="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 rounded-3xl p-6 min-h-[600px] flex flex-col relative overflow-hidden">
-        {/* Decoración de fondo animada */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-300 rounded-full opacity-20 -mr-16 -mt-16 animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-300 rounded-full opacity-20 -ml-20 -mb-20 animate-pulse"></div>
-        <div className="absolute top-1/2 left-1/2 w-24 h-24 bg-pink-300 rounded-full opacity-10 animate-ping"></div>
+      <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[700px] flex flex-col">
 
-        {/* Header con mascota animada SVG */}
-        <div className="flex justify-between items-start mb-6 relative z-10">
-          <div className="flex items-center gap-4">
-            {/* Mascota SVG Animada */}
-            <div className={`relative ${mascotAnimation === 'celebrate' ? 'animate-bounce' :
-              mascotAnimation === 'shake' ? 'animate-shake' :
-                mascotAnimation === 'thinking' ? 'animate-pulse' :
-                  'animate-float'
-              }`}>
-              <svg width="80" height="80" viewBox="0 0 100 100" className="drop-shadow-2xl">
-                {/* Cuerpo de la tortuga */}
-                <ellipse cx="50" cy="70" rx="35" ry="25" fill="#4ade80" className="animate-breathe" />
+        {/* HEADER: KARIN + PROGRESO */}
+        <div className="flex justify-between items-start mb-6">
+          <KarinMascot
+            state={karin.state}
+            message={karin.message}
+          />
 
-                {/* Caparazón con gradiente */}
-                <defs>
-                  <linearGradient id="shellGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: '#22c55e', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: '#16a34a', stopOpacity: 1 }} />
-                  </linearGradient>
-                  <filter id="shadow">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
-                  </filter>
-                </defs>
-                <ellipse cx="50" cy="50" rx="40" ry="35" fill="url(#shellGradient)" filter="url(#shadow)" />
-
-                {/* Patrón del caparazón */}
-                <ellipse cx="50" cy="45" rx="25" ry="20" fill="#15803d" opacity="0.3" />
-                <circle cx="40" cy="50" r="8" fill="#15803d" opacity="0.4" />
-                <circle cx="60" cy="50" r="8" fill="#15803d" opacity="0.4" />
-                <circle cx="50" cy="60" r="8" fill="#15803d" opacity="0.4" />
-
-                {/* Cabeza */}
-                <ellipse cx="50" cy="30" rx="20" ry="18" fill="#4ade80" />
-
-                {/* Ojos con animación */}
-                <g className={mascotAnimation === 'thinking' ? 'animate-look-around' : ''}>
-                  <ellipse cx="43" cy="28" rx="4" ry="5" fill="white" />
-                  <ellipse cx="57" cy="28" rx="4" ry="5" fill="white" />
-                  <circle cx="44" cy="29" r="2.5" fill="#1f2937" className="animate-blink" />
-                  <circle cx="58" cy="29" r="2.5" fill="#1f2937" className="animate-blink" />
-                  <circle cx="45" cy="28" r="1" fill="white" className="shine" />
-                  <circle cx="59" cy="28" r="1" fill="white" className="shine" />
-                </g>
-
-                {/* Boca con expresión */}
-                <path
-                  d={mascotState.mouth}
-                  stroke="#1f2937"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  className="transition-all duration-300"
-                />
-
-                {/* Mejillas cuando está feliz */}
-                {(mascotAnimation === 'celebrate' || mascotAnimation === 'idle') && (
-                  <>
-                    <circle cx="35" cy="32" r="4" fill="#fb923c" opacity="0.5" />
-                    <circle cx="65" cy="32" r="4" fill="#fb923c" opacity="0.5" />
-                  </>
-                )}
-
-                {/* Patitas */}
-                <ellipse cx="30" cy="75" rx="8" ry="6" fill="#4ade80" />
-                <ellipse cx="70" cy="75" rx="8" ry="6" fill="#4ade80" />
-
-                {/* Efectos especiales según animación */}
-                {mascotAnimation === 'celebrate' && (
-                  <>
-                    <text x="15" y="25" fontSize="20" className="animate-float-sparkle">✨</text>
-                    <text x="75" y="25" fontSize="20" className="animate-float-sparkle-delayed">✨</text>
-                    <text x="45" y="15" fontSize="20" className="animate-float-sparkle">🎉</text>
-                  </>
-                )}
-
-                {mascotAnimation === 'thinking' && (
-                  <text x="70" y="20" fontSize="25" className="animate-bounce">💭</text>
-                )}
-              </svg>
-            </div>
-
-            {/* Burbuja de diálogo */}
-            <div className={`bg-white rounded-2xl px-4 py-3 shadow-lg border-2 transition-all ${mascotAnimation === 'celebrate' ? 'border-green-400 bg-green-50' :
-              mascotAnimation === 'encourage' ? 'border-orange-400 bg-orange-50' :
-                'border-blue-400'
-              }`}>
-              <p className="text-sm font-bold text-gray-800">{mascotState.message}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="bg-white rounded-full px-4 py-2 shadow-md border-2 border-purple-300">
-              <span className="text-lg font-bold text-purple-600">
-                {currentPreviewQuestion + 1} de {currentQuiz.preguntas.length}
-              </span>
-            </div>
+          <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
+            {currentPreviewQuestion + 1} / {currentQuiz.preguntas.length}
           </div>
         </div>
 
-        {/* Progreso visual */}
-        <div className="flex gap-2 mb-6">
+        {/* BARRA DE PROGRESO */}
+        <div className="flex gap-2 mb-8">
           {currentQuiz.preguntas.map((_, idx) => (
             <div
               key={idx}
-              className={`flex-1 h-3 rounded-full transition-all ${idx === currentPreviewQuestion
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg"
-                : idx < currentPreviewQuestion
-                  ? "bg-green-400"
-                  : "bg-gray-300"
+              className={`flex-1 h-2 rounded-full transition-all ${idx === currentPreviewQuestion
+                  ? "bg-blue-500"
+                  : idx < currentPreviewQuestion
+                    ? "bg-green-400"
+                    : "bg-gray-200"
                 }`}
             />
           ))}
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {/* Imagen ilustrativa grande */}
-          {question.imagen_url && (
-            <div className="mb-6 transform hover:scale-105 transition-transform">
-              <div className="w-64 h-64 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-8 border-yellow-300">
-                <span className="text-9xl">{question.imagen_url}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Pregunta con audio grande */}
-          <div className="bg-white rounded-3xl shadow-2xl p-8 mb-8 max-w-3xl w-full border-4 border-purple-300">
-            <div className="flex items-center gap-4 justify-center">
-              {question.audio_pregunta && (
-                <button
-                  onClick={() => speakText(question.pregunta)}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-6 rounded-full shadow-2xl transition-all transform hover:scale-110 animate-pulse"
-                  title="Escuchar pregunta"
-                >
-                  <Volume2 className="w-8 h-8" />
-                </button>
-              )}
-              <h3 className="text-4xl font-black text-gray-800 text-center leading-relaxed">
-                {question.pregunta}
-              </h3>
-            </div>
-          </div>
-
-          {/* Opciones con audio individual - AHORA PUEDEN CAMBIAR DE OPINIÓN */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-            {question.opciones.map((opcion, idx) => {
-              const optionKey = `${currentPreviewQuestion}-${idx}`;
-              const isListened = optionListenState[optionKey];
-              const isSelected = selectedOption === idx;
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => handleOptionClick(idx)}
-                  disabled={answer !== undefined}
-                  className={`relative p-8 rounded-3xl font-bold text-2xl transition-all transform hover:scale-105 shadow-xl ${answer === undefined
-                    ? isSelected
-                      ? "bg-gradient-to-br from-yellow-300 to-yellow-400 border-4 border-yellow-500 text-gray-800 scale-105 shadow-2xl"
-                      : isListened
-                        ? "bg-gradient-to-br from-blue-100 to-blue-200 border-4 border-blue-300 text-gray-800"
-                        : "bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 border-4 border-gray-300 text-gray-700"
-                    : answer.selected === idx
-                      ? answer.isCorrect
-                        ? "bg-gradient-to-br from-green-400 to-green-600 text-white border-4 border-green-700 animate-bounce"
-                        : "bg-gradient-to-br from-red-400 to-red-600 text-white border-4 border-red-700"
-                      : idx === question.respuesta_correcta
-                        ? "bg-gradient-to-br from-green-400 to-green-600 text-white border-4 border-green-700"
-                        : "bg-gray-200 text-gray-500 border-4 border-gray-400"
-                    }`}
-                >
-                  {/* Botón de audio pequeño en la esquina */}
-                  {answer === undefined && (
-                    <div className="absolute top-3 right-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isListened ? "bg-green-400 animate-pulse" : "bg-blue-400"
-                        }`}>
-                        <Volume2 className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Indicador de selección */}
-                  {isSelected && answer === undefined && (
-                    <div className="absolute top-3 left-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500 animate-bounce">
-                        <span className="text-2xl">✓</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col items-center gap-3">
-                    {question.tipo === "imagen" && question.imagen_opciones[idx] && (
-                      <span className="text-6xl">{question.imagen_opciones[idx]}</span>
-                    )}
-                    <span className="text-center">{opcion}</span>
-
-                    {answer !== undefined && answer.selected === idx && (
-                      <div className="mt-2">
-                        {answer.isCorrect ? (
-                          <CheckCircle className="w-10 h-10" />
-                        ) : (
-                          <XCircle className="w-10 h-10" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Indicadores de estado */}
-                  {!isSelected && !isListened && answer === undefined && (
-                    <div className="absolute bottom-3 left-0 right-0 text-center">
-                      <span className="text-xs bg-blue-500 text-white px-3 py-1 rounded-full animate-pulse">
-                        Toca para escuchar 🔊
-                      </span>
-                    </div>
-                  )}
-
-                  {isSelected && answer === undefined && (
-                    <div className="absolute bottom-3 left-0 right-0 text-center">
-                      <span className="text-xs bg-yellow-600 text-white px-3 py-1 rounded-full font-bold animate-bounce">
-                        SELECCIONADA ⭐
-                      </span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Botón "ESTOY SEGURO" - Solo aparece cuando ya respondió */}
-          {!answer && selectedOption !== null && (
-            <div className="mt-8 w-full max-w-2xl">
+        {/* PREGUNTA */}
+        <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
+          <div className="flex items-center gap-4 justify-center">
+            {question.audio_pregunta && (
               <button
-                onClick={handleConfirmAnswer}
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-12 py-6 rounded-3xl text-3xl font-black transition-all transform hover:scale-105 shadow-2xl border-4 border-green-700 animate-pulse"
+                onClick={() => speakText(question.pregunta)}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
               >
-                ✅ ¡ESTOY SEGURO!
+                🔊
               </button>
-              <p className="text-center text-sm text-gray-600 mt-3">
-                Puedes cambiar tu respuesta tocando otra opción
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Retroalimentación con mascota */}
-          {answer && (
-            <div className="mt-8 max-w-2xl w-full">
-              <div
-                className={`rounded-3xl p-6 text-center shadow-2xl border-4 animate-bounce-in ${answer.isCorrect
-                  ? "bg-gradient-to-br from-green-100 to-green-200 border-green-400"
-                  : "bg-gradient-to-br from-orange-100 to-orange-200 border-orange-400"
-                  }`}
+            <p className="text-3xl font-bold text-gray-800 text-center">
+              {question.pregunta}
+            </p>
+          </div>
+        </div>
+
+        {/* OPCIONES */}
+        <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
+          {question.opciones.map((opcion, idx) => {
+            const isSelected = selectedOption === idx;
+            const wasSelected = answer?.selected === idx;
+            const isCorrect = answer?.isCorrect;
+
+            return (
+              <button
+                key={idx}
+                disabled={answer !== undefined}
+                onClick={() => {
+                  if (!answer) {
+                    setSelectedOption(idx);
+                    speakText(opcion);
+                  }
+                }}
+                className={`p-5 rounded-2xl text-xl font-semibold border transition-all text-left
+                ${answer === undefined
+                    ? isSelected
+                      ? "bg-blue-50 border-blue-400"
+                      : "bg-white border-gray-300 hover:bg-blue-50"
+                    : wasSelected
+                      ? isCorrect
+                        ? "bg-green-50 border-green-400"
+                        : "bg-red-50 border-red-400"
+                      : idx === question.respuesta_correcta
+                        ? "bg-green-50 border-green-300"
+                        : "bg-gray-100 border-gray-300 opacity-60"
+                  }
+              `}
               >
-                <div className="flex items-center justify-center gap-4 mb-3">
-                  <span className="text-6xl animate-bounce">{answer.isCorrect ? "🎉" : "💪"}</span>
-                  <span className="text-5xl animate-wiggle">🐢</span>
-                  <span className="text-6xl animate-bounce">{answer.isCorrect ? "✨" : "🌟"}</span>
-                </div>
-                <p className="text-4xl font-black mb-2">
-                  {answer.isCorrect
-                    ? question.retroalimentacion_correcta
-                    : question.retroalimentacion_incorrecta}
+                {opcion}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* BOTÓN REVISAR */}
+        {!answer && selectedOption !== null && (
+          <div className="mt-8 max-w-xl mx-auto w-full">
+            <button
+              onClick={() =>
+                handlePreviewAnswer(currentPreviewQuestion, selectedOption)
+              }
+              className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl text-2xl font-bold transition"
+            >
+              Revisar
+            </button>
+          </div>
+        )}
+
+        {/* RETROALIMENTACIÓN */}
+        {answer && (
+          <div className="mt-8 max-w-xl mx-auto w-full">
+            <div
+              className={`rounded-2xl p-6 text-center border
+              ${answer.isCorrect
+                  ? "bg-green-50 border-green-300"
+                  : "bg-orange-50 border-orange-300"
+                }
+            `}
+            >
+              <p className="text-2xl font-bold mb-2">
+                {answer.isCorrect
+                  ? "¡Muy bien!"
+                  : "Vamos a aprender juntos"}
+              </p>
+
+              {!answer.isCorrect && (
+                <p className="text-lg">
+                  Respuesta correcta:
+                  <span className="block font-bold text-orange-600">
+                    {question.opciones[question.respuesta_correcta]}
+                  </span>
                 </p>
-                {!answer.isCorrect && (
-                  <p className="text-lg text-gray-700 mt-3">
-                    La respuesta correcta era: <strong>{question.opciones[question.respuesta_correcta]}</strong>
-                  </p>
-                )}
-              </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Botones de navegación más grandes y amigables */}
-        <div className="flex justify-between mt-8 gap-4">
+        {/* NAVEGACIÓN */}
+        <div className="flex justify-between mt-10 gap-4">
           <button
-            onClick={() => {
-              if (currentPreviewQuestion > 0) {
-                setCurrentPreviewQuestion(currentPreviewQuestion - 1);
-                setPreviewAnswers({});
-                setOptionListenState({});
-                setSelectedOption(null);
-                setMascotAnimation('idle');
-                const prevQuestion = currentQuiz.preguntas[currentPreviewQuestion - 1];
-                if (prevQuestion?.audio_pregunta) {
-                  setTimeout(() => speakText(prevQuestion.pregunta), 300);
-                }
-              }
-            }}
             disabled={currentPreviewQuestion === 0}
-            className="flex-1 px-8 py-4 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-2xl text-xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg"
+            onClick={() => {
+              setCurrentPreviewQuestion(currentPreviewQuestion - 1);
+              setSelectedOption(null);
+              setPreviewAnswers({});
+            }}
+            className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
           >
-            ← Anterior
+            Anterior
           </button>
 
           <button
+            disabled={
+              currentPreviewQuestion === currentQuiz.preguntas.length - 1 ||
+              !answer
+            }
             onClick={() => {
-              if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                setPreviewAnswers({});
-                setOptionListenState({});
-                setSelectedOption(null);
-                setMascotAnimation('idle');
-                const nextQuestion = currentQuiz.preguntas[currentPreviewQuestion + 1];
-                if (nextQuestion?.audio_pregunta) {
-                  setTimeout(() => speakText(nextQuestion.pregunta), 300);
-                }
-              }
+              setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+              setSelectedOption(null);
+              setPreviewAnswers({});
             }}
-            disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1 || !answer}
-            className="flex-1 px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl text-xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg"
+            className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
           >
-            {answer ? "Siguiente →" : "Responde primero"}
+            Siguiente
           </button>
         </div>
-
-        {/* CSS personalizado para animaciones */}
-        <style jsx>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-          }
-          @keyframes breathe {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-          }
-          @keyframes blink {
-            0%, 90%, 100% { opacity: 1; }
-            95% { opacity: 0; }
-          }
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-          }
-          @keyframes wiggle {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-5deg); }
-            75% { transform: rotate(5deg); }
-          }
-          @keyframes float-sparkle {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
-          }
-          @keyframes float-sparkle-delayed {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-20px) scale(1.5); opacity: 0; }
-          }
-          @keyframes bounce-in {
-            0% { transform: scale(0); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-          }
-          @keyframes look-around {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-2px); }
-            75% { transform: translateX(2px); }
-          }
-          
-          .animate-float {
-            animation: float 3s ease-in-out infinite;
-          }
-          .animate-breathe {
-            animation: breathe 2s ease-in-out infinite;
-          }
-          .animate-blink {
-            animation: blink 4s infinite;
-          }
-          .animate-shake {
-            animation: shake 0.5s;
-          }
-          .animate-wiggle {
-            animation: wiggle 1s ease-in-out infinite;
-          }
-          .animate-float-sparkle {
-            animation: float-sparkle 2s ease-out infinite;
-          }
-          .animate-float-sparkle-delayed {
-            animation: float-sparkle-delayed 2s ease-out 0.5s infinite;
-          }
-          .animate-bounce-in {
-            animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          }
-          .animate-look-around {
-            animation: look-around 2s ease-in-out infinite;
-          }
-          .shine {
-            opacity: 0.8;
-          }
-        `}</style>
       </div>
     );
   };
+
+
 
   const generateAIRecommendations = () => {
     const recommendations = [];
@@ -4309,17 +5316,41 @@ ${courseReportData.stats.avgProgress >= 70
       return acc;
     }, {});
 
-    // Recomendación para crear más quizzes con IA
+    // ✅ RECOMENDACIÓN 1: GENERADOR DE CONTENIDO
+    recommendations.push({
+      type: "ai_generator",
+      title: "🚀 Generador de Contenido con IA",
+      description: `Crea Quiz, Juegos y Ejercicios.`,
+      priority: "high",
+      action: "Abrir Generador",
+      targetTab: "dashboard",
+      icon: Sparkles,
+      action_type: "open_generator",
+    });
+
+    // ✅ RECOMENDACIÓN 2: ESTADO DEL SISTEMA
+    recommendations.push({
+      type: "system_health",
+      title: "💚 Salud del Sistema",
+      description: `${analytics.engagementRate}% compromiso | ${analytics.completionRate}% completitud | ${users.length} usuarios`,
+      priority: "high",
+      action: "Monitorear",
+      targetTab: "dashboard",
+      icon: Activity,
+      action_type: "open_analytics",
+    });
+
+    // Recomendación para crear más quizzes
     if ((resourceTypes.quiz || 0) < 3) {
       recommendations.push({
         type: "content_gap",
-        title: "Crear Quizzes con IA",
-        description: `Solo tienes ${resourceTypes.quiz || 0
-          } quizzes. Usa el generador con IA para crear más rápidamente.`,
+        title: "📚 Crear Más Quizzes",
+        description: `Solo tienes ${resourceTypes.quiz || 0} quizzes. Genera más con IA en segundos.`,
         priority: "high",
-        action: "Ir a Recursos",
+        action: "Generar",
         targetTab: "resources",
         icon: Brain,
+        action_type: "open_generator",
       });
     }
 
@@ -4327,10 +5358,10 @@ ${courseReportData.stats.avgProgress >= 70
     if (analytics.engagementRate < 50) {
       recommendations.push({
         type: "engagement",
-        title: "Baja Tasa de Compromiso",
-        description: `El Compromiso es del ${analytics.engagementRate}%. Los quizzes interactivos pueden ayudar.`,
+        title: "🎯 Baja Tasa de Compromiso",
+        description: `${analytics.engagementRate}%. Aumenta con quizzes interactivos y gamificación.`,
         priority: "high",
-        action: "Ver Recursos",
+        action: "Mejorar",
         targetTab: "resources",
         icon: TrendingUp,
       });
@@ -4347,26 +5378,12 @@ ${courseReportData.stats.avgProgress >= 70
     if (inactiveUsers > 0) {
       recommendations.push({
         type: "retention",
-        title: "Usuarios Inactivos",
-        description: `${inactiveUsers} usuarios no han accedido en más de 7 días.`,
+        title: "👥 Reactivar Estudiantes",
+        description: `${inactiveUsers} estudiantes inactivos. Envía contenido motivacional.`,
         priority: "medium",
-        action: "Revisar Usuarios",
+        action: "Revisar",
         targetTab: "users",
         icon: UserX,
-      });
-    }
-
-    // Recomendación para usar IA si hay pocos recursos
-    if (resources.length < 10) {
-      recommendations.push({
-        type: "ai_generator",
-        title: "🤖 Genera Contenido con IA",
-        description:
-          "Usa el generador de quizzes con IA para crear contenido educativo rápidamente desde documentos.",
-        priority: "high",
-        action: "Probar IA",
-        targetTab: "resources",
-        icon: Sparkles,
       });
     }
 
@@ -4499,6 +5516,63 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       visitante: "bg-gray-100 text-gray-800 border-gray-200",
     };
     return colors[rol] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  // ✅ FUNCIÓN: Abrir Quiz Builder con contenido generado
+  const openQuizBuilderWithGeneratedContent = (generatedQuiz) => {
+    console.log("📝 Abriendo Quiz Builder con contenido generado:", generatedQuiz);
+
+    const tempResource = {
+      id: `temp_${Date.now()}`,
+      titulo: generatedQuiz.title || `Quiz: ${generatedQuiz.prompt}`,
+      tipo: "quiz",
+      contenido_quiz: generatedQuiz.content?.questions || [],
+    };
+
+    setSelectedResource(tempResource);
+    setCurrentQuiz({
+      preguntas: (generatedQuiz.content?.questions || []).map((q, idx) => ({
+        id: q.id || `generated_${Date.now()}_${idx}`,
+        tipo: q.tipo || q.type || "multiple",
+        pregunta: q.pregunta || q.text || q.question || "",
+        opciones: q.opciones || q.options || ["", "", "", ""],
+        respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+        puntos: q.puntos ?? q.points ?? 10,
+        retroalimentacion_correcta: q.retroalimentacion_correcta || "¡Excelente! 🎉",
+        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || "¡Intenta otra vez! 💪",
+        audio_pregunta: q.audio_pregunta !== false,
+        audio_retroalimentacion: q.audio_retroalimentacion !== false,
+        video_url: q.video_url || "",
+        imagen_url: q.imagen_url || "",
+        audio_opciones: q.audio_opciones || ["", "", "", ""],
+        imagen_opciones: q.imagen_opciones || ["🎨", "📚", "✏️", "🌟"],
+        tiempo_limite: q.tiempo_limite ?? 45,
+      })),
+    });
+
+    setShowContentGenerator(false);
+    setShowQuizBuilder(true);
+    setActiveTab("resources");
+
+    console.log("✅ Quiz Builder abierto con", currentQuiz.preguntas.length, "preguntas");
+  };
+
+  // Ver contenido generado mejorado
+  const viewGeneratedContentImproved = (item) => {
+    console.log("👁️ Abriendo visor para:", item);
+
+    const deepCopy = JSON.parse(
+      JSON.stringify({
+        ...item,
+        content: item.content || {},
+      })
+    );
+
+    setViewingContent(item);
+    setEditingContent(deepCopy);
+    setShowContentViewer(true);
+
+    console.log("✅ Visor abierto con contenido:", deepCopy.title);
   };
 
   const getResourceIcon = (tipo) => {
@@ -4646,114 +5720,19 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 rounded-lg p-6 text-white shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold mb-4">
-                Recomendaciones IA Regenerativa
-              </h3>
+        <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 rounded-lg p-6 text-white shadow-lg"> <div className="flex items-start gap-4"> <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0"> <Sparkles className="w-6 h-6" /> </div> <div className="flex-1"> <h3 className="text-lg font-bold mb-4"> ✨ Recomendaciones IA Regenerativa </h3> {aiRecommendations.length > 0 ? (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"> {aiRecommendations.map((rec, index) => { const IconComponent = rec.icon || AlertCircle; return (<div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all" > <div className="flex items-start gap-3 h-full flex-col"> <div className="flex items-start gap-3 w-full"> <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${rec.priority === "high" ? "bg-red-400" : rec.priority === "medium" ? "bg-yellow-400" : "bg-green-400"}`} /> <div className="flex-1"> <div className="flex items-center gap-2 mb-1"> <IconComponent className="w-4 h-4" /> <p className="font-semibold text-sm"> {rec.title} </p> </div> <p className="text-xs opacity-90 mb-3"> {rec.description} </p> </div> </div> <button onClick={() => { if (rec.action_type === "open_generator") { setShowContentGenerator(true); setContentGeneratorTab("generator"); setContentType("quiz"); } else if (rec.action_type === "open_analytics") { generateAIAnalyticsImproved(); } else if (rec.targetTab) { setActiveTab(rec.targetTab); } }} className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1 w-full justify-center" > {rec.action_type === "open_generator" && (<Sparkles className="w-3 h-3" />)} {rec.action_type === "open_analytics" && (<BarChart3 className="w-3 h-3" />)} {rec.action} </button> </div> </div>); })} </div>) : (<div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur"> <p className="text-center"> ✅ Tu sistema está bien balanceado. ¡Buen trabajo! </p> </div>)}
 
-              {aiRecommendations.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  {aiRecommendations.map((rec, index) => {
-                    const IconComponent = rec.icon || AlertCircle;
-                    return (
-                      <div
-                        key={index}
-                        className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${rec.priority === "high"
-                              ? "bg-red-400"
-                              : rec.priority === "medium"
-                                ? "bg-yellow-400"
-                                : "bg-green-400"
-                              }`}
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <IconComponent className="w-4 h-4" />
-                              <p className="font-semibold text-sm">
-                                {rec.title}
-                              </p>
-                            </div>
-                            <p className="text-xs opacity-90 mb-2">
-                              {rec.description}
-                            </p>
-                            <button
-                              onClick={() => {
-                                if (rec.type === "ai_generator") {
-                                  // Ir a recursos y abrir el Quiz Builder con IA
-                                  setActiveTab("resources");
-
-                                  // Crear un recurso temporal para abrir el builder
-                                  const tempResource = {
-                                    id: "temp_" + Date.now(),
-                                    titulo: "Nuevo Quiz con IA",
-                                    tipo: "quiz",
-                                    contenido_quiz: [],
-                                  };
-
-                                  setTimeout(() => {
-                                    setSelectedResource(tempResource);
-                                    setShowQuizBuilder(true);
-
-                                    // Scroll al generador de IA después de abrir
-                                    setTimeout(() => {
-                                      const aiSection = document.querySelector(
-                                        ".bg-gradient-to-r.from-indigo-50"
-                                      );
-                                      if (aiSection) {
-                                        aiSection.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "center",
-                                        });
-                                      }
-                                    }, 300);
-                                  }, 100);
-                                } else if (rec.targetTab) {
-                                  setActiveTab(rec.targetTab);
-                                }
-                              }}
-                              className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1"
-                            >
-                              {rec.type === "ai_generator" && (
-                                <Sparkles className="w-3 h-3" />
-                              )}
-                              {rec.action}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-                  <p className="text-center">
-                    ✅ Tu sistema está bien balanceado. ¡Buen trabajo!
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    console.log('🔘 Botón clickeado');
-                    generateAIAnalyticsImproved();
-                  }}
-                  className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Ver Análisis Detallado
-                </button>
-              </div>
-            </div>
+          <div className="flex gap-2 pt-4 border-t border-white border-opacity-20">
+            <button
+              onClick={() => generateAIAnalyticsImproved()}
+              className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Ver Análisis Detallado
+            </button>
           </div>
+        </div>
+        </div>
         </div>
 
         {/* Chat Interactivo con IA */}
@@ -5198,8 +6177,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       </div>
     );
   };
-
-
 
   const renderDetailedAnalyticsImproved = () => {
     if (loadingAI) {
@@ -5729,6 +6706,298 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     );
   };
 
+  const renderContentGenerator = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+          {/* HEADER */}
+          <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-t-2xl z-10">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-bold mb-1">✨ Generador de Contenido Educativo</h2>
+                <p className="text-purple-100">Crea Quiz, Juegos, Ejercicios y más con IA</p>
+              </div>
+              <button
+                onClick={() => setShowContentGenerator(false)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* TABS */}
+          <div className="flex gap-4 p-6 border-b border-gray-200">
+            {[
+              { id: 'generator', label: '⚡ Generador' },
+              { id: 'library', label: '📚 Biblioteca' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setContentGeneratorTab(tab.id)}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${contentGeneratorTab === tab.id
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            {contentGeneratorTab === 'generator' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* TIPOS DE CONTENIDO */}
+                <div className="lg:col-span-1">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">📦 Tipos de Contenido</h3>
+                  <div className="space-y-3">
+                    {contentTypes.map(type => (
+                      <button
+                        key={type.id}
+                        onClick={() => setContentType(type.id)}
+                        className={`w-full text-left p-4 rounded-xl transition-all border-2 ${contentType === type.id
+                          ? `bg-gradient-to-r ${type.color} text-white border-current shadow-lg`
+                          : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{type.icon}</span>
+                          <div>
+                            <h4 className="font-bold">{type.name}</h4>
+                            <p className="text-xs opacity-80">{type.description}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* GENERADOR */}
+                <div className="lg:col-span-2">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">✨ Crear Contenido</h3>
+
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
+                    <p className="text-sm text-gray-800">
+                      💡 {contentTypes.find(c => c.id === contentType)?.prompt}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <textarea
+                      value={generatorPrompt}
+                      onChange={(e) => setGeneratorPrompt(e.target.value)}
+                      placeholder="Ejemplo: Crea un quiz sobre los verbos en inglés con 5 preguntas..."
+                      className="w-full h-40 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 resize-none"
+                    />
+
+                    <button
+                      onClick={generateContentWithAI}
+                      disabled={generatingContent}
+                      className="w-full bg-gradient-to-r from-yellow-400 via-pink-500 to-red-500 hover:from-yellow-500 hover:via-pink-600 hover:to-red-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2 text-lg shadow-lg"
+                    >
+                      {generatingContent ? (
+                        <>
+                          <Loader className="w-6 h-6 animate-spin" />
+                          Generando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-6 h-6" />
+                          Generar con IA
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* RESULTADO */}
+                  {generatedContent && (
+                    <div className="mt-8 border-t border-gray-200 pt-8">
+                      <h4 className="text-lg font-bold text-gray-800 mb-4">✅ Contenido Generado</h4>
+                      <div className="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h5 className="font-bold text-lg text-gray-800">{generatedContent.title}</h5>
+                            <p className="text-sm text-gray-600">Creado: {generatedContent.createdAt}</p>
+                          </div>
+                          <span className="text-5xl">
+                            {contentTypes.find(c => c.id === generatedContent.type)?.icon}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          <button className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            Ver
+                          </button>
+                          <button
+                            onClick={() => downloadContentFile(generatedContent)}
+                            className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Descargar
+                          </button>
+                          <button className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Guardar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {contentGeneratorTab === 'library' && (
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold text-gray-800 mb-6">📚 Biblioteca de Contenidos</h3>
+
+                {contentLibrary.length === 0 ? (
+                  <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
+                    <BookOpen className="w-20 h-20 text-gray-400 mx-auto mb-4" />
+                    <p className="text-2xl font-bold text-gray-800">No hay contenido aún</p>
+                    <p className="text-gray-600 mt-2">Genera tu primer contenido usando el generador</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {contentLibrary.map(item => {
+                      const type = contentTypes.find(c => c.id === item.type);
+                      const isExpanded = expandedContentId === item.id;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg transition-all"
+                        >
+                          {/* HEADER */}
+                          <button
+                            onClick={() => setExpandedContentId(isExpanded ? null : item.id)}
+                            className="w-full text-left p-6 hover:bg-gray-50 transition-all"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4 flex-1">
+                                <span className="text-5xl">{type?.icon}</span>
+                                <div className="flex-1">
+                                  <h4 className="text-lg font-bold text-gray-800">{item.title}</h4>
+                                  <p className="text-sm text-gray-600">{item.createdAt}</p>
+                                </div>
+                                <span className={`inline-block px-4 py-2 rounded-full font-semibold text-sm bg-gradient-to-r ${type?.color} text-white`}>
+                                  {type?.name}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedContentId(isExpanded ? null : item.id);
+                                }}
+                                className="text-gray-600"
+                              >
+                                {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                              </button>
+                            </div>
+                          </button>
+
+                          {/* CONTENIDO EXPANDIDO */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-200 p-6 bg-gray-50">
+                              <div className="text-gray-800 mb-6 space-y-2">
+                                {item.type === 'quiz' && (
+                                  <>
+                                    <p><strong>📊 Preguntas:</strong> {item.content.questions?.length || 0}</p>
+                                    <p><strong>⭐ Puntos totales:</strong> {item.content.totalPoints || 0}</p>
+                                    <p><strong>⏱️ Tiempo límite:</strong> {item.content.timeLimit || 0}s</p>
+                                  </>
+                                )}
+                                {item.type === 'game' && (
+                                  <>
+                                    <p><strong>🎮 Niveles:</strong> {item.content.levels}</p>
+                                    <p><strong>🎯 Mecánicas:</strong> {item.content.mechanics.join(', ')}</p>
+                                  </>
+                                )}
+                                {item.type === 'exercise' && (
+                                  <>
+                                    <p><strong>📝 Ejercicios:</strong> {item.content.exercises.length}</p>
+                                    <p><strong>⏱️ Tiempo:</strong> {item.content.estimatedTime} min</p>
+                                  </>
+                                )}
+                                {item.type === 'story' && (
+                                  <>
+                                    <p><strong>📖 Título:</strong> {item.content.title}</p>
+                                    <p><strong>📚 Capítulos:</strong> {item.content.chapters}</p>
+                                  </>
+                                )}
+                                {item.type === 'challenge' && (
+                                  <>
+                                    <p><strong>⚡ Dificultad:</strong> {item.content.difficulty}</p>
+                                    <p><strong>📅 Duración:</strong> {item.content.duration}</p>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-4 gap-3">
+                                {/* ✅ BOTÓN VER - Abre modal con todas las preguntas */}
+                                <button
+                                  onClick={() => viewGeneratedContentImproved(item)}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Ver
+                                </button>
+
+                                {/* ✅ BOTÓN EDITAR - Solo para QUIZ, abre Quiz Builder */}
+                                {item.type === 'quiz' && (
+                                  <button
+                                    onClick={() => openQuizBuilderWithGeneratedContent(item)}
+                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                    Editar
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => downloadContentFile(item)}
+                                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Descargar
+                                </button>
+
+                                <button
+                                  onClick={() => convertContentToResource(item)}
+                                  className={`text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${item.type === 'quiz'
+                                    ? 'bg-blue-500 hover:bg-blue-600'
+                                    : 'bg-pink-500 hover:bg-pink-600'
+                                    }`}
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  {item.type === 'quiz' ? 'Quiz' : 'Recurso'}
+                                </button>
+
+                                <button
+                                  onClick={() => deleteGeneratedContent(item.id)}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Eliminar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (error && error.includes("permisos")) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -5759,6 +7028,170 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       </div>
     );
   }
+
+  // Renderizar visor/editor de contenido interactivo
+
+  const renderContentViewer = () => {
+    if (!viewingContent || !editingContent) return null;
+
+    const type = contentTypes.find(c => c.id === viewingContent.type);
+    const isEditing = JSON.stringify(viewingContent.content) !== JSON.stringify(editingContent.content);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
+
+          {/* HEADER */}
+          <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-5xl">{type?.icon}</span>
+                  <div>
+                    <input
+                      type="text"
+                      value={editingContent.title}
+                      onChange={(e) => setEditingContent({ ...editingContent, title: e.target.value })}
+                      className="text-2xl font-bold bg-white bg-opacity-20 px-3 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-white w-full"
+                    />
+                    <p className="text-sm text-white text-opacity-90 mt-1">
+                      {type?.name} • Creado: {viewingContent.createdAt}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowContentViewer(false);
+                  setViewingContent(null);
+                  setEditingContent(null);
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* CONTENIDO SCROLLEABLE */}
+          <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
+
+            {/* QUIZ */}
+            {viewingContent.type === 'quiz' && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {editingContent.content.questions?.length || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">Preguntas</p>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-green-600">
+                        {editingContent.content.totalPoints || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">Puntos</p>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-orange-600">
+                        {editingContent.content.timeLimit || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">Segundos</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* MOSTRAR PREGUNTAS */}
+                {editingContent.content.questions?.map((question, qIdx) => (
+                  <div key={qIdx} className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-md">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+                        {qIdx + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-lg text-gray-800">
+                          {question.pregunta || question.text}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          ⭐ {question.puntos || 10} puntos
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* OPCIONES */}
+                    <div className="space-y-2 mb-4">
+                      {(question.opciones || question.options)?.map((option, oIdx) => (
+                        <div
+                          key={oIdx}
+                          className={`px-4 py-2 rounded-lg font-medium ${(question.respuesta_correcta ?? question.correct) === oIdx
+                            ? "bg-green-100 border-2 border-green-500 text-green-800"
+                            : "bg-gray-100 border-2 border-gray-200"
+                            }`}
+                        >
+                          {String.fromCharCode(65 + oIdx)}) {option}
+                          {(question.respuesta_correcta ?? question.correct) === oIdx && " ✓"}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* EXPLICACIÓN */}
+                    {question.explanation && (
+                      <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                        <p className="text-sm text-gray-700">
+                          <strong>💡 Explicación:</strong> {question.explanation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* OTROS TIPOS */}
+            {viewingContent.type !== 'quiz' && (
+              <div className="bg-white rounded-xl p-6 border-2 border-gray-200">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                  {JSON.stringify(editingContent.content, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {/* FOOTER */}
+          <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-3 justify-end">
+            {viewingContent.type === 'quiz' && (
+              <button
+                onClick={() => {
+                  openQuizBuilderWithGeneratedContent(viewingContent);
+                }}
+                className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              >
+                <Edit2 className="w-5 h-5" />
+                Editar en Quiz Builder
+              </button>
+            )}
+
+            <button
+              onClick={() => downloadContentFile(editingContent)}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <Download className="w-5 h-5" />
+              Descargar
+            </button>
+
+            <button
+              onClick={() => convertContentToResource(editingContent)}
+              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Agregar a Recursos
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -5816,102 +7249,112 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg border py-2 z-10">
-                  <div className="px-4 py-2 border-b">
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentUser?.nombre}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {currentUser?.email}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(
-                          currentUser?.rol
-                        )}`}
-                      >
-                        {currentUser?.rol}
-                      </span>
-                      {currentUser?.roles_adicionales?.map((rol, idx) => (
-                        <span
-                          key={idx}
-                          className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(
-                            rol
-                          )}`}
-                        >
-                          {rol}
-                        </span>
-                      ))}
+                <div className="absolute right-0 mt-2 w-80 bg-white shadow-2xl rounded-xl border-2 border-gray-200 py-3 z-50">
+                  {/* HEADER: Info del Usuario */}
+                  <div className="px-4 py-3 border-b-2 border-gray-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                        {currentUser?.nombre?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-gray-900">
+                          {currentUser?.nombre}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {currentUser?.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* SELECTOR DE ROLES - CON CONTRASEÑA */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-gray-600 uppercase mb-2">
+                        🔄 Mis Roles (cambiar requiere contraseña)
+                      </p>
+
+                      {(() => {
+                        const allRoles = [
+                          currentUser?.rol,
+                          ...(currentUser?.roles_adicionales || []),
+                        ].filter((rol, index, self) => self.indexOf(rol) === index && rol);
+
+                        return (
+                          <div className="space-y-2">
+                            {allRoles.length > 1 ? (
+                              allRoles.map((rol) => {
+                                const roleInfo = availableRoles.find(
+                                  (r) => r.value === rol
+                                );
+                                const isActive = rol === activeRoleView;
+
+                                return (
+                                  <button
+                                    key={rol}
+                                    onClick={() => {
+                                      if (isActive) {
+                                        setMenuOpen(false);
+                                        return;
+                                      }
+
+                                      console.log(`🔐 Solicitando cambio a rol: ${rol}`);
+                                      setTargetRole(rol);
+                                      setShowReauthModal(true);
+                                      setReauthPassword("");
+                                      setReauthError(null);
+                                      setMenuOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-3 rounded-lg transition-all border-2 flex items-center justify-between gap-3 ${isActive
+                                      ? "bg-blue-100 border-blue-500 font-bold text-blue-900 shadow-md cursor-default"
+                                      : "border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-800 cursor-pointer"
+                                      }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={`w-3 h-3 rounded-full ${roleInfo?.color === "red"
+                                          ? "bg-red-500"
+                                          : roleInfo?.color === "blue"
+                                            ? "bg-blue-500"
+                                            : roleInfo?.color === "green"
+                                              ? "bg-green-500"
+                                              : "bg-gray-500"
+                                          }`}
+                                      />
+                                      <span className="capitalize font-semibold">
+                                        {roleInfo?.label || rol}
+                                      </span>
+                                    </div>
+                                    {isActive && (
+                                      <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full font-bold">
+                                        ● ACTIVO
+                                      </span>
+                                    )}
+                                    {!isActive && (
+                                      <span className="text-xs text-gray-400">🔒</span>
+                                    )}
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <p className="text-xs text-gray-500 italic">
+                                Solo tienes un rol disponible
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
-                  {/* SELECTOR DE PERFILES MEJORADO */}
-
-                  {currentUser?.roles_adicionales &&
-                    currentUser.roles_adicionales.length > 0 && (
-                      <div className="px-4 py-2 border-b">
-                        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                          🔄 Cambiar Perfil
-                        </p>
-                        <div className="space-y-1">
-                          {[currentUser.rol, ...currentUser.roles_adicionales]
-                            .filter(
-                              (rol, index, self) => self.indexOf(rol) === index
-                            )
-                            .map((rol) => {
-                              const roleInfo = availableRoles.find(
-                                (r) => r.value === rol
-                              );
-                              const isActive = rol === currentUser.rol;
-                              return (
-                                <button
-                                  key={rol}
-                                  onClick={() => {
-                                    if (isActive) {
-                                      setMenuOpen(false);
-                                      alert("✅ Ya usas este perfil");
-                                      return;
-                                    }
-                                    handleRoleSwitch(rol);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 text-sm rounded transition-all flex items-center justify-between gap-2 ${isActive
-                                    ? "bg-blue-50 border-2 border-blue-300 font-semibold text-blue-700"
-                                    : "border border-gray-200 hover:bg-gray-50"
-                                    }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${roleInfo?.color === "red"
-                                        ? "bg-red-500"
-                                        : roleInfo?.color === "blue"
-                                          ? "bg-blue-500"
-                                          : roleInfo?.color === "green"
-                                            ? "bg-green-500"
-                                            : "bg-gray-500"
-                                        }`}
-                                    />
-                                    <span className="capitalize">
-                                      {roleInfo?.label || rol}
-                                    </span>
-                                  </div>
-                                  {isActive && (
-                                    <span className="text-xs font-bold">
-                                      ● ACTIVO
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )}
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Cerrar Sesión
-                  </button>
+                  {/* LOGOUT */}
+                  <div className="px-4 py-2 border-t-2 border-gray-200">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded transition-colors font-semibold"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -7130,64 +8573,324 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800">
-                Gestión de Logros
+                🏆 Gestión de Logros
               </h2>
               <button
-                onClick={() => alert("Función para crear logros próximamente")}
-                className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors"
+                onClick={() => setShowNewAchievement(true)}
+                className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors font-semibold shadow-lg"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 Nuevo Logro
               </button>
             </div>
 
+            {/* FORMULARIO DE NUEVO LOGRO */}
+            {showNewAchievement && (
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border-2 border-yellow-300 p-8 shadow-lg">
+                <h3 className="text-2xl font-bold text-yellow-800 mb-6 flex items-center gap-2">
+                  <Sparkles className="w-6 h-6" />
+                  ✨ Crear Nuevo Logro
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {/* NOMBRE */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-800 mb-3">
+                      📝 Nombre del Logro
+                    </label>
+                    <input
+                      type="text"
+                      value={newAchievementData.nombre}
+                      onChange={(e) =>
+                        setNewAchievementData({
+                          ...newAchievementData,
+                          nombre: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border-2 border-yellow-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-lg"
+                      placeholder="Ej: Matemático Estrella"
+                    />
+                  </div>
+
+                  {/* PUNTOS REQUERIDOS */}
+                  <div>
+                    <label className="block text-sm font-bold text-gray-800 mb-3">
+                      ⭐ Puntos Requeridos
+                    </label>
+                    <input
+                      type="number"
+                      value={newAchievementData.puntos_requeridos}
+                      onChange={(e) =>
+                        setNewAchievementData({
+                          ...newAchievementData,
+                          puntos_requeridos: parseInt(e.target.value) || 100,
+                        })
+                      }
+                      className="w-full px-4 py-3 border-2 border-yellow-200 rounded-xl focus:ring-2 focus:ring-yellow-500 text-lg"
+                      min="1"
+                    />
+                  </div>
+
+                  {/* DESCRIPCIÓN */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-800 mb-3">
+                      📖 Descripción
+                    </label>
+                    <textarea
+                      value={newAchievementData.descripcion}
+                      onChange={(e) =>
+                        setNewAchievementData({
+                          ...newAchievementData,
+                          descripcion: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-3 border-2 border-yellow-200 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
+                      rows="3"
+                      placeholder="Describe qué hace especial este logro..."
+                    />
+                  </div>
+
+                  {/* SELECTOR DE EMOJI/ICONO */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-800 mb-3">
+                      🎨 Selecciona un Icono/Emoji
+                    </label>
+                    <div className="bg-white rounded-xl p-4 border-2 border-yellow-200">
+                      <div className="grid grid-cols-8 gap-2 mb-4">
+                        {[
+                          "🏆",
+                          "⭐",
+                          "🥇",
+                          "🥈",
+                          "🥉",
+                          "🎖️",
+                          "🏅",
+                          "👑",
+                          "💎",
+                          "✨",
+                          "🌟",
+                          "🎯",
+                          "🚀",
+                          "💡",
+                          "📚",
+                          "🧠",
+                          "🎓",
+                          "📖",
+                          "✏️",
+                          "📝",
+                          "🎨",
+                          "🎭",
+                          "🎪",
+                          "🎬",
+                          "🎤",
+                          "🎸",
+                          "🎹",
+                          "🎺",
+                          "🎻",
+                          "🥁",
+                          "🏃",
+                          "⚽",
+                          "🏀",
+                          "🎾",
+                          "🏐",
+                          "⛳",
+                          "🏈",
+                          "🎱",
+                          "🎳",
+                          "🏏",
+                        ].map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() =>
+                              setNewAchievementData({
+                                ...newAchievementData,
+                                icono: emoji,
+                              })
+                            }
+                            className={`w-12 h-12 rounded-lg text-2xl transition-all transform hover:scale-110 ${newAchievementData.icono === emoji
+                              ? "bg-yellow-300 scale-110 ring-4 ring-yellow-500 shadow-lg"
+                              : "bg-gray-100 hover:bg-gray-200"
+                              }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-gray-800">
+                          Ícono seleccionado: {newAchievementData.icono}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BOTONES DE ACCIÓN */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      // ✅ IMPORTANTE: Enviar condicion como JSON vacío
+                      createAchievement({
+                        ...newAchievementData,
+                        condicion: {}, // ← SIEMPRE ENVIAR ESTO
+                      });
+                      setNewAchievementData({
+                        nombre: "",
+                        descripcion: "",
+                        icono: "🏆",
+                        puntos_requeridos: 100,
+                      });
+                      setShowNewAchievement(false);
+                    }}
+                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
+                  >
+                    <Save className="w-5 h-5" />
+                    ✅ Guardar Logro
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewAchievement(false);
+                      setNewAchievementData({
+                        nombre: "",
+                        descripcion: "",
+                        icono: "🏆",
+                        puntos_requeridos: 100,
+                      });
+                    }}
+                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-8 py-3 rounded-xl font-bold transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* GALERÍA DE LOGROS */}
             {achievements.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow-sm border">
-                <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No hay logros creados</p>
+              <div className="text-center py-16 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl border-2 border-dashed border-yellow-300">
+                <Trophy className="w-24 h-24 text-yellow-400 mx-auto mb-4 opacity-50" />
+                <p className="text-gray-600 text-xl font-semibold">
+                  📭 No hay logros creados
+                </p>
+                <p className="text-gray-500 mt-2">
+                  ¡Haz clic en "Nuevo Logro" para crear el primero!
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {achievements.map((achievement) => (
                   <div
                     key={achievement.id}
-                    className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-6"
+                    className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-yellow-300 hover:shadow-xl hover:scale-105 transition-all transform"
                   >
+                    {/* ENCABEZADO CON ICONO */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-3xl">
+                      <div className="w-20 h-20 bg-gradient-to-br from-yellow-300 to-orange-300 rounded-2xl flex items-center justify-center text-5xl shadow-lg">
                         {achievement.icono || "🏆"}
                       </div>
                       <button
-                        onClick={() => alert("Función para eliminar logro")}
-                        className="text-red-600 hover:text-red-800 p-1"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `¿Eliminar el logro "${achievement.nombre}"?`
+                            )
+                          ) {
+                            deleteAchievementItem(achievement.id);
+                          }
+                        }}
+                        className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-all transform hover:scale-110"
+                        title="Eliminar logro"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <h3 className="font-semibold text-gray-800 mb-2">
+
+                    {/* CONTENIDO */}
+                    <h3 className="font-bold text-gray-800 mb-2 text-lg">
                       {achievement.nombre}
                     </h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {achievement.descripcion}
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {achievement.descripcion || "Sin descripción"}
                     </p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{achievement.puntos_requeridos} puntos</span>
+
+                    {/* ESTADÍSTICAS */}
+                    <div className="bg-white rounded-xl p-3 mb-4 border border-yellow-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-yellow-700 uppercase">
+                          ⭐ Puntos Requeridos
+                        </span>
+                        <span className="text-lg font-bold text-yellow-600">
+                          {achievement.puntos_requeridos}
+                        </span>
+                      </div>
+                      <div className="w-full bg-yellow-200 rounded-full h-2">
+                        <div
+                          className="bg-yellow-500 h-2 rounded-full"
+                          style={{
+                            width: `${Math.min(100, (achievement.puntos_requeridos / 500) * 100)}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* ESTADO */}
+                    <div className="flex items-center gap-2 justify-between">
                       <span
-                        className={`px-2 py-1 rounded-full ${achievement.activo
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${achievement.activo
                           ? "bg-green-100 text-green-800"
                           : "bg-gray-100 text-gray-800"
                           }`}
                       >
-                        {achievement.activo ? "Activo" : "Inactivo"}
+                        {achievement.activo ? "✅ Activo" : "⚫ Inactivo"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ID: {achievement.id}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* RESUMEN DE LOGROS */}
+            {achievements.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-500 via-yellow-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Trophy className="w-6 h-6" />
+                  📊 Resumen de Logros
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center backdrop-blur">
+                    <p className="text-3xl font-bold">{achievements.length}</p>
+                    <p className="text-sm font-semibold mt-1">Total Logros</p>
+                  </div>
+                  <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center backdrop-blur">
+                    <p className="text-3xl font-bold">
+                      {achievements.filter((a) => a.activo).length}
+                    </p>
+                    <p className="text-sm font-semibold mt-1">Activos</p>
+                  </div>
+                  <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center backdrop-blur">
+                    <p className="text-3xl font-bold">
+                      {achievements.reduce((sum, a) => sum + a.puntos_requeridos, 0)}
+                    </p>
+                    <p className="text-sm font-semibold mt-1">Total Puntos</p>
+                  </div>
+                  <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center backdrop-blur">
+                    <p className="text-3xl font-bold">
+                      {Math.round(
+                        achievements.reduce((sum, a) => sum + a.puntos_requeridos, 0) /
+                        achievements.length
+                      )}
+                    </p>
+                    <p className="text-sm font-semibold mt-1">Promedio</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
-
         {/* MODAL DE REPORTE CON FILTROS FUNCIONALES */}
         {showCourseReportModal && courseReportData && (
           <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -8409,6 +10112,192 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
       {/* MODAL DE ANÁLISIS DETALLADO */}
       {showDetailedAnalytics && renderDetailedAnalyticsImproved()}
+
+      {showReauthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-fadeIn">
+            {/* HEADER */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">🔐 Verificación de Seguridad</h2>
+                    <p className="text-sm text-blue-100">Confirma tu identidad</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowReauthModal(false);
+                    setReauthPassword("");
+                    setReauthError(null);
+                    setTargetRole(null);
+                  }}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* CONTENIDO */}
+            <div className="p-6 space-y-4">
+              {/* INFO DEL CAMBIO */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {currentUser?.nombre?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800">{currentUser?.nombre}</p>
+                    <p className="text-xs text-gray-600">{currentUser?.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-blue-300">
+                  <div className="text-center flex-1">
+                    <p className="text-xs text-gray-500 font-semibold mb-1">Vista Actual</p>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${getRoleBadgeColor(activeRoleView || currentUser?.rol)}`}>
+                      {(activeRoleView || currentUser?.rol).toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-center px-3">
+                    <ChevronRight className="w-6 h-6 text-blue-500" />
+                  </div>
+
+                  <div className="text-center flex-1">
+                    <p className="text-xs text-gray-500 font-semibold mb-1">Nueva Vista</p>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${getRoleBadgeColor(targetRole)}`}>
+                      {targetRole?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ADVERTENCIA DE SEGURIDAD */}
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-yellow-800">Medida de Seguridad</p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Para cambiar de vista debes confirmar tu identidad ingresando tu contraseña
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* INPUT DE CONTRASEÑA */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🔑 Ingresa tu Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={reauthPassword}
+                    onChange={(e) => setReauthPassword(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !reauthLoading) {
+                        confirmRoleSwitch();
+                      }
+                    }}
+                    placeholder="••••••••"
+                    disabled={reauthLoading}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-lg"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* ERROR */}
+              {reauthError && (
+                <div className="bg-red-50 border-2 border-red-300 rounded-lg p-3 animate-shake">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-red-700">{reauthError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* BOTONES */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowReauthModal(false);
+                    setReauthPassword("");
+                    setReauthError(null);
+                    setTargetRole(null);
+                  }}
+                  disabled={reauthLoading}
+                  className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmRoleSwitch}
+                  disabled={reauthLoading || !reauthPassword.trim()}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {reauthLoading ? (
+                    <>
+                      <RefreshCw className="animate-spin w-5 h-5" />
+                      <span>Verificando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Confirmar Cambio</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* INFO ADICIONAL */}
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-500">
+                  🔒 Tu contraseña está protegida y nunca se almacena
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GENERADOR DE CONTENIDO */}
+      {showContentGenerator && renderContentGenerator()}
+
+      {/* VISOR/EDITOR DE CONTENIDO */}
+      {showContentViewer && renderContentViewer()}
+
+
+      {/* ESTILOS PARA ANIMACIONES */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        
+        .animate-shake {
+          animation: shake 0.3s ease-in-out;
+        }
+      `}</style>
+
 
       <footer className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-600">

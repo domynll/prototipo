@@ -1,23 +1,310 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Users, BookOpen, LogOut, Star, Trophy, Zap, Play, Lock, 
+import {
+  Users, BookOpen, LogOut, Star, Trophy, Zap, Play, Lock,
   CheckCircle, Clock, Award, TrendingUp, Target, Sparkles,
   Volume2, VolumeX, Heart, Brain, ChevronRight, Home,
   BarChart3, Gift, Calendar, MessageCircle, Medal, XCircle,
-  Headphones, Video, Image, HelpCircle, ArrowLeft
+  Headphones, Video, Image, HelpCircle, ArrowLeft, ChevronDown
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
+// ========================================
+// 🔄 COMPONENTE: SELECTOR DE ROLES CORREGIDO
+// ========================================
+const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
+  const navigate = useNavigate();
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [currentViewRole, setCurrentViewRole] = useState(() => {
+    // Leer el rol desde localStorage AL INICIO
+    const savedRole = localStorage.getItem('didaktik_view_role');
+    const currentPath = window.location.pathname;
+
+    // Detectar según la ruta actual
+    if (currentPath.includes('/student')) return 'estudiante';
+    if (currentPath.includes('/teacher')) return 'docente';
+    if (currentPath.includes('/admin')) return 'admin';
+
+    return savedRole || null;
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadAvailableRoles();
+
+      // ✅ Sincronizar con localStorage cada vez que carga
+      const savedViewRole = localStorage.getItem('didaktik_view_role');
+      const currentPath = window.location.pathname;
+
+      let correctRole = null;
+
+      // Prioridad 1: Detectar por ruta
+      if (currentPath.includes('/student')) correctRole = 'estudiante';
+      else if (currentPath.includes('/teacher')) correctRole = 'docente';
+      else if (currentPath.includes('/admin')) correctRole = 'admin';
+
+      // Prioridad 2: Usar localStorage
+      if (!correctRole && savedViewRole) {
+        const userRoles = [user.rol, ...(user.roles_adicionales || [])];
+        if (userRoles.includes(savedViewRole)) {
+          correctRole = savedViewRole;
+        }
+      }
+
+      // Prioridad 3: Usar rol principal del usuario
+      if (!correctRole) correctRole = user.rol;
+
+      console.log('🔄 Sincronizando rol de vista:', {
+        ruta: currentPath,
+        rolDetectado: correctRole,
+        localStorage: savedViewRole,
+        estadoActual: currentViewRole
+      });
+
+      // ✅ CRÍTICO: Actualizar el estado Y el localStorage
+      if (correctRole !== currentViewRole) {
+        setCurrentViewRole(correctRole);
+        localStorage.setItem('didaktik_view_role', correctRole);
+      }
+    }
+  }, [user]);
+
+  // useEffect para forzar actualización al montar el componente
+  useEffect(() => {
+    // Forzar lectura del rol de vista cuando el componente se monta
+    const currentPath = window.location.pathname;
+    const savedViewRole = localStorage.getItem('didaktik_view_role');
+
+    console.log('🔄 ComponentDidMount - Verificando rol:', {
+      path: currentPath,
+      savedViewRole,
+      currentViewRole
+    });
+
+    if (savedViewRole && savedViewRole !== currentViewRole) {
+      console.log('⚡ Actualizando rol de vista a:', savedViewRole);
+      setCurrentViewRole(savedViewRole);
+    }
+  }, []); // Solo al montar
+
+
+  const loadAvailableRoles = () => {
+    if (!user) return;
+
+    try {
+      const roles = [user.rol];
+
+      if (user.roles_adicionales && Array.isArray(user.roles_adicionales)) {
+        roles.push(...user.roles_adicionales);
+      }
+
+      const uniqueRoles = [...new Set(roles)];
+      setAvailableRoles(uniqueRoles);
+    } catch (error) {
+      console.error('Error cargando roles:', error);
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    const icons = {
+      admin: '⚙️',
+      docente: '👨‍🏫',
+      estudiante: '📚',
+      visitante: '👤'
+    };
+    return icons[role] || '👤';
+  };
+
+  const getRoleLabel = (role) => {
+    const labels = {
+      admin: 'Administrador',
+      docente: 'Docente',
+      estudiante: 'Estudiante',
+      visitante: 'Visitante'
+    };
+    return labels[role] || role;
+  };
+
+  const getRolePath = (role) => {
+    const paths = {
+      admin: '/admin',
+      docente: '/teacher',
+      estudiante: '/student',
+      visitante: '/'
+    };
+    return paths[role] || '/';
+  };
+
+  // ✅ FUNCIÓN CORREGIDA: Solo cambia la vista, NO la BD
+  const handleSwitchRole = async (newRole) => {
+    try {
+      if (newRole === currentViewRole) {
+        alert("✅ Ya estás viendo este panel");
+        setShowRoleMenu(false);
+        return;
+      }
+
+      // Verificar que el usuario tenga acceso al rol
+      const userRoles = [user.rol, ...(user.roles_adicionales || [])];
+      if (!userRoles.includes(newRole)) {
+        alert("❌ No tienes acceso a este rol");
+        setShowRoleMenu(false);
+        return;
+      }
+
+      if (!confirm(`¿Cambiar al panel de ${getRoleLabel(newRole)}?`)) {
+        setShowRoleMenu(false);
+        return;
+      }
+
+      console.log('🔄 Cambiando vista a rol:', newRole);
+      console.log('⚠️ NO se modificará la BD - Solo cambio de interfaz');
+
+      // ✅ PASO 1: Guardar en localStorage
+      localStorage.setItem('didaktik_view_role', newRole);
+      console.log('💾 Guardado en localStorage:', localStorage.getItem('didaktik_view_role'));
+
+      // Actualizar estado local ANTES de navegar
+      setCurrentViewRole(newRole);
+
+      //  Cerrar menú
+      setShowRoleMenu(false);
+
+      //  Navegar y forzar recarga
+      const targetPath = getRolePath(newRole);
+      console.log('🚀 Redirigiendo a:', targetPath);
+
+      // Usar setTimeout para asegurar que localStorage se guardó
+      setTimeout(() => {
+        window.location.replace(targetPath);
+      }, 100);
+
+    } catch (error) {
+      console.error('❌ Error:', error);
+      alert('Error al cambiar de panel: ' + error.message);
+    }
+  };
+
+  const handleLogoutClick = () => {
+    setShowRoleMenu(false);
+    // ✅ Limpiar el rol de vista al cerrar sesión
+    localStorage.removeItem('didaktik_view_role');
+    onLogout();
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <button
+          onClick={() => setShowRoleMenu(!showRoleMenu)}
+          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white font-medium"
+          title={`Viendo como: ${getRoleLabel(currentViewRole)}`}
+        >
+          <span className="text-lg">{getRoleIcon(currentViewRole)}</span>
+          <span className="hidden sm:inline text-sm">{getRoleLabel(currentViewRole)}</span>
+          {availableRoles.length > 1 && (
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${showRoleMenu ? 'rotate-180' : ''}`}
+            />
+          )}
+        </button>
+
+        {showRoleMenu && (
+          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl z-50 overflow-hidden animate-in">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4">
+              <p className="font-bold text-sm">🔄 CAMBIAR VISTA</p>
+              <p className="text-xs text-indigo-100 mt-1">
+                Tu rol en BD: <strong>{getRoleLabel(user.rol)}</strong>
+              </p>
+            </div>
+
+            <div className="divide-y max-h-96 overflow-y-auto">
+              {availableRoles.map((role) => {
+                const isActive = role === currentViewRole;
+
+                return (
+                  <button
+                    key={role}
+                    onClick={() => handleSwitchRole(role)}
+                    className={`w-full text-left px-4 py-4 flex items-center gap-3 transition-all hover:bg-gray-50 ${isActive
+                      ? 'bg-indigo-50 border-l-4 border-indigo-600'
+                      : ''
+                      }`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isActive
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-600'
+                      }`}>
+                      <span className="text-lg">{getRoleIcon(role)}</span>
+                    </div>
+
+                    <div className="flex-1">
+                      <p className={`font-semibold text-sm ${isActive ? 'text-indigo-600' : 'text-gray-800'
+                        }`}>
+                        {getRoleLabel(role)}
+                      </p>
+                      {isActive && (
+                        <p className="text-xs text-indigo-600 font-medium">✓ Viendo ahora</p>
+                      )}
+                      {role === user.rol && !isActive && (
+                        <p className="text-xs text-gray-500">Rol principal</p>
+                      )}
+                    </div>
+
+                    {!isActive && (
+                      <div className="text-gray-400 text-lg">→</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="border-t p-3 bg-gray-50">
+              <p className="text-xs text-gray-600 text-center">
+                ℹ️ Cambiar vista NO modifica tu rol en la BD
+              </p>
+            </div>
+
+            <button
+              onClick={handleLogoutClick}
+              className="w-full bg-red-50 hover:bg-red-100 text-red-600 px-4 py-4 flex items-center gap-3 font-semibold transition-all"
+            >
+              <div className="w-10 h-10 rounded-lg bg-red-200 flex items-center justify-center">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold">SALIR</p>
+                <p className="text-xs text-red-500">Cerrar sesión</p>
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {availableRoles.length <= 1 && (
+        <button
+          onClick={handleLogoutClick}
+          className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all font-medium text-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">SALIR</span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+// [RESTO DEL CÓDIGO DE StudentPanel.jsx SIN CAMBIOS...]
+// Copio todo el código restante exactamente como estaba
+
 // Componente de Tarjeta de Logro
 const AchievementCard = ({ achievement, unlocked }) => (
-  <div className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all ${
-    unlocked ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50' : 'border-gray-200 opacity-60'
-  }`}>
+  <div className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all ${unlocked ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50' : 'border-gray-200 opacity-60'
+    }`}>
     <div className="text-center">
-      <div className={`w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-3xl ${
-        unlocked ? 'bg-yellow-100' : 'bg-gray-100'
-      }`}>
+      <div className={`w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-3xl ${unlocked ? 'bg-yellow-100' : 'bg-gray-100'
+        }`}>
         {achievement.icono || '🏆'}
       </div>
       <h3 className="font-bold text-sm text-gray-800">{achievement.nombre}</h3>
@@ -35,7 +322,7 @@ const AchievementCard = ({ achievement, unlocked }) => (
 // Componente de Tarjeta de Curso
 const CourseCard = ({ course, onClick, progress = 0 }) => {
   const Icon = BookOpen;
-  
+
   return (
     <div
       onClick={onClick}
@@ -101,9 +388,8 @@ const ResourceCard = ({ resource, onClick, completed = false }) => {
       className="bg-white rounded-xl p-4 shadow-sm border-2 border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
     >
       <div className="flex items-start gap-3">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-          completed ? 'bg-green-100' : 'bg-blue-100'
-        }`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${completed ? 'bg-green-100' : 'bg-blue-100'
+          }`}>
           <Icon className={`w-6 h-6 ${completed ? 'text-green-600' : 'text-blue-600'}`} />
         </div>
         <div className="flex-1 min-w-0">
@@ -134,15 +420,15 @@ const ResourceCard = ({ resource, onClick, completed = false }) => {
 };
 
 // Componente Principal
-export default function StudentDashboard() {
+export default function StudentPanel() {
   const navigate = useNavigate();
-  
+
   // Estados principales
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [error, setError] = useState(null);
-  
+
   // Estados de datos
   const [courses, setCourses] = useState([]);
   const [resources, setResources] = useState([]);
@@ -150,7 +436,7 @@ export default function StudentDashboard() {
   const [userProgress, setUserProgress] = useState([]);
   const [userPoints, setUserPoints] = useState(null);
   const [userAchievements, setUserAchievements] = useState([]);
-  
+
   // Estados de vista
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
@@ -176,10 +462,11 @@ export default function StudentDashboard() {
     }
   }, [user]);
 
+  // ✅ FUNCIÓN CORREGIDA: Verifica acceso sin modificar rol en BD
   const checkAuth = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError || !session) {
         navigate('/login');
         return;
@@ -196,11 +483,36 @@ export default function StudentDashboard() {
         return;
       }
 
-      if (userData.rol !== 'estudiante' && userData.rol !== 'admin') {
-        setError('Solo los estudiantes pueden acceder a este panel');
+      // ✅ Verificar acceso basado en rol + roles_adicionales
+      const userRoles = [userData.rol, ...(userData.roles_adicionales || [])];
+      const hasStudentAccess = userRoles.includes('estudiante');
+
+      if (!hasStudentAccess) {
+        setError('No tienes acceso al panel de estudiante');
         setTimeout(() => navigate('/'), 2000);
         return;
       }
+
+      // ✅ CRÍTICO: Forzar el rol correcto según la ruta ANTES de setUser
+      const currentPath = window.location.pathname;
+      let forceRole = null;
+
+      if (currentPath.includes('/student')) forceRole = 'estudiante';
+      else if (currentPath.includes('/teacher')) forceRole = 'docente';
+      else if (currentPath.includes('/admin')) forceRole = 'admin';
+
+      if (forceRole) {
+        localStorage.setItem('didaktik_view_role', forceRole);
+        console.log('🔧 Rol forzado por ruta:', forceRole);
+      }
+
+      console.log('✅ Usuario autenticado:', {
+        nombre: userData.nombre,
+        rolPrincipal: userData.rol,
+        rolesAdicionales: userData.roles_adicionales,
+        vistaActual: localStorage.getItem('didaktik_view_role'),
+        ruta: currentPath
+      });
 
       setUser(userData);
     } catch (err) {
@@ -232,14 +544,14 @@ export default function StudentDashboard() {
         `)
         .eq('activo', true)
         .order('orden', { ascending: true });
-      
+
       if (error) throw error;
-      
+
       const coursesData = data?.map(course => ({
         ...course,
         nivel_nombre: course.niveles_aprendizaje?.nombre || 'Básico'
       })) || [];
-      
+
       setCourses(coursesData);
     } catch (err) {
       console.error('Error cargando cursos:', err);
@@ -256,7 +568,7 @@ export default function StudentDashboard() {
         `)
         .eq('activo', true)
         .order('orden', { ascending: true });
-      
+
       if (error) throw error;
       setResources(data || []);
     } catch (err) {
@@ -270,7 +582,7 @@ export default function StudentDashboard() {
         .from('logros')
         .select('*')
         .eq('activo', true);
-      
+
       if (error) throw error;
       setAchievements(data || []);
     } catch (err) {
@@ -280,13 +592,13 @@ export default function StudentDashboard() {
 
   const fetchUserProgress = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('progreso_estudiantes')
         .select('*')
         .eq('usuario_id', user.id);
-      
+
       if (error) throw error;
       setUserProgress(data || []);
     } catch (err) {
@@ -296,23 +608,23 @@ export default function StudentDashboard() {
 
   const fetchUserPoints = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('puntos_usuario')
         .select('*')
         .eq('usuario_id', user.id)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       if (!data) {
         const { data: newPoints, error: insertError } = await supabase
           .from('puntos_usuario')
           .insert([{ usuario_id: user.id }])
           .select()
           .single();
-        
+
         if (insertError) throw insertError;
         setUserPoints(newPoints);
       } else {
@@ -325,7 +637,7 @@ export default function StudentDashboard() {
 
   const fetchUserAchievements = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('usuarios_logros')
@@ -334,7 +646,7 @@ export default function StudentDashboard() {
           logros(*)
         `)
         .eq('usuario_id', user.id);
-      
+
       if (error) throw error;
       setUserAchievements(data || []);
     } catch (err) {
@@ -345,11 +657,11 @@ export default function StudentDashboard() {
   const getCourseProgress = (courseId) => {
     const courseResources = resources.filter(r => r.curso_id === courseId);
     if (courseResources.length === 0) return 0;
-    
-    const completed = courseResources.filter(r => 
+
+    const completed = courseResources.filter(r =>
       userProgress.some(p => p.recurso_id === r.id && p.completado)
     ).length;
-    
+
     return Math.round((completed / courseResources.length) * 100);
   };
 
@@ -364,7 +676,7 @@ export default function StudentDashboard() {
 
   const openResource = (resource) => {
     setSelectedResource(resource);
-    
+
     if (resource.tipo === 'quiz' && resource.contenido_quiz) {
       setShowQuiz(true);
       setCurrentQuestionIndex(0);
@@ -429,7 +741,7 @@ export default function StudentDashboard() {
           row_id: user.id,
           x: totalPoints
         });
-        
+
         await fetchUserProgress();
         await fetchUserPoints();
       }
@@ -456,19 +768,21 @@ export default function StudentDashboard() {
   };
 
   const handleLogout = async () => {
+    // ✅ Limpiar rol de vista
+    localStorage.removeItem('didaktik_view_role');
     await supabase.auth.signOut();
     navigate('/');
   };
 
   const handleChatSend = () => {
     if (!chatInput.trim()) return;
-    
+
     setChatMessages(prev => [...prev, { type: 'user', text: chatInput }]);
-    
+
     setTimeout(() => {
       let response = '';
       const input = chatInput.toLowerCase();
-      
+
       if (input.includes('curso') || input.includes('aprender')) {
         response = '¡Excelente! Tienes ' + courses.length + ' cursos disponibles. ¿Te gustaría que te recomiende uno? 📚';
       } else if (input.includes('progreso') || input.includes('avance')) {
@@ -485,10 +799,10 @@ export default function StudentDashboard() {
       } else {
         response = 'Interesante pregunta. Puedo ayudarte con información sobre tus cursos, progreso y puntos. ¿Qué te gustaría saber? 🤔';
       }
-      
+
       setChatMessages(prev => [...prev, { type: 'bot', text: response }]);
     }, 800);
-    
+
     setChatInput('');
   };
 
@@ -565,20 +879,14 @@ export default function StudentDashboard() {
                   <p className="font-semibold text-sm">{user?.nombre || 'Estudiante'}</p>
                   <p className="text-xs text-indigo-200">{user?.email}</p>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
               </div>
-              
-              <button
-                onClick={handleLogout}
-                className="p-1.5 md:p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors lg:hidden"
-              >
-                <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
+
+              {/* ✅ SELECTOR DE ROLES INTEGRADO - VERSION CORREGIDA */}
+              <RoleSwitcherMejorado
+                user={user}
+                userPoints={userPoints}
+                onLogout={handleLogout}
+              />
             </div>
           </div>
         </div>
@@ -603,11 +911,10 @@ export default function StudentDashboard() {
                     setSelectedCourse(null);
                     setSelectedResource(null);
                   }}
-                  className={`py-3 md:py-4 px-3 md:px-2 border-b-2 font-medium text-xs md:text-sm transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`py-3 md:py-4 px-3 md:px-2 border-b-2 font-medium text-xs md:text-sm transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap ${activeTab === tab.id
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
                 >
                   <TabIcon className="w-4 h-4" />
                   <span className="hidden sm:inline">{tab.label}</span>
@@ -777,12 +1084,12 @@ export default function StudentDashboard() {
         {activeTab === 'progress' && (
           <div className="space-y-6 min-h-[60vh]">
             <h2 className="text-xl md:text-2xl font-bold text-gray-800">Tu Progreso</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {courses.map(course => {
                 const courseResources = resources.filter(r => r.curso_id === course.id);
                 const completed = courseResources.filter(r => isResourceCompleted(r.id)).length;
-                const progress = courseResources.length > 0 
+                const progress = courseResources.length > 0
                   ? Math.round((completed / courseResources.length) * 100)
                   : 0;
 
@@ -832,8 +1139,8 @@ export default function StudentDashboard() {
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold mb-1">📝 {selectedResource.titulo}</h2>
                   <p className="text-sm md:text-base text-purple-100">
-                    {quizResults 
-                      ? '¡Quiz Completado!' 
+                    {quizResults
+                      ? '¡Quiz Completado!'
                       : `Pregunta ${currentQuestionIndex + 1} de ${selectedResource.contenido_quiz.length}`
                     }
                   </p>
@@ -850,19 +1157,18 @@ export default function StudentDashboard() {
             {/* Quiz Results */}
             {quizResults ? (
               <div className="p-6 md:p-8 text-center space-y-6">
-                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto flex items-center justify-center text-4xl md:text-5xl ${
-                  quizResults.passed ? 'bg-green-100' : 'bg-orange-100'
-                }`}>
+                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto flex items-center justify-center text-4xl md:text-5xl ${quizResults.passed ? 'bg-green-100' : 'bg-orange-100'
+                  }`}>
                   {quizResults.passed ? '🎉' : '💪'}
                 </div>
-                
+
                 <div>
                   <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
                     {quizResults.passed ? '¡Felicitaciones!' : '¡Sigue intentando!'}
                   </h3>
                   <p className="text-gray-600">
-                    {quizResults.passed 
-                      ? 'Has completado el quiz exitosamente' 
+                    {quizResults.passed
+                      ? 'Has completado el quiz exitosamente'
                       : 'Necesitas al menos 60% para aprobar'
                     }
                   </p>
@@ -918,27 +1224,26 @@ export default function StudentDashboard() {
                       {selectedResource.contenido_quiz.map((_, idx) => (
                         <div
                           key={idx}
-                          className={`flex-1 h-2 rounded-full transition-colors ${
-                            idx < currentQuestionIndex 
-                              ? 'bg-green-500' 
-                              : idx === currentQuestionIndex 
-                              ? 'bg-purple-500' 
+                          className={`flex-1 h-2 rounded-full transition-colors ${idx < currentQuestionIndex
+                            ? 'bg-green-500'
+                            : idx === currentQuestionIndex
+                              ? 'bg-purple-500'
                               : 'bg-gray-200'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
 
                     {(() => {
                       const question = selectedResource.contenido_quiz[currentQuestionIndex];
-                      
+
                       return (
                         <div className="space-y-6">
                           {/* Video */}
                           {question.video_url && (
                             <div className="rounded-2xl overflow-hidden">
-                              <video 
-                                controls 
+                              <video
+                                controls
                                 className="w-full"
                                 src={question.video_url}
                               >
@@ -977,11 +1282,10 @@ export default function StudentDashboard() {
                               <button
                                 key={idx}
                                 onClick={() => handleQuizAnswer(currentQuestionIndex, idx)}
-                                className={`p-4 md:p-6 rounded-xl border-2 font-semibold text-base md:text-lg transition-all transform hover:scale-105 ${
-                                  quizAnswers[currentQuestionIndex] === idx
-                                    ? 'border-purple-500 bg-purple-50 shadow-lg'
-                                    : 'border-gray-200 hover:border-purple-300 bg-white'
-                                }`}
+                                className={`p-4 md:p-6 rounded-xl border-2 font-semibold text-base md:text-lg transition-all transform hover:scale-105 ${quizAnswers[currentQuestionIndex] === idx
+                                  ? 'border-purple-500 bg-purple-50 shadow-lg'
+                                  : 'border-gray-200 hover:border-purple-300 bg-white'
+                                  }`}
                               >
                                 <div className="flex items-center justify-between">
                                   {question.tipo === 'imagen' && question.imagen_opciones[idx] ? (
@@ -1020,7 +1324,7 @@ export default function StudentDashboard() {
                               </button>
                             ) : (
                               <button
-                                onClick={() => setCurrentQuestionIndex(prev => 
+                                onClick={() => setCurrentQuestionIndex(prev =>
                                   Math.min(selectedResource.contenido_quiz.length - 1, prev + 1)
                                 )}
                                 className="px-4 md:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-colors text-sm md:text-base"
@@ -1072,11 +1376,10 @@ export default function StudentDashboard() {
                   key={idx}
                   className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                    msg.type === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-sm'
-                      : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
-                  }`}>
+                  <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.type === 'user'
+                    ? 'bg-indigo-600 text-white rounded-br-sm'
+                    : 'bg-white text-gray-800 rounded-bl-sm shadow-sm'
+                    }`}>
                     <p className="text-sm">{msg.text}</p>
                   </div>
                 </div>
@@ -1145,7 +1448,7 @@ export default function StudentDashboard() {
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white"></div>
             )}
           </div>
-          
+
           {!chatOpen && (
             <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block">
               <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white px-4 py-2 rounded-xl shadow-lg whitespace-nowrap animate-in slide-in-from-bottom-2">
