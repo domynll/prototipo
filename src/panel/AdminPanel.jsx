@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from "react";
 import {
   Users, Settings, BookOpen, LogOut, Edit2, Trash2, Plus, Save, X, GraduationCap, AlertCircle,
-  RefreshCw, Award, MessageCircle, BarChart3, FileText, Play, Image, Headphones, Gamepad2, HelpCircle,
+  RefreshCw, Award, MessageCircle, Gift, BarChart3, FileText, Play, Image, Headphones, Gamepad2, HelpCircle,
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle, Eye, Sparkles, Upload, Mic, Video,
   Volume2, Download, Move, ChevronUp, ChevronDown, ChevronRight, Clock, Activity, TrendingDown, Filter, UserCheck,
-  UserX, FileUp, Brain, Search, PieChart, BarChart2, LineChart, Printer, Loader, Send, Copy,
+  UserX, FileUp, Brain, Search, PieChart, BarChart2, LineChart, Printer, Loader, Send, Copy, Shield,
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import * as pdfjsLib from 'pdfjs-dist';
 import KarinMascot from "../KarinMascot";
-
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url,).href;
 
@@ -208,7 +207,6 @@ const ExcelColumnChart = ({ title, data, colors }) => {
     </div>
   );
 };
-
 
 // Componente de Gráfico de Barras
 const BarChart = ({ title, data, color, maxValue }) => {
@@ -445,6 +443,19 @@ export default function EnhancedAdminPanel() {
     orden: 1,
   });
   const [newGroup, setNewGroup] = useState({ nombre: "", descripcion: "" });
+
+  // Estados para crear estudiantes
+  const [showNewStudent, setShowNewStudent] = useState(false);
+  const [newStudentData, setNewStudentData] = useState({
+    nombre: "",
+    usuario: "",
+    password: "",
+    confirm_password: "",
+    grupo_id: "",
+    email: "",
+  });
+  const [creatingStudent, setCreatingStudent] = useState(false);
+  const [studentMessage, setStudentMessage] = useState("");
 
   // Estados de analíticas avanzadas
   const [analytics, setAnalytics] = useState({
@@ -930,44 +941,54 @@ export default function EnhancedAdminPanel() {
   const contentTypes = [
     {
       id: 'quiz',
-      name: 'Quiz Interactivo',
+      name: '❓ Quiz Interactivo',
       icon: '❓',
-      description: 'Preguntas de múltiple opción con retroalimentación',
-      color: 'from-blue-500 to-blue-600',
-      prompt: 'Crea un quiz con 5 preguntas sobre...',
+      description: 'Preguntas coloridas con emojis y retroalimentación inmediata',
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'from-blue-50 to-cyan-50',
+      prompt: 'Crea un quiz visualmente atractivo sobre...',
+      examples: ['animales', 'números', 'colores', 'formas', 'letras']
     },
     {
       id: 'game',
-      name: 'Juego Educativo',
+      name: '🎮 Juego Educativo',
       icon: '🎮',
-      description: 'Juegos interactivos para aprender jugando',
-      color: 'from-purple-500 to-purple-600',
-      prompt: 'Crea un juego educativo sobre...',
+      description: 'Juegos interactivos con mecánicas divertidas',
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'from-purple-50 to-pink-50',
+      prompt: 'Crea un juego educativo divertido sobre...',
+      examples: ['persecución', 'rompecabezas', 'memoria', 'carreras']
     },
     {
       id: 'exercise',
-      name: 'Ejercicios Prácticos',
+      name: '📝 Ejercicios Prácticos',
       icon: '📝',
-      description: 'Actividades para practicar y reforzar',
-      color: 'from-green-500 to-green-600',
-      prompt: 'Crea 10 ejercicios prácticos sobre...',
+      description: 'Actividades con instrucciones claras y ejemplos visuales',
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'from-green-50 to-emerald-50',
+      prompt: 'Crea 10 ejercicios prácticos con ejemplos visuales sobre...',
+      examples: ['sumas', 'restas', 'lectura', 'escritura', 'pronunciación']
     },
     {
       id: 'story',
-      name: 'Historia Educativa',
+      name: '📖 Historia Educativa',
       icon: '📖',
-      description: 'Narrativas interactivas para aprender',
-      color: 'from-orange-500 to-orange-600',
-      prompt: 'Crea una historia educativa sobre...',
+      description: 'Historias coloridas con personajes, diálogos e ilustraciones',
+      color: 'from-orange-500 to-yellow-500',
+      bgColor: 'from-orange-50 to-yellow-50',
+      prompt: 'Crea una historia educativa ilustrada sobre...',
+      examples: ['aventuras', 'amistad', 'naturaleza', 'descubrimiento', 'magia']
     },
     {
       id: 'challenge',
-      name: 'Desafío Semanal',
+      name: '⚡ Desafío Semanal',
       icon: '⚡',
-      description: 'Retos con puntos y recompensas',
-      color: 'from-red-500 to-red-600',
-      prompt: 'Crea un desafío educativo sobre...',
-    },
+      description: 'Retos emocionantes con recompensas y logros',
+      color: 'from-red-500 to-pink-500',
+      bgColor: 'from-red-50 to-pink-50',
+      prompt: 'Crea un desafío emocionante y educativo sobre...',
+      examples: ['búsqueda del tesoro', 'misiones', 'competencia', 'aventura']
+    }
   ];
 
   useEffect(() => {
@@ -3379,6 +3400,104 @@ Tipo: ${resourceData.tipo}`);
     }
   };
 
+  //  Crear estudiante
+
+  const createStudent = async () => {
+    if (!newStudentData.nombre.trim()) {
+      setStudentMessage("❌ El nombre es obligatorio");
+      return;
+    }
+
+    if (!newStudentData.usuario.trim()) {
+      setStudentMessage("❌ El usuario es obligatorio");
+      return;
+    }
+
+    if (newStudentData.password.length < 6) {
+      setStudentMessage("❌ La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    if (newStudentData.password !== newStudentData.confirm_password) {
+      setStudentMessage("❌ Las contraseñas no coinciden");
+      return;
+    }
+
+    setCreatingStudent(true);
+    setStudentMessage("");
+
+    try {
+      const emailEstudiante = newStudentData.email?.trim()
+        ? newStudentData.email.trim().toLowerCase()
+        : `${newStudentData.usuario.toLowerCase()}@didactikapp.com`;
+
+      console.log("📝 Creando usuario en auth...");
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: emailEstudiante,
+        password: newStudentData.password,
+        options: {
+          data: {
+            nombre: newStudentData.nombre.trim(),
+            usuario: newStudentData.usuario.trim().toLowerCase(),
+            rol: "estudiante",
+            grupo_id: newStudentData.grupo_id || null,
+          },
+        },
+      });
+
+      if (authError) {
+        console.error("❌ Auth error:", authError);
+        setStudentMessage(`❌ Error: ${authError.message}`);
+        setCreatingStudent(false);
+        return;
+      }
+
+      console.log("✅ Usuario creado en auth:", authData.user?.id);
+
+      if (newStudentData.grupo_id && newStudentData.grupo_id.trim() !== "") {
+        console.log("📝 Actualizando grupo_id...");
+
+        const { error: updateError } = await supabase
+          .from("usuarios")
+          .update({ grupo_id: newStudentData.grupo_id })
+          .eq("auth_id", authData.user.id);
+
+        if (updateError) {
+          console.error("⚠️ Error actualizando grupo:", updateError);
+        } else {
+          console.log("✅ Grupo actualizado");
+        }
+      }
+
+      setStudentMessage(
+        `✅ Estudiante "${newStudentData.nombre}" creado exitosamente`
+      );
+
+      setNewStudentData({
+        nombre: "",
+        usuario: "",
+        email: "",
+        password: "",
+        confirm_password: "",
+        grupo_id: "",
+      });
+
+      await fetchUsers();
+
+      setTimeout(() => {
+        setShowNewStudent(false);
+        setStudentMessage("");
+      }, 2000);
+
+    } catch (unexpectedError) {
+      console.error("❌ Error inesperado:", unexpectedError);
+      setStudentMessage(`❌ Error: ${unexpectedError.message}`);
+    } finally {
+      setCreatingStudent(false);
+    }
+  };
+
   const deleteGroup = async (groupId) => {
     if (!confirm("¿Estás seguro de eliminar este grupo?")) return;
 
@@ -4286,7 +4405,7 @@ Genera ${num} preguntas.`;
     setSelectedOption(null);
   };
 
-  // ✅ FUNCIÓN 5: GUARDAR QUIZ A RECURSO (MEJORADA)
+  // FUNCIÓN 5: GUARDAR QUIZ A RECURSO (MEJORADA)
   const saveQuizToResource = async () => {
     if (currentQuiz.preguntas.length === 0) {
       alert("⚠️ Debes agregar al menos una pregunta");
@@ -4683,7 +4802,7 @@ Genera ${num} preguntas.`;
       // Crear objeto del reporte de todos los cursos
       const reportObj = {
         course: {
-          titulo: `📊 ANÁLISIS GENERAL - ${Object.keys(courseMap).length} Cursos`,
+          titulo: `ANÁLISIS GENERAL - ${Object.keys(courseMap).length} Cursos`,
           nivel: "Sistema Completo",
           fecha: new Date().toLocaleDateString("es-ES", {
             weekday: "long",
@@ -5165,10 +5284,10 @@ ${courseReportData.stats.avgProgress >= 70
             <div
               key={idx}
               className={`flex-1 h-2 rounded-full transition-all ${idx === currentPreviewQuestion
-                  ? "bg-blue-500"
-                  : idx < currentPreviewQuestion
-                    ? "bg-green-400"
-                    : "bg-gray-200"
+                ? "bg-blue-500"
+                : idx < currentPreviewQuestion
+                  ? "bg-green-400"
+                  : "bg-gray-200"
                 }`}
             />
           ))}
@@ -5517,8 +5636,426 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     };
     return colors[rol] || "bg-gray-100 text-gray-800 border-gray-200";
   };
+  // ============================================
+  // 🎨 RENDERIZADOR INTERACTIVO DE CONTENIDO
+  // ============================================
 
-  // ✅ FUNCIÓN: Abrir Quiz Builder con contenido generado
+  const renderInteractiveContent = () => {
+    if (!viewingContent || !editingContent) return null;
+
+    const type = contentTypes.find(c => c.id === viewingContent.type);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
+
+          {/* HEADER UNIVERSAL */}
+          <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-5xl">{type?.icon}</span>
+                  <div>
+                    <h2 className="text-2xl font-bold">{viewingContent.title}</h2>
+                    <p className="text-sm text-white text-opacity-90">
+                      {type?.name} • Creado: {viewingContent.createdAt}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowContentViewer(false);
+                  setViewingContent(null);
+                  setEditingContent(null);
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* CONTENIDO ESPECÍFICO POR TIPO */}
+          <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
+
+            {/* ✅ QUIZ - Mostrar todas las preguntas */}
+            {viewingContent.type === 'quiz' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4 bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-blue-600">
+                      {editingContent.content.questions?.length || 0}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Preguntas</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-green-600">
+                      {editingContent.content.totalPoints || 0}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Puntos Totales</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-orange-600">
+                      {editingContent.content.timeLimit || 0}s
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Tiempo Límite</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {editingContent.content.questions?.map((question, qIdx) => (
+                    <div key={qIdx} className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-md hover:shadow-lg transition-shadow">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                          {qIdx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-gray-800">
+                            {question.pregunta || question.text}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">⭐ {question.puntos || 10} puntos</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        {(question.opciones || question.options)?.map((option, oIdx) => (
+                          <div
+                            key={oIdx}
+                            className={`px-4 py-3 rounded-lg font-medium transition-all ${(question.respuesta_correcta ?? question.correct) === oIdx
+                              ? "bg-green-100 border-2 border-green-500 text-green-800"
+                              : "bg-gray-100 border-2 border-gray-200"
+                              }`}
+                          >
+                            {String.fromCharCode(65 + oIdx)}) {option}
+                            {(question.respuesta_correcta ?? question.correct) === oIdx && " ✓"}
+                          </div>
+                        ))}
+                      </div>
+
+                      {question.explanation && (
+                        <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                          <p className="text-sm text-gray-700"><strong>💡 Explicación:</strong> {question.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 📖 HISTORIA - Renderizado Narrativo */}
+            {viewingContent.type === 'story' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-8 border-2 border-orange-300">
+                  <h3 className="text-3xl font-black text-gray-800 mb-3">
+                    📖 {editingContent.content.title}
+                  </h3>
+                  <p className="text-lg text-gray-700 mb-4 leading-relaxed">
+                    {editingContent.content.description}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-orange-700">
+                      📚 {editingContent.content.chapters} Capítulos
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-amber-700">
+                      💡 {editingContent.content.moralLesson}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4">📌 Palabras Clave</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {editingContent.content.keywords?.map((keyword, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold hover:bg-blue-200 transition-colors cursor-pointer"
+                      >
+                        #{keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 p-6">
+                  <h4 className="text-xl font-bold text-gray-800 mb-3">🎓 Lección Educativa</h4>
+                  <div className="bg-white rounded-lg p-4 border-l-4 border-purple-500">
+                    <p className="text-lg text-gray-800 italic">
+                      "{editingContent.content.moralLesson}"
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 🎮 JUEGO - Renderizado Interactivo */}
+            {viewingContent.type === 'game' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 rounded-3xl p-8 text-white shadow-2xl">
+                  <h3 className="text-4xl font-black mb-3">
+                    🎮 {editingContent.content.name}
+                  </h3>
+                  <p className="text-lg text-white text-opacity-90 mb-6">
+                    {editingContent.content.description}
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-4xl font-bold">🎯</p>
+                      <p className="text-sm mt-2 font-semibold">{editingContent.content.levels} Niveles</p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-4xl font-bold">⚙️</p>
+                      <p className="text-sm mt-2 font-semibold">{editingContent.content.mechanics?.length || 0} Mecánicas</p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-4xl font-bold">🎁</p>
+                      <p className="text-sm mt-2 font-semibold">{editingContent.content.rewards?.length || 0} Recompensas</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* MECÁNICAS */}
+                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Gamepad2 className="w-6 h-6 text-blue-600" />
+                    Mecánicas del Juego
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {editingContent.content.mechanics?.map((mechanic, idx) => (
+                      <div key={idx} className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">⚙️</span>
+                          <p className="font-semibold text-gray-800">{mechanic}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* RECOMPENSAS */}
+                <div className="bg-yellow-50 rounded-xl p-6 border-2 border-yellow-200">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Gift className="w-6 h-6 text-yellow-600" />
+                    Recompensas
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    {editingContent.content.rewards?.map((reward, idx) => (
+                      <div key={idx} className="bg-white rounded-lg p-4 border-l-4 border-yellow-500 shadow-sm hover:shadow-md transition-shadow flex items-center gap-3">
+                        <span className="text-3xl">🎁</span>
+                        <p className="font-semibold text-gray-800">{reward}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* INSTRUCCIONES */}
+                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <BookOpen className="w-6 h-6 text-green-600" />
+                    Cómo Jugar
+                  </h4>
+                  <ol className="space-y-3">
+                    {editingContent.content.instructions?.map((instruction, idx) => (
+                      <li key={idx} className="flex items-start gap-3 bg-white rounded-lg p-4 border-l-4 border-green-500">
+                        <span className="font-bold text-green-600 text-lg w-8 text-center flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <p className="text-gray-800 font-semibold">{instruction}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            )}
+
+            {/* 📝 EJERCICIOS - Vista Práctica */}
+            {viewingContent.type === 'exercise' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-2xl p-8 border-2 border-green-300">
+                  <h3 className="text-3xl font-bold text-gray-800 mb-2">📝 Ejercicios Prácticos</h3>
+                  <div className="flex gap-4 mt-4">
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
+                      📊 Dificultad: {editingContent.content.difficulty?.toUpperCase()}
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
+                      ⏱️ {editingContent.content.estimatedTime} minutos
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
+                      📋 {editingContent.content.exercises?.length} Ejercicios
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {editingContent.content.exercises?.map((exercise, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-xl p-6 border-2 shadow-md hover:shadow-lg transition-all ${exercise.difficulty === 'facil'
+                        ? 'bg-green-50 border-green-300'
+                        : exercise.difficulty === 'medio'
+                          ? 'bg-yellow-50 border-yellow-300'
+                          : 'bg-red-50 border-red-300'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${exercise.difficulty === 'facil'
+                            ? 'bg-green-500'
+                            : exercise.difficulty === 'medio'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                            }`}>
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-gray-800">
+                              Ejercicio {idx + 1}
+                            </h4>
+                            <span className={`text-xs font-bold uppercase ${exercise.difficulty === 'facil'
+                              ? 'text-green-700'
+                              : exercise.difficulty === 'medio'
+                                ? 'text-yellow-700'
+                                : 'text-red-700'
+                              }`}>
+                              {exercise.difficulty}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-2xl">
+                          {exercise.difficulty === 'facil' ? '😊' : exercise.difficulty === 'medio' ? '😐' : '🤔'}
+                        </span>
+                      </div>
+
+                      <div className="bg-white bg-opacity-60 rounded-lg p-4 mb-3 border-l-4 border-current">
+                        <p className="text-sm font-semibold text-gray-800 mb-1">📝 Instrucción:</p>
+                        <p className="text-gray-700">{exercise.instruction}</p>
+                      </div>
+
+                      <div className="bg-white bg-opacity-60 rounded-lg p-4 border-l-4 border-blue-500">
+                        <p className="text-sm font-semibold text-gray-800 mb-1">💡 Ejemplo:</p>
+                        <p className="text-gray-700 italic">{exercise.example}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ⚡ DESAFÍO - Vista Competitiva */}
+            {viewingContent.type === 'challenge' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-red-600 via-red-500 to-pink-500 rounded-3xl p-8 text-white shadow-2xl">
+                  <h3 className="text-4xl font-black mb-2">⚡ {editingContent.content.title}</h3>
+                  <p className="text-lg text-white text-opacity-90 mb-6">
+                    Reto educativo con puntos y recompensas
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-3xl font-bold">🔥</p>
+                      <p className="text-sm mt-2 font-semibold">{editingContent.content.difficulty?.toUpperCase()}</p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-3xl font-bold">📅</p>
+                      <p className="text-sm mt-2 font-semibold">{editingContent.content.duration}</p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                      <p className="text-3xl font-bold">🎁</p>
+                      <p className="text-sm mt-2 font-semibold">Recompensa</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RECOMPENSA DESTACADA */}
+                <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-2xl p-8 border-4 border-yellow-500 shadow-xl">
+                  <p className="text-center text-sm font-bold text-yellow-900 uppercase tracking-wide mb-2">Premio Final</p>
+                  <p className="text-center text-2xl font-black text-yellow-900">
+                    {editingContent.content.reward}
+                  </p>
+                </div>
+
+                {/* TAREAS */}
+                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-6 h-6 text-blue-600" />
+                    Tareas a Completar
+                  </h4>
+                  <ol className="space-y-3">
+                    {editingContent.content.tasks?.map((task, idx) => (
+                      <li key={idx} className="flex items-start gap-3 bg-white rounded-lg p-4 border-l-4 border-blue-500">
+                        <span className="font-bold text-blue-600 text-lg w-8 text-center flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <p className="text-gray-800 font-semibold">{task}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                {/* CRITERIOS DE ÉXITO */}
+                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
+                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-green-600" />
+                    Criterios de Éxito
+                  </h4>
+                  <div className="space-y-2">
+                    {editingContent.content.criteria?.map((criterion, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-white rounded-lg p-3 border-l-4 border-green-500">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <p className="text-gray-800 font-semibold">{criterion}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CONTENIDO GENÉRICO */}
+            {!['quiz', 'story', 'game', 'exercise', 'challenge'].includes(viewingContent.type) && (
+              <div className="bg-white rounded-xl p-6 border-2 border-gray-200">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono overflow-x-auto">
+                  {JSON.stringify(editingContent.content, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {/* FOOTER */}
+          <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-3 justify-end">
+            {viewingContent.type === 'quiz' && (
+              <button
+                onClick={() => openQuizBuilderWithGeneratedContent(viewingContent)}
+                className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              >
+                <Edit2 className="w-5 h-5" />
+                Editar en Quiz Builder
+              </button>
+            )}
+
+            <button
+              onClick={() => downloadContentFile(editingContent)}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <Download className="w-5 h-5" />
+              Descargar
+            </button>
+
+            <button
+              onClick={() => convertContentToResource(editingContent)}
+              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Agregar a Recursos
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  //  FUNCIÓN: Abrir Quiz Builder con contenido generado
   const openQuizBuilderWithGeneratedContent = (generatedQuiz) => {
     console.log("📝 Abriendo Quiz Builder con contenido generado:", generatedQuiz);
 
@@ -5669,9 +6206,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             icon={Clock}
             color="#F59E0B"
           />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        </div>   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <BarChart
             title="Distribución de Usuarios"
             data={[
@@ -5735,359 +6270,346 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
         </div>
         </div>
 
-        {/* Chat Interactivo con IA */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-lg p-6 text-white shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0">
-              <MessageCircle className="w-6 h-6" />
+        {/* Chat Flotante IA - Bola Flotante */}
+        {!showAIChat && (
+          <button
+            onClick={() => setShowAIChat(true)}
+            className="fixed bottom-6 right-6 z-40 group"
+          >
+            <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-110 cursor-pointer flex items-center justify-center"
+              style={{
+                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4), 0 0 20px rgba(168, 85, 247, 0.3)',
+              }}
+            >
+              {/* PULSO DE LUZ */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 to-pink-400 opacity-20 animate-pulse"></div>
+
+              {/* ICONO PRINCIPAL */}
+              <div className="relative z-10 flex items-center justify-center animate-bounce">
+                <MessageCircle className="w-8 h-8 text-white" strokeWidth={1.5} />
+              </div>
+
+              {/* BADGE DE NOTIFICACIÓN */}
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white animate-pulse">
+                ✨
+              </div>
+
+              {/* EFECTO ANILLO */}
+              <div className="absolute inset-0 rounded-full border-2 border-white opacity-0 group-hover:opacity-30 animate-ping"></div>
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold flex items-center gap-2">
-                    💬 Chat Interactivo con IA
-                    <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">
-                      Nuevo
-                    </span>
-                  </h3>
-                  <p className="text-sm text-blue-100">
-                    Pregunta sobre estadísticas, recomendaciones o cualquier
-                    duda del sistema
-                  </p>
+
+            {/* TOOLTIP */}
+            <div className="absolute bottom-full right-0 mb-4 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-2xl border border-gray-700">
+              💬 Asistente IA
+              <div className="absolute top-full right-4 w-2 h-2 bg-gray-900 transform rotate-45 border-r border-t border-gray-700"></div>
+            </div>
+          </button>
+        )}
+
+        {/* VENTANA DE CHAT FLOTANTE */}
+        {showAIChat && (
+          <div className="fixed bottom-6 right-6 z-50 bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200 transition-all duration-300 flex flex-col"
+            style={{
+              width: '420px',
+              height: '650px',
+            }}
+          >
+            {/* HEADER PREMIUM */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white p-5 rounded-t-3xl select-none">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3 flex-1">
+                  {/* AVATAR */}
+                  <div className="w-11 h-11 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm border border-white border-opacity-40 flex-shrink-0">
+                    🤖
+                  </div>
+
+                  {/* TEXTO */}
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-black leading-none">Asistente IA</h2>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <p className="text-xs text-blue-100 font-semibold">
+                        {chatLoading ? 'Procesando...' : 'Online'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* BOTÓN CERRAR */}
                 <button
-                  onClick={() => setShowAIChat(!showAIChat)}
-                  className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all"
+                  onClick={() => setShowAIChat(false)}
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-xl transition-all backdrop-blur-sm flex-shrink-0"
+                  title="Cerrar"
                 >
-                  {showAIChat ? "Cerrar Chat" : "Abrir Chat"}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {showAIChat && (
-                <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur">
-                  {/* Mensajes del chat */}
-                  <div className="mb-4 max-h-96 overflow-y-auto space-y-3">
-                    {chatMessages.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Brain className="w-12 h-12 mx-auto mb-3 opacity-70" />
-                        <p className="text-sm opacity-90 mb-4">
-                          ¡Hola! Soy tu asistente de IA. Puedo ayudarte con:
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                          <button
-                            onClick={() =>
-                              handleAIChat(
-                                "¿Cuál es el estado actual del sistema?"
-                              )
-                            }
-                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                          >
-                            📊 Estado del sistema
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleAIChat(
-                                "Dame recomendaciones para mejorar el Compromiso                                                                                                                  "
-                              )
-                            }
-                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                          >
-                            💡 Mejorar Compromiso
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleAIChat(
-                                "¿Qué recursos son los más populares?"
-                              )
-                            }
-                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                          >
-                            ⭐ Recursos populares
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleAIChat("¿Cómo crear un quiz interactivo?")
-                            }
-                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-2 rounded transition-all text-left"
-                          >
-                            🎯 Crear quizzes
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {chatMessages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex ${msg.role === "user"
-                              ? "justify-end"
-                              : "justify-start"
-                              }`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-lg p-3 ${msg.role === "user"
-                                ? "bg-white text-purple-900"
-                                : "bg-white bg-opacity-20 text-white"
-                                }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                {msg.role === "assistant" && (
-                                  <Brain className="w-4 h-4 mt-1 flex-shrink-0" />
-                                )}
-                                <div className="flex-1">
-                                  <p className="text-sm whitespace-pre-wrap">
-                                    {msg.content}
-                                  </p>
-                                  <p className="text-xs opacity-70 mt-1">
-                                    {msg.timestamp.toLocaleTimeString("es-ES", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {chatLoading && (
-                          <div className="flex justify-start">
-                            <div className="bg-white bg-opacity-20 rounded-lg p-3">
-                              <div className="flex items-center gap-2">
-                                <Brain className="w-4 h-4 animate-pulse" />
-                                <span className="text-sm">Pensando...</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+              <p className="text-xs text-blue-100 font-medium">
+                ✨ Haz preguntas sobre tu sistema educativo
+              </p>
+            </div>
 
-                  {/* Input del chat */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && !chatLoading) {
-                          handleAIChat(chatInput);
-                        }
-                      }}
-                      placeholder="Escribe tu pregunta..."
-                      disabled={chatLoading}
-                      className="flex-1 px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-70 border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
-                    />
+            {/* ÁREA DE MENSAJES */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white via-blue-50 to-white">
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-4">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center text-5xl mb-4 shadow-lg">
+                    💬
+                  </div>
+                  <h3 className="font-black text-gray-800 mb-2 text-lg">¡Hola! Soy tu Asistente IA</h3>
+                  <p className="text-gray-600 text-sm mb-6">
+                    Puedo ayudarte con estadísticas, recomendaciones y dudas sobre tu sistema
+                  </p>
+
+                  {/* SUGERENCIAS RÁPIDAS */}
+                  <div className="grid grid-cols-2 gap-2 w-full">
                     <button
-                      onClick={() => handleAIChat(chatInput)}
-                      disabled={chatLoading || !chatInput.trim()}
-                      className="bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => handleAIChat("¿Cuál es el estado actual del sistema?")}
+                      className="bg-gradient-to-br from-blue-400 to-blue-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
                     >
-                      Enviar
+                      📊 Estado
                     </button>
-                    {chatMessages.length > 0 && (
-                      <button
-                        onClick={clearChat}
-                        className="bg-red-500 bg-opacity-50 hover:bg-opacity-70 text-white px-4 py-2 rounded-lg transition-all"
-                        title="Limpiar chat"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleAIChat("Dame recomendaciones para mejorar el Compromiso")}
+                      className="bg-gradient-to-br from-yellow-400 to-yellow-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                    >
+                      💡 Recomendaciones
+                    </button>
+                    <button
+                      onClick={() => handleAIChat("¿Qué recursos son los más populares?")}
+                      className="bg-gradient-to-br from-green-400 to-green-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                    >
+                      📈 Estadísticas
+                    </button>
+                    <button
+                      onClick={() => handleAIChat("¿Cómo crear un quiz interactivo?")}
+                      className="bg-gradient-to-br from-purple-400 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
+                    >
+                      ❓ Ayuda
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-xs px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user"
+                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-none shadow-lg"
+                          : "bg-white text-gray-800 border-2 border-gray-100 rounded-bl-none shadow-md"
+                          }`}
+                      >
+                        {msg.content}
+                        <p
+                          className={`text-xs mt-2 ${msg.role === "user"
+                            ? "text-blue-100"
+                            : "text-gray-500"
+                            }`}
+                        >
+                          {msg.timestamp.toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* INDICADOR DE ESCRITURA */}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border-2 border-gray-100 rounded-2xl rounded-bl-none px-4 py-3 flex gap-2 shadow-md">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-          </div>
-        </div>
 
+            {/* INPUT AREA */}
+            <div className="border-t border-gray-200 p-4 bg-white rounded-b-3xl space-y-3">
+              {/* SUGERENCIAS RÁPIDAS - CUANDO HAY MENSAJES */}
+              {chatMessages.length > 0 && !chatLoading && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  <button
+                    onClick={() => handleAIChat("📊 Más información")}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
+                  >
+                    📊 Más info
+                  </button>
+                  <button
+                    onClick={() => handleAIChat("💡 Sugerencias")}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
+                  >
+                    💡 Sugerencias
+                  </button>
+                  <button
+                    onClick={() => handleAIChat("⚠️ Alertas")}
+                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
+                  >
+                    ⚠️ Alertas
+                  </button>
+                </div>
+              )}
+
+              {/* INPUT */}
+              <div className="flex gap-2 items-end">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && !chatLoading) {
+                      handleAIChat(chatInput);
+                    }
+                  }}
+                  placeholder="Escribe tu pregunta..."
+                  disabled={chatLoading}
+                  className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder-gray-500 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <button
+                  onClick={() => handleAIChat(chatInput)}
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-2xl font-black transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* INFO FOOTER */}
+              <p className="text-xs text-center text-gray-500 font-medium">
+                ✨ Presiona Enter para enviar
+              </p>
+            </div>
+          </div>
+        )}
         {/* Análisis con Algoritmos */}
+
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <h3 className="font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
-            🤖 Generador de Análisis con Algoritmos
+            🤖 Análisis Inteligente de Cursos
           </h3>
 
-          {/* SELECTOR + BOTONES */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border-2 border-blue-200 mb-6">
-            <p className="text-sm text-gray-700 mb-4">
-              📌 <strong>Selecciona un curso</strong> para análisis específico, o haz clic en <strong>"Todos"</strong> para ver el estado general del sistema
+          {/* DESCRIPCIÓN CLARA */}
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+            <p className="text-sm text-gray-700">
+              📌 <strong>Selecciona un curso abajo</strong> para ver análisis detallado con algoritmos de IA (LEA, ADA, AFS)
             </p>
+          </div>
 
-            <div className="flex gap-3 items-end flex-wrap">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
-                  🎯 Seleccionar Curso
-                </label>
+          {/* GRID LIMPIO: SOLO LOS CURSOS */}
+          {courses && courses.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {courses.map((course) => {
+                const studentCount = users.filter(u => u.rol === "estudiante").length;
 
-                {/* DROPDOWN PERSONALIZADO */}
-                <div className="relative">
+                return (
                   <button
-                    type="button"
-                    onClick={() => setShowCourseDropdown(!showCourseDropdown)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-medium bg-white cursor-pointer hover:border-blue-400 transition-colors text-left flex items-center justify-between"
+                    key={course.id}
+                    onClick={() => {
+                      setSelectedCourseForReport(course.id);
+                      setTimeout(() => generateCourseReport(course.id), 100);
+                    }}
+                    className="text-left rounded-xl p-5 border-2 transition-all transform hover:scale-105 shadow-md hover:shadow-lg group"
+                    style={{
+                      borderColor: selectedCourseForReport === course.id ? course.color : '#e5e7eb',
+                      backgroundColor: selectedCourseForReport === course.id ? `${course.color}15` : '#ffffff',
+                    }}
                   >
-                    <span>
-                      {selectedCourseForReport
-                        ? courses.find(c => c.id === selectedCourseForReport)?.titulo || "Selecciona un curso"
-                        : "-- Selecciona un curso --"
-                      }
-                    </span>
-                    <span className="text-gray-600">▼</span>
-                  </button>
+                    {/* HEADER CON COLOR DEL CURSO */}
+                    <div
+                      className="h-2 -mx-5 -mt-5 mb-4 rounded-t-lg"
+                      style={{ backgroundColor: course.color }}
+                    ></div>
 
-                  {/* OPCIONES DROPDOWN */}
-                  {showCourseDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto">
-                      {/* Opción Limpiar */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCourseForReport(null);
-                          setShowCourseDropdown(false);
-                        }}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-100 border-b border-gray-200 text-gray-800 font-medium transition-colors"
+                    {/* CONTENIDO */}
+                    <div className="flex items-start gap-3 mb-3">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold shadow-md"
+                        style={{ backgroundColor: course.color }}
                       >
-                        -- Limpiar selección --
-                      </button>
-
-                      {/* Opciones de Cursos */}
-                      {courses && courses.length > 0 ? (
-                        courses.map((course) => (
-                          <button
-                            type="button"
-                            key={course.id}
-                            onClick={() => {
-                              setSelectedCourseForReport(course.id);
-                              setShowCourseDropdown(false);
-                            }}
-                            className={`w-full px-4 py-3 text-left border-b border-gray-100 transition-colors ${selectedCourseForReport === course.id
-                              ? "bg-blue-500 text-white font-semibold hover:bg-blue-600"
-                              : "text-gray-800 hover:bg-blue-50"
-                              }`}
-                          >
-                            ✓ {course.titulo}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-6 text-center text-gray-500">
-                          No hay cursos disponibles
-                        </div>
-                      )}
+                        {course.titulo.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-800 group-hover:text-gray-900 truncate">
+                          {course.titulo}
+                        </h4>
+                        <p className="text-xs text-gray-500 font-medium">{course.nivel_nombre || "Sin nivel"}</p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* BOTÓN ANALIZAR */}
+                    {/* ESTADÍSTICAS RÁPIDAS */}
+                    <div className="bg-white bg-opacity-60 rounded-lg p-3 space-y-1 mb-3 text-xs border border-gray-200">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">👥 Estudiantes:</span>
+                        <span className="font-bold text-gray-800">{studentCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">📚 Recursos:</span>
+                        <span className="font-bold text-gray-800">
+                          {resources.filter(r => r.curso_id === course.id).length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOTÓN DE ACCIÓN */}
+                    <button
+                      className="w-full py-2 rounded-lg text-xs font-bold transition-all"
+                      style={{
+                        backgroundColor: selectedCourseForReport === course.id ? course.color : `${course.color}20`,
+                        color: selectedCourseForReport === course.id ? '#ffffff' : course.color,
+                        border: `2px solid ${course.color}`
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedCourseForReport !== course.id) {
+                          e.target.style.backgroundColor = course.color;
+                          e.target.style.color = '#ffffff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedCourseForReport !== course.id) {
+                          e.target.style.backgroundColor = `${course.color}20`;
+                          e.target.style.color = course.color;
+                        }
+                      }}
+                    >
+                      {selectedCourseForReport === course.id ? "✓ ANALIZANDO" : "Analizar →"}
+                    </button>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 font-semibold">No hay cursos disponibles</p>
+              <p className="text-sm text-gray-500 mt-1">Ve a la sección "Cursos" y crea uno primero</p>
+            </div>
+          )}
+
+          {/* BOTÓN ESPECIAL: ANALIZAR TODO (Opcional, debajo) */}
+          {courses && courses.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  if (selectedCourseForReport) {
-                    generateCourseReport(selectedCourseForReport);
-                  } else {
-                    generateCourseReport(null);
-                  }
+                  setSelectedCourseForReport(null);
+                  setTimeout(() => generateCourseReport(null), 100);
                 }}
-                disabled={isAnalyzingAllCourses}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 whitespace-nowrap shadow-lg"
+                className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-bold transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg"
               >
-                {isAnalyzingAllCourses ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Analizando...
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 className="w-4 h-4" />
-                    {selectedCourseForReport ? "Analizar Curso" : "Ver Sistema"}
-                  </>
-                )}
-              </button>
-
-              {/* BOTÓN LIMPIAR */}
-              {selectedCourseForReport && (
-                <button
-                  onClick={() => setSelectedCourseForReport(null)}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-3 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Limpiar
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* GRID DE CURSOS PARA SELECCIONAR RÁPIDO */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* ✅ TARJETA ANÁLISIS GENERAL */}
-            <div
-              onClick={() => {
-                setSelectedCourseForReport(null);
-                setTimeout(() => generateCourseReport(null), 100);
-              }}
-              className="rounded-lg p-4 border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 transition-all cursor-pointer group shadow-md"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h4 className="font-bold text-gray-800 text-sm mb-1 group-hover:text-purple-700">
-                    📊 ANÁLISIS GENERAL
-                  </h4>
-                  <p className="text-xs text-gray-600">
-                    {courses.length} cursos • {users.filter(u => u.rol === "estudiante").length} estudiantes
-                  </p>
-                </div>
-                <div className="text-3xl">🎯</div>
-              </div>
-              <button className="w-full bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors group-hover:shadow-lg">
-                Ver Estado del Sistema
+                <BarChart3 className="w-5 h-5" />
+                📊 Ver Análisis General del Sistema
               </button>
             </div>
-
-            {/* ✅ TARJETAS DE CURSOS INDIVIDUALES */}
-            {courses && courses.length > 0 ? (
-              courses.slice(0, 6).map((course) => (
-                <div
-                  key={course.id}
-                  onClick={() => {
-                    setSelectedCourseForReport(course.id);
-                    console.log("📌 Curso clickeado:", course.id, course.titulo);
-                  }}
-                  className={`rounded-lg p-4 border-2 transition-all cursor-pointer ${selectedCourseForReport === course.id
-                    ? "bg-blue-100 border-blue-400 shadow-lg scale-105"
-                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:border-blue-300 hover:shadow-md"
-                    }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 text-sm mb-1">
-                        {course.titulo}
-                      </h4>
-                      <p className="text-xs text-gray-600">{course.nivel_nombre || "Sin nivel"}</p>
-                    </div>
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${course.color}20` }}
-                    >
-                      <BookOpen
-                        className="w-5 h-5"
-                        style={{ color: course.color }}
-                      />
-                    </div>
-                  </div>
-                  {selectedCourseForReport === course.id && (
-                    <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded text-center">
-                      ✓ SELECCIONADO
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">No hay cursos disponibles</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* SECCIÓN DE ACTIVIDAD RECIENTE Y CURSOS MÁS ACTIVOS */}
@@ -7031,167 +7553,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
   // Renderizar visor/editor de contenido interactivo
 
-  const renderContentViewer = () => {
-    if (!viewingContent || !editingContent) return null;
 
-    const type = contentTypes.find(c => c.id === viewingContent.type);
-    const isEditing = JSON.stringify(viewingContent.content) !== JSON.stringify(editingContent.content);
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
-
-          {/* HEADER */}
-          <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-5xl">{type?.icon}</span>
-                  <div>
-                    <input
-                      type="text"
-                      value={editingContent.title}
-                      onChange={(e) => setEditingContent({ ...editingContent, title: e.target.value })}
-                      className="text-2xl font-bold bg-white bg-opacity-20 px-3 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-white w-full"
-                    />
-                    <p className="text-sm text-white text-opacity-90 mt-1">
-                      {type?.name} • Creado: {viewingContent.createdAt}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowContentViewer(false);
-                  setViewingContent(null);
-                  setEditingContent(null);
-                }}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-
-          {/* CONTENIDO SCROLLEABLE */}
-          <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
-
-            {/* QUIZ */}
-            {viewingContent.type === 'quiz' && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {editingContent.content.questions?.length || 0}
-                      </p>
-                      <p className="text-sm text-gray-600">Preguntas</p>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-green-600">
-                        {editingContent.content.totalPoints || 0}
-                      </p>
-                      <p className="text-sm text-gray-600">Puntos</p>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-orange-600">
-                        {editingContent.content.timeLimit || 0}
-                      </p>
-                      <p className="text-sm text-gray-600">Segundos</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* MOSTRAR PREGUNTAS */}
-                {editingContent.content.questions?.map((question, qIdx) => (
-                  <div key={qIdx} className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-md">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
-                        {qIdx + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-lg text-gray-800">
-                          {question.pregunta || question.text}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          ⭐ {question.puntos || 10} puntos
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* OPCIONES */}
-                    <div className="space-y-2 mb-4">
-                      {(question.opciones || question.options)?.map((option, oIdx) => (
-                        <div
-                          key={oIdx}
-                          className={`px-4 py-2 rounded-lg font-medium ${(question.respuesta_correcta ?? question.correct) === oIdx
-                            ? "bg-green-100 border-2 border-green-500 text-green-800"
-                            : "bg-gray-100 border-2 border-gray-200"
-                            }`}
-                        >
-                          {String.fromCharCode(65 + oIdx)}) {option}
-                          {(question.respuesta_correcta ?? question.correct) === oIdx && " ✓"}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* EXPLICACIÓN */}
-                    {question.explanation && (
-                      <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
-                        <p className="text-sm text-gray-700">
-                          <strong>💡 Explicación:</strong> {question.explanation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* OTROS TIPOS */}
-            {viewingContent.type !== 'quiz' && (
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                  {JSON.stringify(editingContent.content, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-
-          {/* FOOTER */}
-          <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-3 justify-end">
-            {viewingContent.type === 'quiz' && (
-              <button
-                onClick={() => {
-                  openQuizBuilderWithGeneratedContent(viewingContent);
-                }}
-                className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <Edit2 className="w-5 h-5" />
-                Editar en Quiz Builder
-              </button>
-            )}
-
-            <button
-              onClick={() => downloadContentFile(editingContent)}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <Download className="w-5 h-5" />
-              Descargar
-            </button>
-
-            <button
-              onClick={() => convertContentToResource(editingContent)}
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Agregar a Recursos
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -7402,9 +7764,18 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800">
-                Gestión de Usuarios
+                👥 Gestión de Usuarios y Estudiantes
               </h2>
               <div className="flex gap-3">
+                {/* NUEVO BOTÓN: AGREGAR ESTUDIANTE */}
+                <button
+                  onClick={() => setShowNewStudent(true)}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors font-semibold shadow-lg"
+                >
+                  <Plus className="w-5 h-5" />
+                  📚 Nuevo Estudiante
+                </button>
+
                 <button
                   onClick={() => setShowNewGroup(true)}
                   className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -7418,6 +7789,252 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </div>
             </div>
 
+            {/* ✅ MODAL: CREAR NUEVO ESTUDIANTE - COMPACTO */}
+            {showNewStudent && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden">
+
+                  {/* HEADER */}
+                  <div className="relative h-32 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+                    <div className="relative h-full flex items-center justify-between p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 bg-white bg-opacity-90 rounded-xl flex items-center justify-center">
+                          <Users className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-black text-white">Nuevo Estudiante</h2>
+                          <p className="text-indigo-100 text-xs font-medium">Registro rápido</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setShowNewStudent(false);
+                          setStudentMessage("");
+                        }}
+                        className="hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all"
+                      >
+                        <X className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CONTENIDO */}
+                  <div className="px-4 py-4 space-y-3 max-h-[70vh] overflow-y-auto">
+
+                    {studentMessage && (
+                      <div className={`p-3 rounded-xl text-xs font-semibold border-l-4 flex items-center gap-2 ${studentMessage.includes("✅")
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-500"
+                        : "bg-rose-50 text-rose-800 border-rose-500"
+                        }`}>
+                        {studentMessage.includes("✅") ? (
+                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        )}
+                        <span>{studentMessage}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-800">
+                        👤 Nombre <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newStudentData.nombre}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            nombre: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-800"
+                        placeholder="Juan Pérez García"
+                        disabled={creatingStudent}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-800">
+                        🎯 Usuario <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newStudentData.usuario}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            usuario: e.target.value.toLowerCase().replace(/\s/g, ""),
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-800"
+                        placeholder="juanperez"
+                        disabled={creatingStudent}
+                      />
+                      <p className="text-xs text-gray-500">Mínimo 3 caracteres, sin espacios</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-800">
+                        🏫 Grupo (Opcional)
+                      </label>
+                      <select
+                        value={newStudentData.grupo_id}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            grupo_id: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm text-gray-800 bg-white cursor-pointer"
+                        disabled={creatingStudent}
+                      >
+                        <option value="">-- Selecciona --</option>
+                        {groups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2 my-3">
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <span className="text-xs text-gray-500 font-bold px-1">SEGURIDAD</span>
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-800">
+                        🔐 Contraseña <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newStudentData.password}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            password: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-800"
+                        placeholder="••••••••"
+                        disabled={creatingStudent}
+                      />
+                      <p className="text-xs text-gray-500">Mínimo 6 caracteres</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-gray-800">
+                        🔁 Confirmar <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newStudentData.confirm_password}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            confirm_password: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-800"
+                        placeholder="••••••••"
+                        disabled={creatingStudent}
+                      />
+                      {newStudentData.password && newStudentData.confirm_password && (
+                        <div className={`flex items-center gap-1 text-xs font-semibold ${newStudentData.password === newStudentData.confirm_password
+                          ? "text-emerald-700"
+                          : "text-rose-700"
+                          }`}>
+                          {newStudentData.password === newStudentData.confirm_password ? (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              Coinciden ✓
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-3 h-3" />
+                              No coinciden
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <label className="block text-xs font-bold text-gray-800">
+                        📧 Email (Auto-generado)
+                      </label>
+                      <div className="text-sm font-mono text-blue-600 break-all">
+                        {newStudentData.email ||
+                          `${newStudentData.usuario || "[usuario]"}@didactikapp.com`}
+                      </div>
+                      <input
+                        type="email"
+                        value={newStudentData.email}
+                        onChange={(e) =>
+                          setNewStudentData({
+                            ...newStudentData,
+                            email: e.target.value,
+                          })
+                        }
+                        className="w-full px-2 py-1 border border-blue-200 rounded text-xs mt-2"
+                        placeholder="Dejar en blanco para usar generado"
+                        disabled={creatingStudent}
+                      />
+                    </div>
+                  </div>
+
+                  {/* BOTONES - SOLO UN ONCLICK POR BOTÓN */}
+                  <div className="flex gap-2 p-4 bg-gray-50 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        setShowNewStudent(false);
+                        setStudentMessage("");
+                        setNewStudentData({
+                          nombre: "",
+                          usuario: "",
+                          password: "",
+                          confirm_password: "",
+                          grupo_id: "",
+                          email: "",
+                        });
+                      }}
+                      disabled={creatingStudent}
+                      className="flex-1 px-3 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-bold text-sm transition-all disabled:opacity-50"
+                    >
+                      ✕ Cancelar
+                    </button>
+
+                    {/* ✅ BOTÓN CREAR - UN SOLO ONCLICK */}
+                    <button
+                      onClick={createStudent}
+                      disabled={
+                        creatingStudent ||
+                        !newStudentData.nombre.trim() ||
+                        newStudentData.usuario.length < 3 ||
+                        newStudentData.password.length < 6 ||
+                        newStudentData.password !== newStudentData.confirm_password
+                      }
+                      className="flex-1 px-3 py-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white rounded-lg font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      {creatingStudent ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Creando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4" />
+                          <span>Crear</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Formulario Nuevo Grupo */}
             {showNewGroup && (
               <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -7607,6 +8224,9 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                           Usuario
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          👤 Usuario/Pass (Estudiantes)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Email
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -7641,6 +8261,40 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                               </div>
                             </div>
                           </td>
+
+                          {/* ✅ NUEVA COLUMNA: Usuario/Contraseña */}
+                          <td className="px-6 py-4">
+                            {user.rol === "estudiante" ? (
+                              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                <p className="text-xs font-semibold text-gray-700 mb-2">👤 Usuario:</p>
+                                <p className="font-mono text-sm font-bold text-blue-600 mb-3 break-all">
+                                  {user.usuario || "N/A"}
+                                </p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(user.usuario || "");
+                                      alert("✅ Usuario copiado al portapapeles");
+                                    }}
+                                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 text-xs rounded font-bold transition-colors"
+                                  >
+                                    Copiar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      alert(`📋 CREDENCIALES DEL ESTUDIANTE\n\nNombre: ${user.nombre}\nUsuario: ${user.usuario}\n\n⚠️ Contraseña: No se muestra por seguridad.\n\nSi el estudiante olvida su contraseña, debe notificarte para restablecerla.`);
+                                    }}
+                                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 text-xs rounded font-bold transition-colors"
+                                  >
+                                    Ver Info
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm">No aplica</span>
+                            )}
+                          </td>
+
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {user.email}
                           </td>
@@ -8611,7 +9265,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                       placeholder="Ej: Matemático Estrella"
                     />
                   </div>
-
                   {/* PUNTOS REQUERIDOS */}
                   <div>
                     <label className="block text-sm font-bold text-gray-800 mb-3">
@@ -8893,668 +9546,408 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
         )}
         {/* MODAL DE REPORTE CON FILTROS FUNCIONALES */}
         {showCourseReportModal && courseReportData && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl max-w-5xl w-full shadow-2xl my-8 overflow-hidden">
-              {/* HEADER CON FILTROS */}
-              <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 text-white p-8">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <BarChart3 className="w-8 h-8" />
-                      <div>
-                        <h2 className="text-3xl font-bold mb-1"> 🤖 Análisis con Algoritmos {courseReportData?.stats?.totalStudents && (<span className="text-lg text-blue-100 ml-3"> ({courseReportData.stats.totalStudents} estudiantes) </span>)} </h2> <p className="text-sm text-blue-100"> LEA (Learning Effectiveness) | ADA (Attention Detection) | AFS (Adaptive Feedback) </p>
-                      </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-md">
+            <div className="bg-white rounded-3xl max-w-7xl w-full shadow-2xl my-8 overflow-hidden">
+
+              {/* HEADER ULTRA COMPACTO */}
+              <div className="sticky top-0 z-10 bg-gradient-to-br from-blue-50 to-blue-100 border-b border-blue-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-2xl shadow-md">
+                      📊
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-2xl font-black text-gray-900 truncate">
+                        {courseReportData.course.titulo}
+                      </h1>
+                      <p className="text-xs text-gray-600 font-bold">LEA • ADA • AFS</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowCourseReportModal(false)}
-                    className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                    className="bg-red-100 hover:bg-red-200 p-2 rounded-lg transition-all flex-shrink-0 ml-2"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 text-red-600" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 pt-6 border-t border-white border-opacity-20">
-                  <div className="bg-white bg-opacity-10 rounded-lg p-3 border border-white border-opacity-20">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        {" "}
-                        <p className="text-xs font-semibold text-blue-100">
-                          CURSO ANALIZADO
-                        </p>
-                        <p className="text-lg font-bold">
-                          {courseReportData.course.titulo}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-blue-100">
-                          FECHA DEL REPORTE
-                        </p>
-                        <p className="text-lg font-bold">
-                          {courseReportData.course.fecha}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-blue-100">
-                          TOTAL ESTUDIANTES
-                        </p>
-                        <p className="text-lg font-bold">
-                          {courseReportData.stats.totalStudents}
-                        </p>
-                      </div>
-                    </div>
+                {/* STATS EN UNA LÍNEA */}
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-white rounded-lg p-2 border border-blue-200 text-center">
+                    <p className="text-xs font-bold text-gray-600">👥</p>
+                    <p className="text-lg font-black text-gray-900">{courseReportData.stats.totalStudents}</p>
+                    <p className="text-xs text-gray-500">Estudiantes</p>
                   </div>
-                </div>
-
-                {/* FILTROS */}
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-blue-100 mb-2">
-                      🏫 FILTRAR POR GRUPO
-                    </label>
-                    <select
-                      value={filterByGroup}
-                      onChange={(e) => setFilterByGroup(e.target.value)}
-                      className="w-full px-3 py-2 bg-white bg-opacity-20 text-white rounded-lg text-sm border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                      <option value="" className="text-gray-800">
-                        Todos los grupos
-                      </option>
-                      {[
-                        ...new Set(
-                          courseReportData.students.map((d) => d.grupo)
-                        ),
-                      ].map((grupo) => (
-                        <option
-                          key={grupo}
-                          value={grupo}
-                          className="text-gray-800"
-                        >
-                          {grupo}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="bg-white rounded-lg p-2 border border-blue-200 text-center">
+                    <p className="text-xs font-bold text-gray-600">📈</p>
+                    <p className="text-lg font-black text-gray-900">{courseReportData.stats.avgProgress}%</p>
+                    <p className="text-xs text-gray-500">Progreso</p>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-blue-100 mb-2">
-                      📊 FILTRAR POR ESTADO
-                    </label>
-                    <select
-                      value={filterByStatus}
-                      onChange={(e) => setFilterByStatus(e.target.value)}
-                      className="w-full px-3 py-2 bg-white bg-opacity-20 text-white rounded-lg text-sm border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                      <option value="" className="text-gray-800">
-                        Todos los estados
-                      </option>
-                      <option value="excellent" className="text-gray-800">
-                        ✅ Excelente
-                      </option>
-                      <option value="warning" className="text-gray-800">
-                        ⚠️ Necesita apoyo
-                      </option>
-                      <option value="critical" className="text-gray-800">
-                        🚨 Crítico
-                      </option>
-                    </select>
+                  <div className="bg-white rounded-lg p-2 border border-blue-200 text-center">
+                    <p className="text-xs font-bold text-gray-600">✅</p>
+                    <p className="text-lg font-black text-gray-900">{courseReportData.stats.completedResources}</p>
+                    <p className="text-xs text-gray-500">Recursos</p>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-blue-100 mb-2">
-                      🔍 BUSCAR ESTUDIANTE
-                    </label>
-                    <input
-                      type="text"
-                      value={searchStudent}
-                      onChange={(e) => setSearchStudent(e.target.value)}
-                      placeholder="Escribe un nombre..."
-                      className="w-full px-3 py-2 bg-white bg-opacity-20 text-white rounded-lg text-sm border border-white border-opacity-30 focus:outline-none focus:ring-2 focus:ring-white placeholder-white placeholder-opacity-60"
-                    />
-                  </div>
-
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-blue-100 mb-2">
-                        📈 RESULTADOS
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="bg-white bg-opacity-10 rounded px-2 py-1 text-center">
-                          <p className="font-bold text-lg">
-                            {
-                              courseReportData.students.filter((data) => {
-                                if (
-                                  filterByGroup &&
-                                  data.grupo !== filterByGroup
-                                )
-                                  return false;
-                                if (
-                                  filterByStatus === "excellent" &&
-                                  !data.feedback.overallStatus.includes("✅")
-                                )
-                                  return false;
-                                if (
-                                  filterByStatus === "warning" &&
-                                  !data.feedback.overallStatus.includes("⚠️")
-                                )
-                                  return false;
-                                if (
-                                  filterByStatus === "critical" &&
-                                  !data.feedback.overallStatus.includes("🚨")
-                                )
-                                  return false;
-                                if (
-                                  searchStudent &&
-                                  !data.student.nombre
-                                    .toLowerCase()
-                                    .includes(searchStudent.toLowerCase())
-                                )
-                                  return false;
-                                return true;
-                              }).length
-                            }
-                          </p>
-                          <p className="text-xs opacity-90">Estudiantes</p>
-                        </div>
-                        <div className="bg-white bg-opacity-10 rounded px-2 py-1 text-center">
-                          <p className="font-bold text-lg">
-                            {
-                              courseReportData.students
-                                .filter((data) => {
-                                  if (
-                                    filterByGroup &&
-                                    data.grupo !== filterByGroup
-                                  )
-                                    return false;
-                                  if (
-                                    filterByStatus === "excellent" &&
-                                    !data.feedback.overallStatus.includes("✅")
-                                  )
-                                    return false;
-                                  if (
-                                    filterByStatus === "warning" &&
-                                    !data.feedback.overallStatus.includes("⚠️")
-                                  )
-                                    return false;
-                                  if (
-                                    filterByStatus === "critical" &&
-                                    !data.feedback.overallStatus.includes("🚨")
-                                  )
-                                    return false;
-                                  if (
-                                    searchStudent &&
-                                    !data.student.nombre
-                                      .toLowerCase()
-                                      .includes(searchStudent.toLowerCase())
-                                  )
-                                    return false;
-                                  return true;
-                                })
-                                .filter(
-                                  (d) => d.feedback.attentionLevel?.score >= 70
-                                ).length
-                            }
-                          </p>
-                          <p className="text-xs opacity-90">
-                            Con buena atención
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    {(filterByGroup || filterByStatus || searchStudent) && (
-                      <button
-                        onClick={() => {
-                          setFilterByGroup("");
-                          setFilterByStatus("");
-                          setSearchStudent("");
-                          setExpandedStudent(null);
-                        }}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1 h-fit whitespace-nowrap"
-                      >
-                        <X className="w-3 h-3" />
-                        Limpiar
-                      </button>
-                    )}
+                  <div className="bg-white rounded-lg p-2 border border-blue-200 text-center">
+                    <p className="text-xs font-bold text-gray-600">⏱️</p>
+                    <p className="text-lg font-black text-gray-900">{courseReportData.stats.totalTime}m</p>
+                    <p className="text-xs text-gray-500">Tiempo</p>
                   </div>
                 </div>
               </div>
 
-              {/* CONTENIDO SCROLLEABLE */}
-              <div className="overflow-y-auto max-h-[calc(90vh-300px)] p-8 space-y-4">
-                {/* ESTADÍSTICAS GENERALES */}
-                <section className="mb-6">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                    <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600"></div>
-                    Estadísticas Generales
-                  </h3>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      {
-                        label: "Total Estudiantes",
-                        value: courseReportData.stats.totalStudents,
-                        icon: "👥",
-                        color: "from-blue-500 to-blue-600",
-                      },
-                      {
-                        label: "Progreso Promedio",
-                        value: `${courseReportData.stats.avgProgress}%`,
-                        icon: "📈",
-                        color: "from-green-500 to-green-600",
-                      },
-                      {
-                        label: "Recursos Completados",
-                        value: courseReportData.stats.completedResources,
-                        icon: "✅",
-                        color: "from-purple-500 to-purple-600",
-                      },
-                      {
-                        label: "Tiempo Total",
-                        value: `${courseReportData.stats.totalTime}m`,
-                        icon: "⏱️",
-                        color: "from-orange-500 to-orange-600",
-                      },
-                    ].map((stat, idx) => (
-                      <div
-                        key={idx}
-                        className={`bg-gradient-to-br ${stat.color} rounded-xl p-5 text-white shadow-lg`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="text-3xl">{stat.icon}</div>
-                        </div>
-                        <p className="text-xs font-semibold text-white text-opacity-90">
-                          {stat.label}
-                        </p>
-                        <p className="text-2xl font-bold mt-2">{stat.value}</p>
-                      </div>
+              {/* FILTROS ULTRA COMPACTOS EN UNA LÍNEA */}
+              <div className="sticky top-24 z-9 bg-white border-b border-gray-200 p-3 flex gap-2 items-end flex-wrap">
+                <div className="flex-1 min-w-32">
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Grupo</label>
+                  <select
+                    value={filterByGroup}
+                    onChange={(e) => setFilterByGroup(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all font-medium text-sm text-gray-800"
+                  >
+                    <option value="">Todos</option>
+                    {[...new Set(courseReportData.students.map((d) => d.grupo))].map((grupo) => (
+                      <option key={grupo} value={grupo}>{grupo}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="flex-1 min-w-32">
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Estado</label>
+                  <select
+                    value={filterByStatus}
+                    onChange={(e) => setFilterByStatus(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all font-medium text-sm text-gray-800"
+                  >
+                    <option value="">Todos</option>
+                    <option value="excellent">✅ Excelente</option>
+                    <option value="warning">⚠️ Apoyo</option>
+                    <option value="critical">🚨 Crítico</option>
+                  </select>
+                </div>
+
+                <div className="flex-1 min-w-40">
+                  <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Buscar</label>
+                  <input
+                    type="text"
+                    value={searchStudent}
+                    onChange={(e) => setSearchStudent(e.target.value)}
+                    placeholder="Nombre..."
+                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-200 transition-all placeholder-gray-500 font-medium text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold text-xs border border-blue-300">
+                    {courseReportData.students.filter((data) => {
+                      if (filterByGroup && data.grupo !== filterByGroup) return false;
+                      if (filterByStatus === "excellent" && !data.feedback.overallStatus.includes("✅")) return false;
+                      if (filterByStatus === "warning" && !data.feedback.overallStatus.includes("⚠️")) return false;
+                      if (filterByStatus === "critical" && !data.feedback.overallStatus.includes("🚨")) return false;
+                      if (searchStudent && !data.student.nombre.toLowerCase().includes(searchStudent.toLowerCase())) return false;
+                      return true;
+                    }).length}
                   </div>
-                </section>
 
-                {/* ANÁLISIS POR ESTUDIANTE (CON FILTROS APLICADOS) */}
-                <section>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                    <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600"></div>
-                    Análisis de Estudiantes
-                  </h3>
-
-                  {(() => {
-                    const filteredStudents = courseReportData.students.filter(
-                      (data) => {
-                        if (filterByGroup && data.grupo !== filterByGroup)
-                          return false;
-                        if (
-                          filterByStatus === "excellent" &&
-                          !data.feedback.overallStatus.includes("✅")
-                        )
-                          return false;
-                        if (
-                          filterByStatus === "warning" &&
-                          !data.feedback.overallStatus.includes("⚠️")
-                        )
-                          return false;
-                        if (
-                          filterByStatus === "critical" &&
-                          !data.feedback.overallStatus.includes("🚨")
-                        )
-                          return false;
-                        if (
-                          searchStudent &&
-                          !data.student.nombre
-                            .toLowerCase()
-                            .includes(searchStudent.toLowerCase())
-                        )
-                          return false;
-                        return true;
-                      }
-                    );
-
-                    return filteredStudents.length === 0 ? (
-                      <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                        <p className="text-gray-500 text-lg">
-                          No hay estudiantes que coincidan con los filtros
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredStudents.map((data, idx) => {
-                          const { student, feedback, grupo } = data;
-                          const isExpanded = expandedStudent === idx;
-
-                          return (
-                            <div
-                              key={idx}
-                              className="bg-gray-50 rounded-2xl overflow-hidden shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
-                            >
-                              {/* HEADER COMPACTO */}
-                              <button
-                                onClick={() =>
-                                  setExpandedStudent(isExpanded ? null : idx)
-                                }
-                                className="w-full bg-gradient-to-r from-slate-700 to-slate-800 text-white p-6 hover:from-slate-600 hover:to-slate-700 transition-colors"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-4 flex-1 text-left">
-                                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xl font-bold">
-                                      {student.nombre?.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="flex-1">
-                                      <h4 className="text-lg font-bold">
-                                        {student.nombre}
-                                      </h4>
-                                      <p className="text-sm text-slate-300">
-                                        {grupo}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-3">
-                                    <div className="text-right">
-                                      <p className="text-xs text-slate-300">
-                                        Estado
-                                      </p>
-                                      <p className="text-sm font-bold">
-                                        {feedback.overallStatus}
-                                      </p>
-                                    </div>
-                                    <ChevronDown
-                                      className={`w-5 h-5 transition-transform ${isExpanded ? "rotate-180" : ""
-                                        }`}
-                                    />
-                                  </div>
-                                </div>
-                              </button>
-
-                              {/* DETALLES EXPANDIDOS */}
-                              {isExpanded && (
-                                <div className="p-6 space-y-6 bg-white">
-                                  {/* CUADROS DE ALGORITMOS */}
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* LEA */}
-                                    <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-300">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div>
-                                          <p className="text-xs font-bold text-blue-700 uppercase">
-                                            LEA
-                                          </p>
-                                          <p className="text-xs text-blue-600">
-                                            Aprendizaje Real
-                                          </p>
-                                        </div>
-                                        <span className="text-2xl">
-                                          {feedback.learningEffectiveness
-                                            ?.isLearning
-                                            ? "✅"
-                                            : "❌"}
-                                        </span>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div>
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-xs font-semibold text-gray-700">
-                                              Confianza
-                                            </span>
-                                            <span className="text-xs font-bold text-blue-600">
-                                              {feedback.learningEffectiveness?.confidence?.toFixed(
-                                                0
-                                              )}
-                                              %
-                                            </span>
-                                          </div>
-                                          <div className="w-full bg-blue-200 rounded-full h-2">
-                                            <div
-                                              className="bg-blue-600 h-2 rounded-full"
-                                              style={{
-                                                width: `${feedback.learningEffectiveness
-                                                  ?.confidence || 0
-                                                  }%`,
-                                              }}
-                                            ></div>
-                                          </div>
-                                        </div>
-
-                                        <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">
-                                              Intentos:
-                                            </span>
-                                            <span className="font-bold">
-                                              {feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(
-                                                1
-                                              )}
-                                            </span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">
-                                              Tiempo:
-                                            </span>
-                                            <span className="font-bold">
-                                              {feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(
-                                                0
-                                              )}
-                                              s
-                                            </span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">
-                                              Retención:
-                                            </span>
-                                            <span className="font-bold">
-                                              {feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(
-                                                1
-                                              )}
-                                              %
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* ADA */}
-                                    <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-300">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div>
-                                          <p className="text-xs font-bold text-purple-700 uppercase">
-                                            ADA
-                                          </p>
-                                          <p className="text-xs text-purple-600">
-                                            Atención
-                                          </p>
-                                        </div>
-                                        <span className="text-2xl">👁️</span>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div>
-                                          <div className="flex justify-between mb-1">
-                                            <span className="text-xs font-semibold text-gray-700">
-                                              Puntuación
-                                            </span>
-                                            <span className="text-xs font-bold text-purple-600">
-                                              {feedback.attentionLevel?.score ||
-                                                0}
-                                              /100
-                                            </span>
-                                          </div>
-                                          <div className="w-full bg-purple-200 rounded-full h-2">
-                                            <div
-                                              className={`h-2 rounded-full ${feedback.attentionLevel
-                                                ?.score >= 70
-                                                ? "bg-green-500"
-                                                : feedback.attentionLevel
-                                                  ?.score >= 50
-                                                  ? "bg-yellow-500"
-                                                  : "bg-red-500"
-                                                }`}
-                                              style={{
-                                                width: `${feedback.attentionLevel
-                                                  ?.score || 0
-                                                  }%`,
-                                              }}
-                                            ></div>
-                                          </div>
-                                        </div>
-
-                                        <div
-                                          className={`text-center py-2 rounded text-xs font-bold ${feedback.attentionLevel?.score >= 70
-                                            ? "bg-green-200 text-green-800"
-                                            : feedback.attentionLevel
-                                              ?.score >= 50
-                                              ? "bg-yellow-200 text-yellow-800"
-                                              : "bg-red-200 text-red-800"
-                                            }`}
-                                        >
-                                          {feedback.attentionLevel?.level}
-                                        </div>
-
-                                        <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">
-                                              Inactividad:
-                                            </span>
-                                            <span className="font-bold">
-                                              {
-                                                feedback.attentionLevel
-                                                  ?.indicators
-                                                  ?.inactivityPeriods
-                                              }
-                                            </span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span className="text-gray-600">
-                                              Foco:
-                                            </span>
-                                            <span className="font-bold">
-                                              {feedback.attentionLevel?.indicators?.focusIndex?.toFixed(
-                                                1
-                                              )}
-                                              %
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* AFS */}
-                                    <div className="bg-green-50 rounded-xl p-4 border-2 border-green-300">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div>
-                                          <p className="text-xs font-bold text-green-700 uppercase">
-                                            AFS
-                                          </p>
-                                          <p className="text-xs text-green-600">
-                                            Retroalimentación
-                                          </p>
-                                        </div>
-                                        <span className="text-2xl">🎯</span>
-                                      </div>
-
-                                      <div className="bg-white rounded-lg p-2 space-y-1 text-xs">
-                                        {feedback.strengths?.length > 0 && (
-                                          <div>
-                                            <p className="font-bold text-green-700">
-                                              ✓ {feedback.strengths.length}{" "}
-                                              Fortalezas
-                                            </p>
-                                          </div>
-                                        )}
-
-                                        {feedback.weaknesses?.length > 0 && (
-                                          <div className="border-t pt-1">
-                                            <p className="font-bold text-red-700">
-                                              ✗ {feedback.weaknesses.length}{" "}
-                                              Debilidades
-                                            </p>
-                                          </div>
-                                        )}
-
-                                        {feedback.actionPlan?.length > 0 && (
-                                          <div className="border-t pt-1">
-                                            <p className="font-bold text-blue-700">
-                                              📋 {feedback.actionPlan.length}{" "}
-                                              Acciones
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* FORTALEZAS Y DEBILIDADES */}
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-green-50 rounded-xl p-4 border-2 border-green-300">
-                                      <h5 className="font-bold text-green-800 mb-2 text-sm">
-                                        💪 Fortalezas
-                                      </h5>
-                                      <div className="space-y-1">
-                                        {feedback.strengths?.map((s, i) => (
-                                          <p
-                                            key={i}
-                                            className="text-xs text-gray-700"
-                                          >
-                                            ✓ {s}
-                                          </p>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    <div className="bg-red-50 rounded-xl p-4 border-2 border-red-300">
-                                      <h5 className="font-bold text-red-800 mb-2 text-sm">
-                                        🎯 Mejora
-                                      </h5>
-                                      <div className="space-y-1">
-                                        {feedback.weaknesses?.map((w, i) => (
-                                          <p
-                                            key={i}
-                                            className="text-xs text-gray-700"
-                                          >
-                                            ✗ {w}
-                                          </p>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </section>
+                  {(filterByGroup || filterByStatus || searchStudent) && (
+                    <button
+                      onClick={() => {
+                        setFilterByGroup("");
+                        setFilterByStatus("");
+                        setSearchStudent("");
+                        setExpandedStudent(null);
+                      }}
+                      className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-bold transition-all"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* FOOTER */}
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-4 justify-end">
+              {/* CONTENIDO PRINCIPAL - MAXIMIZADO */}
+              <div className="overflow-y-auto max-h-[calc(90vh-280px)] p-4 space-y-3 bg-gradient-to-b from-white to-gray-50">
+
+                {(() => {
+                  const filteredStudents = courseReportData.students.filter((data) => {
+                    if (filterByGroup && data.grupo !== filterByGroup) return false;
+                    if (filterByStatus === "excellent" && !data.feedback.overallStatus.includes("✅")) return false;
+                    if (filterByStatus === "warning" && !data.feedback.overallStatus.includes("⚠️")) return false;
+                    if (filterByStatus === "critical" && !data.feedback.overallStatus.includes("🚨")) return false;
+                    if (searchStudent && !data.student.nombre.toLowerCase().includes(searchStudent.toLowerCase())) return false;
+                    return true;
+                  });
+
+                  if (filteredStudents.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                        <Users className="w-20 h-20 text-gray-400 mx-auto mb-3" />
+                        <p className="text-gray-600 font-bold">No hay estudiantes</p>
+                      </div>
+                    );
+                  }
+
+                  return filteredStudents.map((data, idx) => {
+                    const { student, feedback, grupo } = data;
+                    const isExpanded = expandedStudent === idx;
+
+                    const getStatusColor = (status) => {
+                      if (status.includes("✅")) return { header: "bg-green-500 hover:bg-green-600" };
+                      if (status.includes("⚠️")) return { header: "bg-yellow-500 hover:bg-yellow-600" };
+                      return { header: "bg-red-500 hover:bg-red-600" };
+                    };
+
+                    const colors = getStatusColor(feedback.overallStatus);
+
+                    return (
+                      <div key={idx} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-200">
+
+                        {/* HEADER ESTUDIANTE COMPACTO */}
+                        <button
+                          onClick={() => setExpandedStudent(isExpanded ? null : idx)}
+                          className={`w-full ${colors.header} text-white p-3 hover:shadow-md transition-all flex items-center justify-between`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 text-left">
+                            <div className="w-11 h-11 bg-white bg-opacity-30 rounded-lg flex items-center justify-center text-lg font-black backdrop-blur-sm">
+                              {student.nombre?.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-sm truncate">{student.nombre}</h3>
+                              <p className="text-xs text-white text-opacity-90">{grupo}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                            <span className="text-xs font-bold bg-white bg-opacity-20 px-2 py-1 rounded">
+                              {feedback.overallStatus}
+                            </span>
+                            <ChevronDown className={`w-5 h-5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </div>
+                        </button>
+
+                        {/* CONTENIDO EXPANDIDO - COMPACTO */}
+                        {isExpanded && (
+                          <div className="p-4 space-y-4 bg-gray-50">
+
+                            {/* 3 COLUMNAS - ALGORITMOS COMPACTOS */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                              {/* LEA */}
+                              <div className="bg-white rounded-lg p-3 border-2 border-blue-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-black text-blue-600">📚 LEA</p>
+                                  <span className="text-lg">{feedback.learningEffectiveness?.isLearning ? "✅" : "❌"}</span>
+                                </div>
+
+                                {/* Barra de confianza */}
+                                <div className="mb-2">
+                                  <div className="flex justify-between mb-1 text-xs">
+                                    <span className="text-gray-700 font-bold">Confianza</span>
+                                    <span className="text-blue-600 font-black">
+                                      {feedback.learningEffectiveness?.confidence?.toFixed(0)}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all"
+                                      style={{ width: `${feedback.learningEffectiveness?.confidence || 0}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                {/* Métricas rápidas */}
+                                <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Intentos</span>
+                                    <span className="font-black text-gray-900">
+                                      {feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(1)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Tiempo/Pregunta</span>
+                                    <span className="font-black text-gray-900">
+                                      {feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0)}s
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Retención</span>
+                                    <span className="font-black text-gray-900">
+                                      {feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* ADA */}
+                              <div className="bg-white rounded-lg p-3 border-2 border-blue-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-black text-blue-600">👁️ ADA</p>
+                                  <span className="text-lg">🎯</span>
+                                </div>
+
+                                {/* Barra de atención */}
+                                <div className="mb-2">
+                                  <div className="flex justify-between mb-1 text-xs">
+                                    <span className="text-gray-700 font-bold">Atención</span>
+                                    <span className="text-blue-600 font-black">
+                                      {feedback.attentionLevel?.score || 0}/100
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all bg-gradient-to-r ${(feedback.attentionLevel?.score || 0) >= 70
+                                        ? "from-green-500 to-green-600"
+                                        : (feedback.attentionLevel?.score || 0) >= 50
+                                          ? "from-yellow-500 to-yellow-600"
+                                          : "from-red-500 to-red-600"
+                                        }`}
+                                      style={{ width: `${feedback.attentionLevel?.score || 0}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                {/* Status */}
+                                <div className={`text-center py-1 rounded text-xs font-bold mb-2 ${(feedback.attentionLevel?.score || 0) >= 70
+                                  ? "bg-green-100 text-green-800"
+                                  : (feedback.attentionLevel?.score || 0) >= 50
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
+                                  }`}>
+                                  {feedback.attentionLevel?.level}
+                                </div>
+
+                                {/* Métricas */}
+                                <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Inactivo</span>
+                                    <span className="font-black text-gray-900">
+                                      {feedback.attentionLevel?.indicators?.inactivityPeriods || 0}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Foco</span>
+                                    <span className="font-black text-gray-900">
+                                      {feedback.attentionLevel?.indicators?.focusIndex?.toFixed(1) || 0}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* AFS */}
+                              <div className="bg-white rounded-lg p-3 border-2 border-blue-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-black text-blue-600">💬 AFS</p>
+                                  <span className="text-lg">📋</span>
+                                </div>
+
+                                {/* Resumen visual compacto */}
+                                <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-700">Fortalezas</span>
+                                    <span className="font-black bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">
+                                      {feedback.strengths?.length || 0}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-700">Por Mejorar</span>
+                                    <span className="font-black bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded text-xs">
+                                      {feedback.weaknesses?.length || 0}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-700">Acciones</span>
+                                    <span className="font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                      {feedback.actionPlan?.length || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* FORTALEZAS Y DEBILIDADES EN DOS COLUMNAS */}
+                            {(feedback.strengths?.length > 0 || feedback.weaknesses?.length > 0) && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {feedback.strengths?.length > 0 && (
+                                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                                    <h4 className="font-black text-green-800 mb-2 text-xs">✓ Fortalezas</h4>
+                                    <ul className="space-y-1">
+                                      {feedback.strengths.map((s, i) => (
+                                        <li key={i} className="flex gap-1 text-xs text-gray-700">
+                                          <span className="text-green-600 font-black flex-shrink-0">✓</span>
+                                          <span>{s}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {feedback.weaknesses?.length > 0 && (
+                                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                                    <h4 className="font-black text-orange-800 mb-2 text-xs">→ Por Mejorar</h4>
+                                    <ul className="space-y-1">
+                                      {feedback.weaknesses.map((w, i) => (
+                                        <li key={i} className="flex gap-1 text-xs text-gray-700">
+                                          <span className="text-orange-600 font-black flex-shrink-0">→</span>
+                                          <span>{w}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* PLAN DE ACCIÓN */}
+                            {feedback.actionPlan?.length > 0 && (
+                              <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white">
+                                <h4 className="font-black mb-2 text-xs">📋 Plan de Acción</h4>
+                                <ol className="space-y-1">
+                                  {feedback.actionPlan.map((action, i) => (
+                                    <li key={i} className="flex gap-2 text-xs">
+                                      <span className="bg-white bg-opacity-30 rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 text-xs font-black">
+                                        {i + 1}
+                                      </span>
+                                      <span>{action}</span>
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* FOOTER ULTRA COMPACTO */}
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 flex gap-2 justify-end">
                 <button
                   onClick={() => {
                     setShowCourseReportModal(false);
                     setFilterByGroup("");
                     setFilterByStatus("");
                     setSearchStudent("");
-                    setFilterByCourse("");
                     setExpandedStudent(null);
                   }}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-bold text-sm transition-all"
                 >
-                  <X className="w-5 h-5" />
                   Cerrar
                 </button>
                 <button
                   onClick={handlePrintReport}
-                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-1"
                 >
-                  <Printer className="w-5 h-5" />
+                  <Printer className="w-4 h-4" />
                   Imprimir
                 </button>
                 <button
                   onClick={handleDownloadReport}
-                  className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-1 shadow-md"
                 >
-                  <Download className="w-5 h-5" />
-                  Descargar
+                  <Download className="w-4 h-4" />
+                  Excel
                 </button>
               </div>
             </div>
@@ -10273,7 +10666,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       {showContentGenerator && renderContentGenerator()}
 
       {/* VISOR/EDITOR DE CONTENIDO */}
-      {showContentViewer && renderContentViewer()}
+      {showContentViewer && renderInteractiveContent()}
 
 
       {/* ESTILOS PARA ANIMACIONES */}
