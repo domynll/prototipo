@@ -482,6 +482,20 @@ export default function EnhancedAdminPanel() {
   const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const [isAnalyzingAllCourses, setIsAnalyzingAllCourses] = useState(false);
 
+  //  ESTADOS PARA INTERACTIVIDAD 
+  const [playingGame, setPlayingGame] = useState(null);
+  const [gameState, setGameState] = useState(null);
+  const [storyPage, setStoryPage] = useState(0);
+  const [challengeProgress, setChallengeProgress] = useState({});
+  const [exerciseAnswers, setExerciseAnswers] = useState({});
+  // ESTADOS PARA EDICIÓN AVANZADA DE CONTENIDO 
+  const [editingQuizQuestion, setEditingQuizQuestion] = useState(null);
+  const [editingCompleteQuiz, setEditingCompleteQuiz] = useState(null);
+  const [tempQuestionData, setTempQuestionData] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiPickerFor, setEmojiPickerFor] = useState(null); // 'question', 'option-0', 'option-1', etc.
+  const [savingChanges, setSavingChanges] = useState(false);
+
   // Estados para Quiz Builder
   const [showQuizBuilder, setShowQuizBuilder] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
@@ -550,6 +564,11 @@ export default function EnhancedAdminPanel() {
   const [contentLibrary, setContentLibrary] = useState([]);
   const [expandedContentId, setExpandedContentId] = useState(null);
   const [editingInPlace, setEditingInPlace] = useState(null);
+  const [showContentPreview, setShowContentPreview] = useState(false);
+  const [previewMode, setPreviewMode] = useState('desktop'); // 'desktop' | 'mobile' 
+  const [editingGeneratedQuiz, setEditingGeneratedQuiz] = useState(null);
+  const [quizPreviewIndex, setQuizPreviewIndex] = useState(0);
+  const [quizPreviewAnswers, setQuizPreviewAnswers] = useState({});
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState("");
@@ -889,46 +908,39 @@ export default function EnhancedAdminPanel() {
   ];
 
   const emojis = [
-    "🎨",
-    "🎮",
-    "🎵",
-    "🌟",
-    "🎉",
-    "🚀",
-    "🌈",
-    "⭐",
-    "💡",
-    "🎯",
-    "🏆",
-    "🎪",
-    "🦁",
-    "🐘",
-    "🦋",
-    "🌺",
-    "🍎",
-    "📚",
-    "✏️",
-    "🎈",
-    "🔢",
-    "🅰️",
-    "🅱️",
-    "🔤",
-    "📝",
-    "✅",
-    "❌",
-    "➕",
-    "➖",
-    "✖️",
-    "🌍",
-    "🌞",
-    "🌙",
-    "⭐",
-    "🔥",
-    "💧",
-    "🍃",
-    "🌸",
-    "🐶",
-    "🐱",
+    // Formas geométricas
+    "🔴", "🔵", "🟡", "🟢", "🟣", "🟠", "⭕", "📍",
+    // Figuras
+    "▶️", "⏹️", "✂️", "✏️", "🎯", "🎪", "🎨", "🎭",
+    // Animales
+    "🦁", "🐘", "🦒", "🐼", "🦊", "🐶", "🐱", "🐭",
+    "🦆", "🦉", "🦅", "🦜", "🐢", "🐟", "🦀", "🦑",
+    // Comida
+    "🍎", "🍊", "🍋", "🍌", "🍓", "🥕", "🌽", "🍕",
+    "🍔", "🍟", "🍗", "🍖", "🥩", "🧀", "🥛", "🍯",
+    // Números y símbolos
+    "🔢", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣",
+    "8️⃣", "9️⃣", "0️⃣", "✅", "❌", "➕", "➖", "✖️",
+    // Letras
+    "🅰️", "🅱️", "🆎", "🅾️", "Ⓜ️", "♈️", "♉️", "♊️",
+    // Transportes
+    "🚀", "🛸", "🚁", "✈️", "🚂", "🚃", "🚄", "🚅",
+    "🚗", "🚕", "🚙", "🚌", "🚎", "🚐", "🚚", "🚛",
+    "🚜", "⛵", "🚤", "🛥️", "🛳️", "⛴️", "🚢", "⛽",
+    // Deportes
+    "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉",
+    "🥏", "🎱", "🪀", "🏓", "🏸", "🏒", "🏑", "🥍",
+    // Profesiones
+    "👨‍⚕️", "👩‍⚕️", "👨‍🌾", "👩‍🌾", "👨‍🏫", "👩‍🏫", "👨‍🍳", "👩‍🍳",
+    // Objetos educativos
+    "📚", "📖", "📝", "✏️", "📐", "📏", "📊", "📈",
+    "🎓", "🧮", "🔭", "🔬", "⚗️", "🧪", "🧬", "🔍",
+    // Naturaleza
+    "🌳", "🌲", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀",
+    "🎄", "🌱", "🌲", "🌳", "⛅", "🌤️", "⛈️", "🌈",
+    // Diversión
+    "🎉", "🎊", "🎈", "🎀", "🎁", "🎂", "🍰", "🎆",
+    "🎇", "🎃", "🎄", "🎀", "🎗️", "🏆", "🥇", "🥈",
   ];
 
   const availableRoles = [
@@ -1169,7 +1181,7 @@ export default function EnhancedAdminPanel() {
       const targetRoute = routes[targetRole] || "/";
       navigate(targetRoute, { replace: true });
 
-      // ✅ Resetear estado después de navegar
+      // Resetear estado después de navegar
       setTargetRole(null);
 
     } catch (error) {
@@ -1177,6 +1189,238 @@ export default function EnhancedAdminPanel() {
     } finally {
       setReauthLoading(false);
     }
+  };
+
+  // FUNCIÓN: Vista previa interactiva del contenido generado
+  const renderContentPreview = () => {
+    if (!editingGeneratedQuiz) return null;
+
+    const questions = editingGeneratedQuiz.preguntas ||
+      editingGeneratedQuiz.content?.questions ||
+      [];
+
+    if (questions.length === 0) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md text-center shadow-2xl">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">No hay preguntas</h3>
+            <p className="text-gray-600 mb-4">Este quiz no tiene preguntas para mostrar</p>
+            <button
+              onClick={() => {
+                setShowContentPreview(false);
+                setEditingGeneratedQuiz(null);
+                setQuizPreviewIndex(0);
+                setQuizPreviewAnswers({});
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const currentQuestion = questions[quizPreviewIndex];
+    if (!currentQuestion) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div className={`bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ${previewMode === 'mobile' ? 'max-w-sm' : 'max-w-4xl'
+          } w-full`}>
+
+          <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 z-10 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-black flex items-center gap-2">
+                  👁️ Preview del Quiz
+                </h2>
+                <p className="text-blue-100 text-sm mt-1">
+                  {editingGeneratedQuiz.title || 'Quiz sin nombre'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowContentPreview(false);
+                  setEditingGeneratedQuiz(null);
+                  setQuizPreviewIndex(0);
+                  setQuizPreviewAnswers({});
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all transform hover:scale-105"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPreviewMode('desktop')}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${previewMode === 'desktop'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
+                  }`}
+              >
+                💻 Desktop
+              </button>
+              <button
+                onClick={() => setPreviewMode('mobile')}
+                className={`px-4 py-2 rounded-lg font-bold transition-all ${previewMode === 'mobile'
+                  ? 'bg-white text-blue-600 shadow-lg'
+                  : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
+                  }`}
+              >
+                📱 Mobile
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto max-h-[calc(90vh-200px)] bg-gradient-to-b from-blue-50 to-white">
+            <div className={`p-6 ${previewMode === 'mobile' ? '' : 'max-w-4xl mx-auto'}`}>
+
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-gray-700">
+                    Pregunta {quizPreviewIndex + 1} de {questions.length}
+                  </span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold shadow-sm">
+                    {Math.round(((quizPreviewIndex + 1) / questions.length) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-300 shadow-sm"
+                    style={{
+                      width: `${((quizPreviewIndex + 1) / questions.length) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-8 mb-6 border-2 border-blue-200 shadow-lg">
+                <div className="flex items-center gap-4 mb-4">
+                  {(currentQuestion.imagen_url || currentQuestion.image_url) && (
+                    <div className="text-6xl">
+                      {currentQuestion.imagen_url || currentQuestion.image_url}
+                    </div>
+                  )}
+                  <h2 className="text-2xl md:text-3xl font-black text-gray-800">
+                    {currentQuestion.pregunta || currentQuestion.text}
+                  </h2>
+                </div>
+
+                {currentQuestion.video_url && (
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl overflow-hidden mt-4 aspect-video shadow-lg">
+                    <div className="w-full h-full flex items-center justify-center text-white">
+                      <div className="text-center">
+                        <Play className="w-16 h-16 mx-auto mb-2" />
+                        <p className="text-sm font-semibold">Video: {currentQuestion.video_url}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 mb-6">
+                {(currentQuestion.opciones || currentQuestion.options)?.map((opcion, idx) => {
+                  const isSelected = quizPreviewAnswers[quizPreviewIndex] === idx;
+                  const isCorrect = idx === (currentQuestion.respuesta_correcta ?? currentQuestion.correct);
+                  const answered = quizPreviewAnswers[quizPreviewIndex] !== undefined;
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (!answered) {
+                          setQuizPreviewAnswers({
+                            ...quizPreviewAnswers,
+                            [quizPreviewIndex]: idx
+                          });
+                        }
+                      }}
+                      disabled={answered}
+                      className={`w-full p-4 rounded-2xl font-bold text-lg transition-all transform hover:scale-[1.02] border-2 flex items-center gap-4 shadow-md ${answered
+                        ? isSelected
+                          ? isCorrect
+                            ? 'bg-green-500 text-white border-green-600 shadow-lg'
+                            : 'bg-red-500 text-white border-red-600 shadow-lg'
+                          : isCorrect
+                            ? 'bg-green-100 text-green-800 border-green-300'
+                            : 'bg-gray-100 text-gray-600 border-gray-300 opacity-50'
+                        : isSelected
+                          ? 'bg-blue-500 text-white border-blue-600 shadow-lg'
+                          : 'bg-white text-gray-800 border-blue-200 hover:bg-blue-50 hover:border-blue-400'
+                        }`}
+                    >
+                      <span className="text-4xl">
+                        {(currentQuestion.imagen_opciones || currentQuestion.image_options)?.[idx] ||
+                          ['🅰️', '🅱️', '🅲️', '🅳️'][idx]}
+                      </span>
+                      <span className="flex-1 text-left">{opcion}</span>
+                      {answered && isSelected && (
+                        <span className="text-2xl animate-bounce">
+                          {isCorrect ? '✅' : '❌'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {quizPreviewAnswers[quizPreviewIndex] !== undefined && (
+                <div className={`rounded-2xl p-6 border-2 mb-6 text-center shadow-lg animate-fadeIn ${quizPreviewAnswers[quizPreviewIndex] === (currentQuestion.respuesta_correcta ?? currentQuestion.correct)
+                  ? 'bg-green-100 border-green-300'
+                  : 'bg-red-100 border-red-300'
+                  }`}>
+                  <p className="text-2xl font-black mb-2">
+                    {quizPreviewAnswers[quizPreviewIndex] === (currentQuestion.respuesta_correcta ?? currentQuestion.correct)
+                      ? '🎉 ¡Correcto!'
+                      : '💪 Intenta de nuevo'}
+                  </p>
+                  <p className="text-gray-700 font-semibold">
+                    {quizPreviewAnswers[quizPreviewIndex] === (currentQuestion.respuesta_correcta ?? currentQuestion.correct)
+                      ? (currentQuestion.retroalimentacion_correcta || currentQuestion.feedback_correct || '¡Excelente! 🎉')
+                      : (currentQuestion.retroalimentacion_incorrecta || currentQuestion.feedback_incorrect || '¡Intenta otra vez! 💪')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-gradient-to-r from-blue-50 to-white border-t-2 border-blue-200 p-6 flex gap-3">
+            <button
+              onClick={() => {
+                setQuizPreviewIndex(Math.max(0, quizPreviewIndex - 1));
+                setQuizPreviewAnswers({});
+              }}
+              disabled={quizPreviewIndex === 0}
+              className="flex-1 px-4 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
+            >
+              ← Anterior
+            </button>
+
+            <button
+              onClick={() => {
+                if (quizPreviewIndex < questions.length - 1) {
+                  setQuizPreviewIndex(quizPreviewIndex + 1);
+                  setQuizPreviewAnswers({});
+                } else {
+                  setShowContentPreview(false);
+                  setEditingGeneratedQuiz(null);
+                  setQuizPreviewIndex(0);
+                  setQuizPreviewAnswers({});
+                }
+              }}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold transition-all shadow-lg transform hover:scale-105"
+            >
+              {quizPreviewIndex === questions.length - 1
+                ? 'Cerrar Preview ✨'
+                : 'Siguiente →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const loadAllData = async () => {
@@ -2159,7 +2403,7 @@ export default function EnhancedAdminPanel() {
 
   // Función para generar contenido con IA usando Gemini
 
-  // ✅ SOLUCIÓN CORRECTA - SIN ERRORES
+  // SOLUCIÓN CORRECTA - SIN ERRORES AGG LA VARIABLE 
 
   const generateContentWithAI = async () => {
     if (!generatorPrompt.trim()) {
@@ -2428,8 +2672,21 @@ FORMATO JSON (SOLO JSON):
         createdAt: new Date().toLocaleString('es-ES'),
         content: parsedContent,
         status: 'generated',
+        //  NUEVOS CAMPOS PARA MEJORAR VISUALIZACIÓN
+        preguntas: parsedContent.questions || [],
+        totalPoints: parsedContent.totalPoints || 0,
+        timeLimit: parsedContent.timeLimit || 0,
       };
 
+      console.log('✨ Contenido generado con éxito:', newContent);
+
+      // AUTOMÁTICAMENTE ABRIR PREVIEW
+      setTimeout(() => {
+        setEditingGeneratedQuiz(newContent);
+        setShowContentPreview(true);
+        setQuizPreviewIndex(0);
+        setQuizPreviewAnswers({});
+      }, 500);
       console.log('✅ Contenido generado:', newContent.id);
 
       setGeneratedContent(newContent);
@@ -2581,24 +2838,45 @@ FORMATO JSON (SOLO JSON):
       game: {
         name: `Aventura de ${mainTopic}`,
         description: `Explora el mundo de ${prompt} mientras aprendes jugando`,
+        type: 'adventure', // 'adventure', 'puzzle', 'memory', 'quiz-game'
         levels: 3,
+        currentLevel: 0,
+        score: 0,
+        lives: 3,
         mechanics: [
-          `Recolecta items relacionados con ${mainTopic}`,
-          `Responde preguntas sobre ${prompt}`,
-          `Completa desafíos educativos`,
-          'Desbloquea logros especiales'
+          { id: 1, name: `Recolecta ${mainTopic}`, icon: '🎯', completed: false },
+          { id: 2, name: `Responde sobre ${prompt}`, icon: '❓', completed: false },
+          { id: 3, name: 'Completa el desafío', icon: '🏆', completed: false }
         ],
-        rewards: [
-          '⭐ 50 puntos por nivel completado',
-          `🏆 Medalla de ${mainTopic}`,
-          '💎 Logro especial de maestro',
-          '🎖️ Certificado digital'
+        challenges: [
+          {
+            id: 1,
+            question: `¿Qué sabes sobre ${mainTopic}?`,
+            options: [`Es ${prompt}`, 'Otra cosa', 'No sé', 'Todo lo anterior'],
+            correct: 0,
+            reward: 100
+          },
+          {
+            id: 2,
+            question: `¿Para qué sirve ${mainTopic}?`,
+            options: ['No sirve', `Para ${prompt}`, 'Solo diversión', 'Es complicado'],
+            correct: 1,
+            reward: 150
+          },
+          {
+            id: 3,
+            question: `¿Dónde se usa ${mainTopic}?`,
+            options: ['En ningún lado', 'Solo en libros', `En ${prompt} diario`, 'Solo en escuela'],
+            correct: 2,
+            reward: 200
+          }
         ],
+        rewards: ['⭐ 50 puntos', `🏆 Medalla de ${mainTopic}`, '💎 Logro especial'],
         instructions: [
-          `Aprende los conceptos básicos de ${prompt}`,
-          `Practica con ejercicios de ${mainTopic}`,
-          'Completa el desafío final',
-          'Comparte tu progreso'
+          `Aprende sobre ${prompt}`,
+          'Completa los desafíos',
+          'Gana recompensas',
+          'Desbloquea niveles'
         ]
       },
       exercise: {
@@ -2716,48 +2994,64 @@ FORMATO JSON (SOLO JSON):
   };
 
   // Función para guardar cambios editados
+
   const saveEditedContent = async () => {
-    if (!editingContent) return;
+    if (!editingContent) {
+      alert('❌ No hay contenido para guardar');
+      return;
+    }
+
+    setSavingChanges(true);
 
     try {
-      // Si es contenido generado (en biblioteca)
-      if (editingContent.id && editingContent.id.toString().includes('temp') === false) {
-        const { error } = await supabase
+      console.log('💾 Guardando cambios...', editingContent);
+
+      //  Si es contenido generado (en biblioteca)
+      if (editingContent.id && currentUser?.auth_id) {
+        const { data, error } = await supabase
           .from('contenido_generado')
           .update({
             content: editingContent.content,
-            title: editingContent.title
+            title: editingContent.title,
+            updated_at: new Date().toISOString()
           })
           .eq('id', editingContent.id)
-          .eq('created_by', currentUser.auth_id);
+          .eq('created_by', currentUser.auth_id)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Error en Supabase:', error);
+          throw error;
+        }
 
-        // Actualizar biblioteca local
-        setContentLibrary(contentLibrary.map(item =>
+        console.log('✅ Guardado en Supabase:', data);
+
+        //  Actualizar biblioteca local
+        setContentLibrary(prev => prev.map(item =>
           item.id === editingContent.id ? editingContent : item
         ));
 
-        alert('✅ Cambios guardados correctamente');
+        // Actualizar generatedContent si existe
+        if (generatedContent?.id === editingContent.id) {
+          setGeneratedContent(editingContent);
+        }
+
+        alert('✅ Cambios guardados correctamente en la base de datos');
+        setShowContentViewer(false);
+        setEditingContent(null);
+        setViewingContent(null);
+        setEditingQuizQuestion(null);
+
+        //  Recargar biblioteca
+        await loadContentLibrary();
       } else {
-        // Si es un recurso
-        const { error } = await supabase
-          .from("recursos")
-          .update({
-            contenido_quiz: editingContent.content,
-            titulo: editingContent.title
-          })
-          .eq("id", editingContent.id)
-          .select();
-
-        if (error) throw error;
-
-        await fetchResources();
-        alert('✅ Recurso actualizado correctamente');
+        alert('❌ No se puede guardar: falta información del contenido');
       }
     } catch (error) {
-      console.error('Error guardando:', error);
-      alert('❌ Error al guardar cambios');
+      console.error('❌ Error guardando:', error);
+      alert(`❌ Error al guardar: ${error.message}`);
+    } finally {
+      setSavingChanges(false);
     }
   };
 
@@ -4189,18 +4483,32 @@ Genera ${num} preguntas.`;
     const question = currentQuiz.preguntas[questionIndex];
     const isCorrect = optionIndex === question.respuesta_correcta;
 
+    // Guardar respuesta
     setPreviewAnswers({
       ...previewAnswers,
       [questionIndex]: { selected: optionIndex, isCorrect },
     });
 
-    if (question.audio_retroalimentacion) {
-      speakText(
-        isCorrect
-          ? question.retroalimentacion_correcta
-          : question.retroalimentacion_incorrecta
-      );
-    }
+    // LEER RETROALIMENTACIÓN CON SONIDOS
+    setTimeout(() => {
+      const textoRetroalimentacion = isCorrect
+        ? question.retroalimentacion_correcta
+        : question.retroalimentacion_incorrecta;
+
+      console.log(`🎉 Retroalimentación: ${textoRetroalimentacion}`);
+
+      // Reproducir sonido (opcional)
+      if (isCorrect) {
+        console.log('✅ Respuesta correcta - reproduciendo sonido positivo');
+      } else {
+        console.log('❌ Respuesta incorrecta - reproduciendo sonido negativo');
+      }
+
+      // Leer retroalimentación
+      if (question.audio_retroalimentacion) {
+        speakText(textoRetroalimentacion);
+      }
+    }, 500);
   };
 
   // FUNCIÓN DE VOZ MEJORADA Y NATURAL
@@ -4268,45 +4576,39 @@ Genera ${num} preguntas.`;
     };
   }
 
-  // ✅ FUNCIÓN 1: ABRIR EDITOR DE QUIZ (CORREGIDA)
+  // FUNCIÓN 1: ABRIR EDITOR DE QUIZ MEJORADO
   const openQuizBuilder = (resource) => {
-    console.log('✏️ Abriendo editor para:', resource.titulo);
-
     setSelectedResource(resource);
-    setShowQuizBuilder(true);
-    setActiveTab("resources");
 
-    // ✅ MAPEO CORRECTO DE PREGUNTAS
-    if (resource.contenido_quiz && Array.isArray(resource.contenido_quiz) && resource.contenido_quiz.length > 0) {
-      console.log('📝 Preguntas encontradas:', resource.contenido_quiz.length);
-
+    if (resource.contenido_quiz && Array.isArray(resource.contenido_quiz)) {
+      // MAPEAR PREGUNTAS CON CAMPOS DE IMAGEN
       const preguntasFormateadas = resource.contenido_quiz.map((q, idx) => ({
         id: q.id || `quiz_${Date.now()}_${idx}`,
-        tipo: q.tipo || 'multiple',
-        pregunta: q.pregunta || q.text || '',
+        tipo: q.tipo || q.type || 'multiple',
+        pregunta: q.pregunta || q.text || q.question || '',
         opciones: q.opciones || q.options || ['', '', '', ''],
         respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
-        puntos: q.puntos ?? 10,
-        retroalimentacion_correcta: q.retroalimentacion_correcta || '¡Excelente! 🎉',
-        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || '¡Intenta otra vez! 💪',
+        puntos: q.puntos ?? q.points ?? 10,
+        retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
+        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
         audio_pregunta: q.audio_pregunta !== false,
         audio_retroalimentacion: q.audio_retroalimentacion !== false,
-        video_url: q.video_url || '',
-        imagen_url: q.imagen_url || '',
-        audio_opciones: q.audio_opciones || ['', '', '', ''],
-        imagen_opciones: q.imagen_opciones || ['🎨', '📚', '✏️', '🌟'],
-        tiempo_limite: q.tiempo_limite ?? 45,
+        video_url: q.video_url || q.videoUrl || '',
+        imagen_url: q.imagen_url || q.imageUrl || q.image_url || '', // ✅ NEW
+        audio_opciones: q.audio_opciones || q.audioOptions || ['', '', '', ''],
+        imagen_opciones: q.imagen_opciones || q.imageOptions || q.image_options || ['', '', '', ''], // ✅ NEW
+        tiempo_limite: q.tiempo_limite ?? q.timeLimit ?? 45,
       }));
 
       setCurrentQuiz({ preguntas: preguntasFormateadas });
-      console.log('✅ Quiz cargado exitosamente');
     } else {
-      console.log('🆕 Creando quiz vacío');
       setCurrentQuiz({ preguntas: [] });
     }
+
+    setShowQuizBuilder(true);
   };
 
-  // ✅ FUNCIÓN 2: CERRAR EDITOR
+  // FUNCIÓN 2: CERRAR EDITOR
   const closeQuizBuilder = () => {
     console.log('❌ Cerrando editor');
     setShowQuizBuilder(false);
@@ -4332,36 +4634,34 @@ Genera ${num} preguntas.`;
     });
   };
 
-  // ✅ FUNCIÓN 3: ABRIR VISTA PREVIA (CORREGIDA)
+  // FUNCIÓN 3: ABRIR VISTA PREVIA (CORREGIDA)
+  // FUNCIÓN UNIFICADA: VISTA PREVIA INTERACTIVA (Igual en ambos lugares)
   const openPreview = (resource) => {
-    console.log('👁️ Abriendo vista previa de:', resource.titulo);
+    console.log('👁️ Abriendo vista previa unificada');
 
-    // ✅ Verificar si hay preguntas
+    // Obtener preguntas del recurso o de biblioteca
     let quizQuestions = resource.contenido_quiz;
 
     if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
-      // Si no hay preguntas en recurso, buscar en biblioteca de contenido
       const generatedQuiz = contentLibrary.find(
         item => item.type === 'quiz' && item.title === resource.titulo
       );
-
-      if (generatedQuiz && generatedQuiz.content?.questions) {
+      if (generatedQuiz?.content?.questions) {
         quizQuestions = generatedQuiz.content.questions;
-        console.log('📚 Preguntas encontradas en biblioteca:', quizQuestions.length);
-      } else {
-        alert("⚠️ Este quiz no tiene preguntas aún");
-        return;
       }
     }
 
-    // Usar las preguntas encontradas
-    resource.contenido_quiz = quizQuestions;
-    // ✅ MAPEO CORRECTO DE PREGUNTAS PARA PREVIEW
-    const preguntasFormateadas = resource.contenido_quiz.map((q, idx) => ({
-      id: q.id || `preview_${Date.now()}_${idx}`,
-      tipo: q.tipo || 'multiple',
-      pregunta: q.pregunta || q.text || '',
-      opciones: q.opciones || q.options || ['', '', '', ''],
+    if (!quizQuestions || quizQuestions.length === 0) {
+      alert("⚠️ Este quiz no tiene preguntas aún");
+      return;
+    }
+
+    // Formatear preguntas
+    const preguntasFormateadas = quizQuestions.map((q, idx) => ({
+      id: q.id || `preview_${idx}`,
+      tipo: q.tipo || q.type || 'multiple',
+      pregunta: q.pregunta || q.text || q.question || '',
+      opciones: q.opciones || q.options || [],
       respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
       puntos: q.puntos ?? 10,
       retroalimentacion_correcta: q.retroalimentacion_correcta || '¡Excelente! 🎉',
@@ -4369,9 +4669,9 @@ Genera ${num} preguntas.`;
       audio_pregunta: q.audio_pregunta !== false,
       audio_retroalimentacion: q.audio_retroalimentacion !== false,
       video_url: q.video_url || '',
-      imagen_url: q.imagen_url || '',
-      imagen_opciones: q.imagen_opciones || ['🎨', '📚', '✏️', '🌟'],
-      tiempo_limite: q.tiempo_limite ?? 45,
+      imagen_url: q.imagen_url || q.image_url || '',
+      imagen_opciones: q.imagen_opciones || q.image_options || ['🎨', '📚', '✏️', '🌟'],
+      tiempo_limite: q.tiempo_limite ?? q.timeLimit ?? 45,
     }));
 
     setSelectedResource(resource);
@@ -4382,18 +4682,10 @@ Genera ${num} preguntas.`;
     setOptionListenState({});
     setSelectedOption(null);
 
-    console.log('✅ Vista previa abierta con', preguntasFormateadas.length, 'preguntas');
-
-    // ✅ REPRODUCIR PRIMERA PREGUNTA AUTOMÁTICAMENTE
-    setTimeout(() => {
-      if (preguntasFormateadas[0]?.audio_pregunta) {
-        speakText(preguntasFormateadas[0].pregunta);
-        console.log('🔊 Reproduciendo primera pregunta');
-      }
-    }, 600);
+    console.log('✅ Vista previa lista con', preguntasFormateadas.length, 'preguntas');
   };
 
-  // ✅ FUNCIÓN 4: CERRAR VISTA PREVIA
+  // FUNCIÓN 4: CERRAR VISTA PREVIA
   const closePreview = () => {
     console.log('❌ Cerrando vista previa');
     window.speechSynthesis.cancel();
@@ -4671,7 +4963,7 @@ Genera ${num} preguntas.`;
 
       console.log("✅ Análisis generado correctamente");
 
-      // ✅ Mostrar modal con los datos
+      //  Mostrar modal con los datos
       setCourseReportData(reportObj);
       setShowCourseReportModal(true);
 
@@ -4688,7 +4980,7 @@ Genera ${num} preguntas.`;
       setIsAnalyzingAllCourses(true);
       console.log("🚀 Iniciando análisis de TODOS los cursos...");
 
-      // ✅ CORRECCIÓN: Removido nivel_nombre de la consulta (no existe en BD)
+      //  CORRECCIÓN: Removido nivel_nombre de la consulta (no existe en BD)
       const { data: progressData, error: progressError } = await supabase.from(
         "progreso_estudiantes"
       ).select(`
@@ -4712,7 +5004,7 @@ Genera ${num} preguntas.`;
 
       console.log(`📊 Se obtuvieron ${progressData.length} registros de progreso`);
 
-      // ✅ Agrupar por curso
+      //  Agrupar por curso
       const courseMap = {};
       progressData.forEach((progress) => {
         const cursoId = progress.recursos?.curso_id;
@@ -5159,7 +5451,7 @@ ${courseReportData.stats.avgProgress >= 70
     }
   };
 
-  // ✅ Función para imprimir el reporte
+  // Función para imprimir el reporte
   const handlePrintReport = () => {
     window.print();
   };
@@ -5168,25 +5460,100 @@ ${courseReportData.stats.avgProgress >= 70
     if (!previewQuiz || !currentQuiz.preguntas.length) return;
 
     const question = currentQuiz.preguntas[currentPreviewQuestion];
+    if (!question) return;
 
-    // Leer la pregunta al cargar
-    setTimeout(() => {
-      speakText(question.pregunta);
+    let timeoutId1, timeoutId2, timeoutId3;
+
+    const executeAudioSequence = () => {
+      // PASO 0: Leer mensaje de bienvenida SOLO en la primera pregunta
+      if (currentPreviewQuestion === 0 && !previewAnswers[0]) {
+        setTimeout(() => {
+          speakText("Lee la pregunta y elige la respuesta correcta");
+        }, 500);
+      }
+
+      // PASO 1: Reproducir pregunta (1000ms después)
+      timeoutId1 = setTimeout(() => {
+        if (question.audio_pregunta) {
+          console.log('🔊 PASO 1: Reproduciendo pregunta...');
+          speakText(question.pregunta);
+        }
+      }, 1000);
+
+      // PASO 2: Reproducir opciones (3500ms después - después que termine la pregunta)
+      timeoutId2 = setTimeout(() => {
+        if (question.audio_pregunta) {
+          const opciones = question.opciones.join(". ");
+          console.log('🔊 PASO 2: Reproduciendo opciones...');
+          speakText(`Las opciones son: ${opciones}`);
+        }
+      }, 3500);
+
+      // PASO 3: Repetir pregunta si no hay respuesta (15 segundos)
+      timeoutId3 = setTimeout(() => {
+        // Solo repetir si NO ha respondido
+        if (previewAnswers[currentPreviewQuestion] === undefined) {
+          console.log('🔄 PASO 3: Repitiendo pregunta por falta de respuesta...');
+
+          // Repetir pregunta
+          speakText(question.pregunta);
+
+          // Repetir opciones también
+          setTimeout(() => {
+            const opciones = question.opciones.join(". ");
+            speakText(`Las opciones son: ${opciones}`);
+          }, 2500);
+        }
+      }, 15000); // 15 segundos exactos
+    };
+
+    // Ejecutar secuencia de audio
+    executeAudioSequence();
+
+    // Limpiar timeouts
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      window.speechSynthesis.cancel(); // Cancelar síntesis si cambia de página
+    };
+  }, [previewQuiz, currentPreviewQuestion, previewAnswers, currentQuiz.preguntas]);
+
+  // Este se ejecuta cuando el usuario SELECCIONA una opción
+  useEffect(() => {
+    if (selectedOption === null || !previewQuiz) return;
+
+    const question = currentQuiz.preguntas[currentPreviewQuestion];
+    const opcionTexto = question.opciones[selectedOption];
+
+    // Leer la opción seleccionada después de 500ms
+    const timeoutId = setTimeout(() => {
+      console.log('🎙️ Usuario seleccionó:', opcionTexto);
+      speakText(`Has seleccionado: ${opcionTexto}`);
     }, 500);
 
-    // Detectar demora y repetir pregunta
-    const tiempoMax = question.tiempo_limite
-      ? question.tiempo_limite * 1000 * 0.7
-      : 20000;
-    const timer = setTimeout(() => {
-      if (!previewAnswers[currentPreviewQuestion]) {
-        // Repetir la pregunta automáticamente
-        speakText(question.pregunta);
-      }
-    }, tiempoMax);
+    return () => clearTimeout(timeoutId);
+  }, [selectedOption, previewQuiz, currentPreviewQuestion, currentQuiz.preguntas]);
 
-    return () => clearTimeout(timer);
-  }, [previewQuiz, currentPreviewQuestion, previewAnswers]);
+
+  // Este se ejecuta cuando el usuario RESPONDE (click en Revisar)
+  useEffect(() => {
+    // Si hay una respuesta guardada, leer retroalimentación
+    const answer = previewAnswers[currentPreviewQuestion];
+    if (!answer || !previewQuiz) return;
+
+    const question = currentQuiz.preguntas[currentPreviewQuestion];
+
+    setTimeout(() => {
+      if (answer.isCorrect) {
+        console.log('✅ Respuesta correcta');
+        speakText('¡Excelente! Respuesta correcta');
+      } else {
+        console.log('❌ Respuesta incorrecta');
+        speakText('Vamos a aprender juntos. Respuesta correcta: ' + question.opciones[question.respuesta_correcta]);
+      }
+    }, 500);
+  }, [previewAnswers, previewQuiz, currentPreviewQuestion, currentQuiz.preguntas]);
 
   useEffect(() => {
     if (!previewQuiz || !currentQuiz.preguntas.length) return;
@@ -5224,7 +5591,20 @@ ${courseReportData.stats.avgProgress >= 70
     return () => clearTimeout(timer);
   }, [previewQuiz, currentPreviewQuestion, previewAnswers]);
 
-  // ✅ QUIZ REDISEÑADO PARA NIÑOS
+  //  COMPONENTE: Instrucción con Audio (NUEVO)
+  useEffect(() => {
+    if (!previewQuiz || !selectedOption) return;
+
+    // Cuando se selecciona una opción, leer instrucción
+    const question = currentQuiz.preguntas[currentPreviewQuestion];
+    const opcionTexto = question.opciones[selectedOption];
+
+    setTimeout(() => {
+      console.log('🎙️ Leyendo opción seleccionada...');
+      speakText(`Has seleccionado: ${opcionTexto}`);
+    }, 500);
+  }, [selectedOption, previewQuiz]);
+  //  QUIZ REDISEÑADO PARA NIÑOS
 
   const renderQuestionPreview = () => {
     if (!currentQuiz.preguntas.length) return null;
@@ -5264,6 +5644,7 @@ ${courseReportData.stats.avgProgress >= 70
     const karin = getKarinState();
 
     return (
+
       <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[700px] flex flex-col">
 
         {/* HEADER: KARIN + PROGRESO */}
@@ -5294,6 +5675,7 @@ ${courseReportData.stats.avgProgress >= 70
         </div>
 
         {/* PREGUNTA */}
+
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
           <div className="flex items-center gap-4 justify-center">
             {question.audio_pregunta && (
@@ -5305,6 +5687,13 @@ ${courseReportData.stats.avgProgress >= 70
               </button>
             )}
 
+            {/* MOSTRAR EMOJI/IMAGEN DE LA PREGUNTA */}
+            {question.imagen_url && (
+              <div className="text-7xl flex-shrink-0">
+                {question.imagen_url}
+              </div>
+            )}
+
             <p className="text-3xl font-bold text-gray-800 text-center">
               {question.pregunta}
             </p>
@@ -5312,38 +5701,56 @@ ${courseReportData.stats.avgProgress >= 70
         </div>
 
         {/* OPCIONES */}
+
+        {/* OPCIONES CON EMOJIS/IMÁGENES */}
         <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
           {question.opciones.map((opcion, idx) => {
             const isSelected = selectedOption === idx;
             const wasSelected = answer?.selected === idx;
             const isCorrect = answer?.isCorrect;
+            const answered = answer !== undefined;
+
+            // ✅ OBTENER EMOJI/IMAGEN DE LA OPCIÓN
+            const emojiOpcion = (question.imagen_opciones || question.image_options)?.[idx] || '🎨';
 
             return (
               <button
                 key={idx}
-                disabled={answer !== undefined}
+                disabled={answered}
                 onClick={() => {
                   if (!answer) {
                     setSelectedOption(idx);
                     speakText(opcion);
                   }
                 }}
-                className={`p-5 rounded-2xl text-xl font-semibold border transition-all text-left
-                ${answer === undefined
+                className={`p-5 rounded-2xl text-xl font-semibold border transition-all text-left flex items-center gap-4
+          ${answered
                     ? isSelected
-                      ? "bg-blue-50 border-blue-400"
-                      : "bg-white border-gray-300 hover:bg-blue-50"
-                    : wasSelected
                       ? isCorrect
-                        ? "bg-green-50 border-green-400"
-                        : "bg-red-50 border-red-400"
-                      : idx === question.respuesta_correcta
-                        ? "bg-green-50 border-green-300"
-                        : "bg-gray-100 border-gray-300 opacity-60"
-                  }
-              `}
+                        ? 'bg-green-50 border-green-400'
+                        : 'bg-red-50 border-red-400'
+                      : isCorrect
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-gray-100 border-gray-300 opacity-50'
+                    : isSelected
+                      ? 'bg-blue-50 border-blue-400 shadow-lg'
+                      : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
+                  }`}
               >
-                {opcion}
+                {/* EMOJI/IMAGEN GRANDE A LA IZQUIERDA */}
+                <span className="text-5xl flex-shrink-0 drop-shadow-sm">
+                  {emojiOpcion}
+                </span>
+
+                {/* TEXTO DE LA OPCIÓN */}
+                <span className="flex-1">{opcion}</span>
+
+                {/* INDICADOR DE RESPUESTA */}
+                {answered && isSelected && (
+                  <span className="text-3xl animate-bounce flex-shrink-0">
+                    {isCorrect ? '✅' : '❌'}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -5435,10 +5842,10 @@ ${courseReportData.stats.avgProgress >= 70
       return acc;
     }, {});
 
-    // ✅ RECOMENDACIÓN 1: GENERADOR DE CONTENIDO
+    // RECOMENDACIÓN 1: GENERADOR DE CONTENIDO
     recommendations.push({
       type: "ai_generator",
-      title: "🚀 Generador de Contenido con IA",
+      title: "Generador de Contenido con IA",
       description: `Crea Quiz, Juegos y Ejercicios.`,
       priority: "high",
       action: "Abrir Generador",
@@ -5447,23 +5854,11 @@ ${courseReportData.stats.avgProgress >= 70
       action_type: "open_generator",
     });
 
-    // ✅ RECOMENDACIÓN 2: ESTADO DEL SISTEMA
-    recommendations.push({
-      type: "system_health",
-      title: "💚 Salud del Sistema",
-      description: `${analytics.engagementRate}% compromiso | ${analytics.completionRate}% completitud | ${users.length} usuarios`,
-      priority: "high",
-      action: "Monitorear",
-      targetTab: "dashboard",
-      icon: Activity,
-      action_type: "open_analytics",
-    });
-
     // Recomendación para crear más quizzes
     if ((resourceTypes.quiz || 0) < 3) {
       recommendations.push({
         type: "content_gap",
-        title: "📚 Crear Más Quizzes",
+        title: "Crear Más Quizzes",
         description: `Solo tienes ${resourceTypes.quiz || 0} quizzes. Genera más con IA en segundos.`,
         priority: "high",
         action: "Generar",
@@ -5477,7 +5872,7 @@ ${courseReportData.stats.avgProgress >= 70
     if (analytics.engagementRate < 50) {
       recommendations.push({
         type: "engagement",
-        title: "🎯 Baja Tasa de Compromiso",
+        title: "Baja Tasa de Compromiso",
         description: `${analytics.engagementRate}%. Aumenta con quizzes interactivos y gamificación.`,
         priority: "high",
         action: "Mejorar",
@@ -5554,7 +5949,7 @@ ${Object.entries(
 
 Responde de manera clara, concisa y educativa. Si te preguntan sobre estadísticas, usa los datos anteriores. Si te piden recomendaciones, da sugerencias específicas y accionables.`;
 
-      // ✅ Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
+      // Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
       const response = await fetch(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyDtyQgSqzFMV_M6w6iOvjrKlNe5NdK4gb8",
         {
@@ -5636,9 +6031,9 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     };
     return colors[rol] || "bg-gray-100 text-gray-800 border-gray-200";
   };
-  // ============================================
-  // 🎨 RENDERIZADOR INTERACTIVO DE CONTENIDO
-  // ============================================
+
+  // RENDERIZADOR INTERACTIVO DE CONTENIDO
+
 
   const renderInteractiveContent = () => {
     if (!viewingContent || !editingContent) return null;
@@ -5649,7 +6044,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
         <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
 
-          {/* HEADER UNIVERSAL */}
+          {/* HEADER */}
           <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
             <div className="flex justify-between items-start">
               <div className="flex-1">
@@ -5658,7 +6053,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   <div>
                     <h2 className="text-2xl font-bold">{viewingContent.title}</h2>
                     <p className="text-sm text-white text-opacity-90">
-                      {type?.name} • Creado: {viewingContent.createdAt}
+                      {type?.name} • {viewingContent.createdAt}
                     </p>
                   </div>
                 </div>
@@ -5668,6 +6063,10 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   setShowContentViewer(false);
                   setViewingContent(null);
                   setEditingContent(null);
+                  setGameState(null);
+                  setStoryPage(0);
+                  setChallengeProgress({});
+                  setExerciseAnswers({});
                 }}
                 className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
               >
@@ -5676,12 +6075,54 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             </div>
           </div>
 
-          {/* CONTENIDO ESPECÍFICO POR TIPO */}
+          {/* CONTENIDO ESPECÍFICO */}
           <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
 
-            {/* ✅ QUIZ - Mostrar todas las preguntas */}
+            {/*  QUIZ INTERACTIVO Y EDITABLE  */}
             {viewingContent.type === 'quiz' && (
               <div className="space-y-6">
+                {/* ===== HEADER CON BOTÓN EDITAR TODO ===== */}
+                <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">📝 Editor de Quiz</h3>
+                    <p className="text-sm text-gray-600">Haz clic en cualquier pregunta para editarla</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (editingCompleteQuiz) {
+                        saveEditedContent();
+                      } else {
+                        setEditingCompleteQuiz(true);
+                      }
+                    }}
+                    disabled={savingChanges}
+                    className={`px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-2 ${savingChanges
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : editingCompleteQuiz
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-blue-500 hover:bg-blue-600'
+                      }`}
+                  >
+                    {savingChanges ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : editingCompleteQuiz ? (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Guardar Todo
+                      </>
+                    ) : (
+                      <>
+                        <Edit2 className="w-5 h-5" />
+                        Modo Edición
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* STATS */}
                 <div className="grid grid-cols-3 gap-4 bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
                   <div className="text-center">
                     <p className="text-4xl font-bold text-blue-600">
@@ -5691,7 +6132,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   </div>
                   <div className="text-center">
                     <p className="text-4xl font-bold text-green-600">
-                      {editingContent.content.totalPoints || 0}
+                      {editingContent.content.totalPoints || (editingContent.content.questions?.length * 10) || 0}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">Puntos Totales</p>
                   </div>
@@ -5703,82 +6144,606 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   </div>
                 </div>
 
+                {/* ===== PREGUNTAS EDITABLES ===== */}
                 <div className="space-y-4">
                   {editingContent.content.questions?.map((question, qIdx) => (
-                    <div key={qIdx} className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-md hover:shadow-lg transition-shadow">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                          {qIdx + 1}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg text-gray-800">
-                            {question.pregunta || question.text}
-                          </h3>
-                          <p className="text-xs text-gray-500 mt-1">⭐ {question.puntos || 10} puntos</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mb-4">
-                        {(question.opciones || question.options)?.map((option, oIdx) => (
-                          <div
-                            key={oIdx}
-                            className={`px-4 py-3 rounded-lg font-medium transition-all ${(question.respuesta_correcta ?? question.correct) === oIdx
-                              ? "bg-green-100 border-2 border-green-500 text-green-800"
-                              : "bg-gray-100 border-2 border-gray-200"
-                              }`}
-                          >
-                            {String.fromCharCode(65 + oIdx)}) {option}
-                            {(question.respuesta_correcta ?? question.correct) === oIdx && " ✓"}
+                    <div
+                      key={qIdx}
+                      className={`bg-white rounded-xl p-6 border-2 shadow-md transition-all ${editingQuizQuestion === qIdx
+                        ? 'border-blue-500 ring-4 ring-blue-200'
+                        : 'border-blue-200 hover:border-blue-300'
+                        }`}
+                    >
+                      {/* ===== MODO EDICIÓN ===== */}
+                      {editingQuizQuestion === qIdx ? (
+                        <div className="space-y-4">
+                          {/* TÍTULO */}
+                          <div className="bg-blue-100 rounded-lg p-3 border-l-4 border-blue-500">
+                            <p className="font-bold text-blue-800">
+                              ✏️ Editando Pregunta {qIdx + 1}
+                            </p>
                           </div>
-                        ))}
-                      </div>
 
-                      {question.explanation && (
-                        <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                          <p className="text-sm text-gray-700"><strong>💡 Explicación:</strong> {question.explanation}</p>
+                          {/* PREGUNTA */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                              📝 Texto de la Pregunta
+                            </label>
+                            <textarea
+                              value={question.text || question.pregunta || ''}
+                              onChange={(e) => {
+                                const updated = { ...editingContent };
+                                if (!updated.content.questions[qIdx]) {
+                                  updated.content.questions[qIdx] = {};
+                                }
+                                updated.content.questions[qIdx].text = e.target.value;
+                                updated.content.questions[qIdx].pregunta = e.target.value;
+                                setEditingContent(updated);
+                              }}
+                              className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                              rows="2"
+                              placeholder="Escribe tu pregunta aquí..."
+                            />
+                          </div>
+
+                          {/* IMAGEN/EMOJI DE LA PREGUNTA */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                              🎨 Imagen/Emoji de la Pregunta (Opcional)
+                            </label>
+                            <div className="flex gap-2">
+                              <div className="flex-1 bg-gray-50 border-2 border-gray-300 rounded-lg p-3 flex items-center justify-center">
+                                <span className="text-6xl">
+                                  {question.imagen_url || question.image_url || '❓'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setShowEmojiPicker(true);
+                                  setEmojiPickerFor(`question-${qIdx}`);
+                                }}
+                                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-bold"
+                              >
+                                Cambiar
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* OPCIONES */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-3">
+                              📋 Opciones de Respuesta
+                            </label>
+                            <div className="space-y-3">
+                              {(question.options || question.opciones || ['', '', '', '']).map((opt, oIdx) => (
+                                <div key={oIdx} className="flex gap-2 items-center">
+                                  {/* EMOJI DE LA OPCIÓN */}
+                                  <button
+                                    onClick={() => {
+                                      setShowEmojiPicker(true);
+                                      setEmojiPickerFor(`option-${qIdx}-${oIdx}`);
+                                    }}
+                                    className="w-16 h-16 bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 rounded-lg flex items-center justify-center text-3xl transition-all"
+                                    title="Cambiar emoji"
+                                  >
+                                    {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
+                                  </button>
+
+                                  {/* TEXTO DE LA OPCIÓN */}
+                                  <input
+                                    type="text"
+                                    value={opt}
+                                    onChange={(e) => {
+                                      const updated = { ...editingContent };
+                                      if (updated.content.questions[qIdx].options) {
+                                        updated.content.questions[qIdx].options[oIdx] = e.target.value;
+                                      }
+                                      if (updated.content.questions[qIdx].opciones) {
+                                        updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
+                                      }
+                                      setEditingContent(updated);
+                                    }}
+                                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
+                                  />
+
+                                  {/* BOTÓN CORRECTA */}
+                                  <button
+                                    onClick={() => {
+                                      const updated = { ...editingContent };
+                                      updated.content.questions[qIdx].correct = oIdx;
+                                      updated.content.questions[qIdx].respuesta_correcta = oIdx;
+                                      setEditingContent(updated);
+                                    }}
+                                    className={`w-12 h-12 rounded-lg font-black text-lg transition-all ${(question.correct ?? question.respuesta_correcta) === oIdx
+                                      ? 'bg-green-500 text-white ring-4 ring-green-300'
+                                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                      }`}
+                                    title={
+                                      (question.correct ?? question.respuesta_correcta) === oIdx
+                                        ? 'Respuesta correcta'
+                                        : 'Marcar como correcta'
+                                    }
+                                  >
+                                    {(question.correct ?? question.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* CONFIGURACIÓN ADICIONAL */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ⭐ Puntos
+                              </label>
+                              <input
+                                type="number"
+                                value={question.puntos || question.points || 10}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].puntos = parseInt(e.target.value);
+                                  updated.content.questions[qIdx].points = parseInt(e.target.value);
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                                min="1"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ⏱️ Tiempo (seg)
+                              </label>
+                              <input
+                                type="number"
+                                value={question.tiempo_limite || question.timeLimit || 0}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
+                                  updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                                min="0"
+                                placeholder="0 = sin límite"
+                              />
+                            </div>
+                          </div>
+
+                          {/* RETROALIMENTACIÓN */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ✅ Retroalimentación Correcta
+                              </label>
+                              <input
+                                type="text"
+                                value={question.retroalimentacion_correcta || question.feedback_correct || '¡Excelente! 🎉'}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].retroalimentacion_correcta = e.target.value;
+                                  updated.content.questions[qIdx].feedback_correct = e.target.value;
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-green-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ❌ Retroalimentación Incorrecta
+                              </label>
+                              <input
+                                type="text"
+                                value={question.retroalimentacion_incorrecta || question.feedback_incorrect || '¡Intenta otra vez! 💪'}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].retroalimentacion_incorrecta = e.target.value;
+                                  updated.content.questions[qIdx].feedback_incorrect = e.target.value;
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-red-300 rounded-lg"
+                              />
+                            </div>
+                          </div>
+
+                          {/* BOTONES DE ACCIÓN */}
+                          <div className="flex gap-2 pt-4 border-t-2 border-gray-200">
+                            <button
+                              onClick={() => {
+                                setEditingQuizQuestion(null);
+                                // Auto-guardar
+                                saveEditedContent();
+                              }}
+                              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                            >
+                              <Save className="w-5 h-5" />
+                              Guardar Cambios
+                            </button>
+                            <button
+                              onClick={() => setEditingQuizQuestion(null)}
+                              className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-bold"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
                         </div>
+                      ) : (
+                        /* ===== MODO VISTA ===== */
+                        <>
+                          <div className="flex items-start gap-4 mb-4">
+                            <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                              {qIdx + 1}
+                            </div>
+                            {(question.imagen_url || question.image_url) && (
+                              <div className="text-5xl">{question.imagen_url || question.image_url}</div>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg text-gray-800">
+                                {question.pregunta || question.text}
+                              </h3>
+                              <p className="text-xs text-gray-500 mt-1">
+                                ⭐ {question.puntos || 10} puntos
+                                {(question.tiempo_limite || question.timeLimit) > 0 && (
+                                  <> • ⏱️ {question.tiempo_limite || question.timeLimit}s</>
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setEditingQuizQuestion(qIdx)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              Editar
+                            </button>
+                          </div>
+
+                          <div className="space-y-2 mb-4">
+                            {(question.opciones || question.options)?.map((option, oIdx) => (
+                              <div
+                                key={oIdx}
+                                className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 ${(question.respuesta_correcta ?? question.correct) === oIdx
+                                  ? "bg-green-100 border-2 border-green-500 text-green-800"
+                                  : "bg-gray-100 border-2 border-gray-200"
+                                  }`}
+                              >
+                                <span className="text-2xl">
+                                  {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
+                                </span>
+                                <span className="flex-1">
+                                  {String.fromCharCode(65 + oIdx)}) {option}
+                                </span>
+                                {(question.respuesta_correcta ?? question.correct) === oIdx && (
+                                  <span className="text-2xl">✓</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {(question.explanation || question.retroalimentacion_correcta) && (
+                            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                              <p className="text-sm text-gray-700">
+                                <strong>💡 Explicación:</strong> {question.explanation || question.retroalimentacion_correcta}
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   ))}
                 </div>
+
+                {/* ===== SELECTOR DE EMOJIS MODAL ===== */}
+                {showEmojiPicker && (
+                  <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+                      <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-t-2xl">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-xl font-bold">🎨 Selector de Emojis</h3>
+                          <button
+                            onClick={() => {
+                              setShowEmojiPicker(false);
+                              setEmojiPickerFor(null);
+                            }}
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-6 grid grid-cols-8 gap-2">
+                        {emojis.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              const updated = { ...editingContent };
+
+                              if (emojiPickerFor?.startsWith('question-')) {
+                                const qIdx = parseInt(emojiPickerFor.split('-')[1]);
+                                updated.content.questions[qIdx].imagen_url = emoji;
+                                updated.content.questions[qIdx].image_url = emoji;
+                              } else if (emojiPickerFor?.startsWith('option-')) {
+                                const [_, qIdx, oIdx] = emojiPickerFor.split('-').map(Number);
+                                if (!updated.content.questions[qIdx].imagen_opciones) {
+                                  updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
+                                }
+                                if (!updated.content.questions[qIdx].image_options) {
+                                  updated.content.questions[qIdx].image_options = ['', '', '', ''];
+                                }
+                                updated.content.questions[qIdx].imagen_opciones[oIdx] = emoji;
+                                updated.content.questions[qIdx].image_options[oIdx] = emoji;
+                              }
+
+                              setEditingContent(updated);
+                              setShowEmojiPicker(false);
+                              setEmojiPickerFor(null);
+                            }}
+                            className="w-16 h-16 rounded-lg text-4xl hover:bg-gray-100 transition-all transform hover:scale-110 flex items-center justify-center"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* 📖 HISTORIA - Renderizado Narrativo */}
+            {/* ===== JUEGO INTERACTIVO ===== */}
+            {viewingContent.type === 'game' && (
+              <div className="space-y-6">
+                {!gameState ? (
+                  /* PANTALLA INICIAL */
+                  <div className="text-center py-12">
+                    <div className="text-8xl mb-6 animate-bounce">🎮</div>
+                    <h2 className="text-4xl font-black text-gray-800 mb-4">
+                      {editingContent.content.name}
+                    </h2>
+                    <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                      {editingContent.content.description}
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
+                      <div className="bg-blue-100 rounded-xl p-4 border-2 border-blue-300">
+                        <p className="text-3xl font-bold text-blue-600">
+                          {editingContent.content.levels}
+                        </p>
+                        <p className="text-sm text-gray-700 font-semibold">Niveles</p>
+                      </div>
+                      <div className="bg-yellow-100 rounded-xl p-4 border-2 border-yellow-300">
+                        <p className="text-3xl font-bold text-yellow-600">
+                          {editingContent.content.challenges?.length || 0}
+                        </p>
+                        <p className="text-sm text-gray-700 font-semibold">Desafíos</p>
+                      </div>
+                      <div className="bg-green-100 rounded-xl p-4 border-2 border-green-300">
+                        <p className="text-3xl font-bold text-green-600">3</p>
+                        <p className="text-sm text-gray-700 font-semibold">Vidas</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setGameState({
+                        level: 0,
+                        score: 0,
+                        lives: 3,
+                        currentChallenge: 0,
+                        completedMechanics: []
+                      })}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-12 py-4 rounded-2xl text-xl font-black shadow-2xl transform hover:scale-105 transition-all"
+                    >
+                      🚀 ¡JUGAR AHORA!
+                    </button>
+                  </div>
+                ) : (
+                  /* JUEGO ACTIVO */
+                  <div>
+                    {/* HUD */}
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 mb-6 text-white">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold opacity-90">NIVEL</p>
+                          <p className="text-3xl font-black">{gameState.level + 1}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold opacity-90">PUNTOS</p>
+                          <p className="text-3xl font-black">{gameState.score}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold opacity-90">VIDAS</p>
+                          <p className="text-3xl">{'❤️'.repeat(gameState.lives)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DESAFÍO ACTUAL */}
+                    {editingContent.content.challenges?.[gameState.currentChallenge] && (
+                      <div className="bg-white rounded-2xl p-8 border-4 border-purple-300 shadow-xl">
+                        <h3 className="text-2xl font-black text-gray-800 mb-6 text-center">
+                          {editingContent.content.challenges[gameState.currentChallenge].question}
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {editingContent.content.challenges[gameState.currentChallenge].options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const challenge = editingContent.content.challenges[gameState.currentChallenge];
+                                const isCorrect = idx === challenge.correct;
+
+                                if (isCorrect) {
+                                  const newScore = gameState.score + challenge.reward;
+                                  const nextChallenge = gameState.currentChallenge + 1;
+
+                                  if (nextChallenge >= editingContent.content.challenges.length) {
+                                    // JUEGO COMPLETADO
+                                    alert(`🎉 ¡FELICIDADES! Ganaste con ${newScore} puntos`);
+                                    setGameState(null);
+                                  } else {
+                                    setGameState({
+                                      ...gameState,
+                                      score: newScore,
+                                      currentChallenge: nextChallenge
+                                    });
+                                  }
+                                } else {
+                                  const newLives = gameState.lives - 1;
+                                  if (newLives <= 0) {
+                                    alert(`💔 Game Over. Puntuación final: ${gameState.score}`);
+                                    setGameState(null);
+                                  } else {
+                                    setGameState({ ...gameState, lives: newLives });
+                                  }
+                                }
+                              }}
+                              className="bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white px-6 py-4 rounded-xl text-lg font-bold shadow-lg transform hover:scale-105 transition-all"
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== EJERCICIOS CON VALIDACIÓN ===== */}
+            {viewingContent.type === 'exercise' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-2xl p-6 border-2 border-green-300">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">📝 Ejercicios Prácticos</h3>
+                  <div className="flex gap-4 mt-4">
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold">
+                      📊 {editingContent.content.difficulty?.toUpperCase()}
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold">
+                      ⏱️ {editingContent.content.estimatedTime} min
+                    </div>
+                    <div className="bg-white rounded-lg px-4 py-2 font-semibold">
+                      📋 {editingContent.content.exercises?.length} ejercicios
+                    </div>
+                  </div>
+                </div>
+
+                {editingContent.content.exercises?.map((exercise, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-xl p-6 border-2 shadow-md ${exercise.difficulty === 'facil'
+                      ? 'bg-green-50 border-green-300'
+                      : exercise.difficulty === 'medio'
+                        ? 'bg-yellow-50 border-yellow-300'
+                        : 'bg-red-50 border-red-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${exercise.difficulty === 'facil' ? 'bg-green-500' :
+                        exercise.difficulty === 'medio' ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-800">Ejercicio {idx + 1}</h4>
+                        <span className="text-xs font-bold uppercase">{exercise.difficulty}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 mb-3 border-l-4 border-current">
+                      <p className="text-sm font-semibold text-gray-800 mb-1">📝 Instrucción:</p>
+                      <p className="text-gray-700">{exercise.instruction}</p>
+                    </div>
+
+                    {/* ÁREA DE RESPUESTA */}
+                    <div className="bg-white rounded-lg p-4 mb-3">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        ✍️ Tu respuesta:
+                      </label>
+                      <textarea
+                        value={exerciseAnswers[idx] || ''}
+                        onChange={(e) => setExerciseAnswers({
+                          ...exerciseAnswers,
+                          [idx]: e.target.value
+                        })}
+                        placeholder="Escribe aquí tu respuesta..."
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows="3"
+                      />
+                    </div>
+
+                    <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                      <p className="text-sm font-semibold text-gray-800 mb-1">💡 Ejemplo:</p>
+                      <p className="text-gray-700 italic">{exercise.example}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {/* BOTÓN ENVIAR */}
+                <button
+                  onClick={() => {
+                    const answered = Object.keys(exerciseAnswers).length;
+                    const total = editingContent.content.exercises?.length || 0;
+                    alert(`✅ Ejercicios completados: ${answered}/${total}\n\n¡Buen trabajo!`);
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg"
+                >
+                  📤 Enviar Respuestas
+                </button>
+              </div>
+            )}
+
+            {/* ===== HISTORIA INTERACTIVA ===== */}
             {viewingContent.type === 'story' && (
               <div className="space-y-6">
                 <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-8 border-2 border-orange-300">
                   <h3 className="text-3xl font-black text-gray-800 mb-3">
                     📖 {editingContent.content.title}
                   </h3>
-                  <p className="text-lg text-gray-700 mb-4 leading-relaxed">
+                  <p className="text-lg text-gray-700 mb-4">
                     {editingContent.content.description}
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-orange-700">
-                      📚 {editingContent.content.chapters} Capítulos
-                    </div>
-                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-amber-700">
-                      💡 {editingContent.content.moralLesson}
-                    </div>
+
+                  {/* NAVEGACIÓN DE CAPÍTULOS */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-4 border-2 border-orange-200">
+                    <button
+                      onClick={() => setStoryPage(Math.max(0, storyPage - 1))}
+                      disabled={storyPage === 0}
+                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold disabled:opacity-30"
+                    >
+                      ← Anterior
+                    </button>
+
+                    <span className="font-bold text-gray-800">
+                      Capítulo {storyPage + 1} de {editingContent.content.chapters}
+                    </span>
+
+                    <button
+                      onClick={() => setStoryPage(Math.min(editingContent.content.chapters - 1, storyPage + 1))}
+                      disabled={storyPage === editingContent.content.chapters - 1}
+                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold disabled:opacity-30"
+                    >
+                      Siguiente →
+                    </button>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4">📌 Palabras Clave</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {editingContent.content.keywords?.map((keyword, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold hover:bg-blue-200 transition-colors cursor-pointer"
-                      >
-                        #{keyword}
-                      </span>
-                    ))}
-                  </div>
+                {/* CONTENIDO DEL CAPÍTULO */}
+                <div className="bg-white rounded-xl p-8 border-2 border-gray-200 min-h-96">
+                  <div className="text-6xl text-center mb-6">📚</div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
+                    Capítulo {storyPage + 1}: {editingContent.content.keywords?.[storyPage] || 'Historia'}
+                  </h2>
+                  <p className="text-lg text-gray-700 leading-relaxed text-center max-w-3xl mx-auto">
+                    {editingContent.content.description}
+                    {/* Aquí podrías agregar el contenido real de cada capítulo */}
+                  </p>
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 p-6">
+                {/* LECCIÓN */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200">
                   <h4 className="text-xl font-bold text-gray-800 mb-3">🎓 Lección Educativa</h4>
                   <div className="bg-white rounded-lg p-4 border-l-4 border-purple-500">
                     <p className="text-lg text-gray-800 italic">
@@ -5789,254 +6754,105 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </div>
             )}
 
-            {/* 🎮 JUEGO - Renderizado Interactivo */}
-            {viewingContent.type === 'game' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-purple-600 via-pink-500 to-red-500 rounded-3xl p-8 text-white shadow-2xl">
-                  <h3 className="text-4xl font-black mb-3">
-                    🎮 {editingContent.content.name}
-                  </h3>
-                  <p className="text-lg text-white text-opacity-90 mb-6">
-                    {editingContent.content.description}
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
-                      <p className="text-4xl font-bold">🎯</p>
-                      <p className="text-sm mt-2 font-semibold">{editingContent.content.levels} Niveles</p>
-                    </div>
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
-                      <p className="text-4xl font-bold">⚙️</p>
-                      <p className="text-sm mt-2 font-semibold">{editingContent.content.mechanics?.length || 0} Mecánicas</p>
-                    </div>
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
-                      <p className="text-4xl font-bold">🎁</p>
-                      <p className="text-sm mt-2 font-semibold">{editingContent.content.rewards?.length || 0} Recompensas</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* MECÁNICAS */}
-                <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Gamepad2 className="w-6 h-6 text-blue-600" />
-                    Mecánicas del Juego
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {editingContent.content.mechanics?.map((mechanic, idx) => (
-                      <div key={idx} className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl">⚙️</span>
-                          <p className="font-semibold text-gray-800">{mechanic}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* RECOMPENSAS */}
-                <div className="bg-yellow-50 rounded-xl p-6 border-2 border-yellow-200">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Gift className="w-6 h-6 text-yellow-600" />
-                    Recompensas
-                  </h4>
-                  <div className="grid grid-cols-1 gap-3">
-                    {editingContent.content.rewards?.map((reward, idx) => (
-                      <div key={idx} className="bg-white rounded-lg p-4 border-l-4 border-yellow-500 shadow-sm hover:shadow-md transition-shadow flex items-center gap-3">
-                        <span className="text-3xl">🎁</span>
-                        <p className="font-semibold text-gray-800">{reward}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* INSTRUCCIONES */}
-                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <BookOpen className="w-6 h-6 text-green-600" />
-                    Cómo Jugar
-                  </h4>
-                  <ol className="space-y-3">
-                    {editingContent.content.instructions?.map((instruction, idx) => (
-                      <li key={idx} className="flex items-start gap-3 bg-white rounded-lg p-4 border-l-4 border-green-500">
-                        <span className="font-bold text-green-600 text-lg w-8 text-center flex-shrink-0">
-                          {idx + 1}
-                        </span>
-                        <p className="text-gray-800 font-semibold">{instruction}</p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-            )}
-
-            {/* 📝 EJERCICIOS - Vista Práctica */}
-            {viewingContent.type === 'exercise' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-2xl p-8 border-2 border-green-300">
-                  <h3 className="text-3xl font-bold text-gray-800 mb-2">📝 Ejercicios Prácticos</h3>
-                  <div className="flex gap-4 mt-4">
-                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
-                      📊 Dificultad: {editingContent.content.difficulty?.toUpperCase()}
-                    </div>
-                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
-                      ⏱️ {editingContent.content.estimatedTime} minutos
-                    </div>
-                    <div className="bg-white rounded-lg px-4 py-2 font-semibold text-green-700">
-                      📋 {editingContent.content.exercises?.length} Ejercicios
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {editingContent.content.exercises?.map((exercise, idx) => (
-                    <div
-                      key={idx}
-                      className={`rounded-xl p-6 border-2 shadow-md hover:shadow-lg transition-all ${exercise.difficulty === 'facil'
-                        ? 'bg-green-50 border-green-300'
-                        : exercise.difficulty === 'medio'
-                          ? 'bg-yellow-50 border-yellow-300'
-                          : 'bg-red-50 border-red-300'
-                        }`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${exercise.difficulty === 'facil'
-                            ? 'bg-green-500'
-                            : exercise.difficulty === 'medio'
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                            }`}>
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-gray-800">
-                              Ejercicio {idx + 1}
-                            </h4>
-                            <span className={`text-xs font-bold uppercase ${exercise.difficulty === 'facil'
-                              ? 'text-green-700'
-                              : exercise.difficulty === 'medio'
-                                ? 'text-yellow-700'
-                                : 'text-red-700'
-                              }`}>
-                              {exercise.difficulty}
-                            </span>
-                          </div>
-                        </div>
-                        <span className="text-2xl">
-                          {exercise.difficulty === 'facil' ? '😊' : exercise.difficulty === 'medio' ? '😐' : '🤔'}
-                        </span>
-                      </div>
-
-                      <div className="bg-white bg-opacity-60 rounded-lg p-4 mb-3 border-l-4 border-current">
-                        <p className="text-sm font-semibold text-gray-800 mb-1">📝 Instrucción:</p>
-                        <p className="text-gray-700">{exercise.instruction}</p>
-                      </div>
-
-                      <div className="bg-white bg-opacity-60 rounded-lg p-4 border-l-4 border-blue-500">
-                        <p className="text-sm font-semibold text-gray-800 mb-1">💡 Ejemplo:</p>
-                        <p className="text-gray-700 italic">{exercise.example}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ⚡ DESAFÍO - Vista Competitiva */}
+            {/* ===== DESAFÍO CON PROGRESO ===== */}
             {viewingContent.type === 'challenge' && (
               <div className="space-y-6">
-                <div className="bg-gradient-to-r from-red-600 via-red-500 to-pink-500 rounded-3xl p-8 text-white shadow-2xl">
+                <div className="bg-gradient-to-r from-red-600 to-pink-600 rounded-2xl p-8 text-white shadow-2xl">
                   <h3 className="text-4xl font-black mb-2">⚡ {editingContent.content.title}</h3>
-                  <p className="text-lg text-white text-opacity-90 mb-6">
-                    Reto educativo con puntos y recompensas
-                  </p>
+                  <p className="text-lg opacity-90 mb-6">{editingContent.content.duration}</p>
 
+                  {/* PROGRESO */}
+                  <div className="bg-white bg-opacity-20 rounded-xl p-4 mb-4">
+                    <div className="flex justify-between mb-2">
+                      <span className="font-bold">Progreso del Desafío</span>
+                      <span>{Object.keys(challengeProgress).length}/{editingContent.content.tasks?.length || 0}</span>
+                    </div>
+                    <div className="w-full bg-white bg-opacity-30 rounded-full h-3">
+                      <div
+                        className="bg-yellow-400 h-full rounded-full transition-all"
+                        style={{
+                          width: `${(Object.keys(challengeProgress).length / (editingContent.content.tasks?.length || 1)) * 100}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* GRID DE STATS */}
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center">
                       <p className="text-3xl font-bold">🔥</p>
-                      <p className="text-sm mt-2 font-semibold">{editingContent.content.difficulty?.toUpperCase()}</p>
+                      <p className="text-sm font-semibold">{editingContent.content.difficulty?.toUpperCase()}</p>
                     </div>
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center">
                       <p className="text-3xl font-bold">📅</p>
-                      <p className="text-sm mt-2 font-semibold">{editingContent.content.duration}</p>
+                      <p className="text-sm font-semibold">{editingContent.content.duration}</p>
                     </div>
-                    <div className="bg-white bg-opacity-20 rounded-xl p-4 backdrop-blur text-center border-2 border-white border-opacity-30">
+                    <div className="bg-white bg-opacity-20 rounded-xl p-4 text-center">
                       <p className="text-3xl font-bold">🎁</p>
-                      <p className="text-sm mt-2 font-semibold">Recompensa</p>
+                      <p className="text-sm font-semibold">Recompensa</p>
                     </div>
                   </div>
                 </div>
 
-                {/* RECOMPENSA DESTACADA */}
-                <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-2xl p-8 border-4 border-yellow-500 shadow-xl">
-                  <p className="text-center text-sm font-bold text-yellow-900 uppercase tracking-wide mb-2">Premio Final</p>
-                  <p className="text-center text-2xl font-black text-yellow-900">
-                    {editingContent.content.reward}
-                  </p>
-                </div>
-
-                {/* TAREAS */}
+                {/* TAREAS CON CHECKBOX */}
                 <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
                   <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <CheckCircle className="w-6 h-6 text-blue-600" />
                     Tareas a Completar
                   </h4>
-                  <ol className="space-y-3">
+                  <div className="space-y-3">
                     {editingContent.content.tasks?.map((task, idx) => (
-                      <li key={idx} className="flex items-start gap-3 bg-white rounded-lg p-4 border-l-4 border-blue-500">
-                        <span className="font-bold text-blue-600 text-lg w-8 text-center flex-shrink-0">
-                          {idx + 1}
-                        </span>
-                        <p className="text-gray-800 font-semibold">{task}</p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                {/* CRITERIOS DE ÉXITO */}
-                <div className="bg-green-50 rounded-xl p-6 border-2 border-green-200">
-                  <h4 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Trophy className="w-6 h-6 text-green-600" />
-                    Criterios de Éxito
-                  </h4>
-                  <div className="space-y-2">
-                    {editingContent.content.criteria?.map((criterion, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-white rounded-lg p-3 border-l-4 border-green-500">
-                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        <p className="text-gray-800 font-semibold">{criterion}</p>
-                      </div>
+                      <label
+                        key={idx}
+                        className="flex items-start gap-3 bg-white p-4 rounded-lg border-2 border-blue-200 cursor-pointer hover:bg-blue-50 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={challengeProgress[idx] || false}
+                          onChange={(e) => setChallengeProgress({
+                            ...challengeProgress,
+                            [idx]: e.target.checked
+                          })}
+                          className="w-6 h-6 text-blue-600 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className={`font-bold ${challengeProgress[idx] ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                            {task}
+                          </span>
+                        </div>
+                        {challengeProgress[idx] && <span className="text-2xl">✅</span>}
+                      </label>
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* CONTENIDO GENÉRICO */}
-            {!['quiz', 'story', 'game', 'exercise', 'challenge'].includes(viewingContent.type) && (
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono overflow-x-auto">
-                  {JSON.stringify(editingContent.content, null, 2)}
-                </pre>
+                {/* RECOMPENSA */}
+                <div className="bg-gradient-to-r from-yellow-300 to-yellow-400 rounded-2xl p-8 border-4 border-yellow-500 text-center">
+                  <p className="text-sm font-bold text-yellow-900 uppercase mb-2">Premio Final</p>
+                  <p className="text-2xl font-black text-yellow-900">{editingContent.content.reward}</p>
+                </div>
+
+                {/* BOTÓN COMPLETAR */}
+                {Object.keys(challengeProgress).length === editingContent.content.tasks?.length && (
+                  <button
+                    onClick={() => {
+                      alert(`🎉 ¡DESAFÍO COMPLETADO!\n\n${editingContent.content.reward}`);
+                      setChallengeProgress({});
+                    }}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-4 rounded-xl font-black text-xl shadow-2xl animate-pulse"
+                  >
+                    🏆 ¡RECLAMAR RECOMPENSA!
+                  </button>
+                )}
               </div>
             )}
           </div>
 
           {/* FOOTER */}
           <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-3 justify-end">
-            {viewingContent.type === 'quiz' && (
-              <button
-                onClick={() => openQuizBuilderWithGeneratedContent(viewingContent)}
-                className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
-              >
-                <Edit2 className="w-5 h-5" />
-                Editar en Quiz Builder
-              </button>
-            )}
-
             <button
               onClick={() => downloadContentFile(editingContent)}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
             >
               <Download className="w-5 h-5" />
               Descargar
@@ -6044,7 +6860,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
             <button
               onClick={() => convertContentToResource(editingContent)}
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
               Agregar a Recursos
@@ -6054,7 +6870,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       </div>
     );
   };
-
   //  FUNCIÓN: Abrir Quiz Builder con contenido generado
   const openQuizBuilderWithGeneratedContent = (generatedQuiz) => {
     console.log("📝 Abriendo Quiz Builder con contenido generado:", generatedQuiz);
@@ -6255,20 +7070,117 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 rounded-lg p-6 text-white shadow-lg"> <div className="flex items-start gap-4"> <div className="bg-white bg-opacity-20 rounded-lg p-3 flex-shrink-0"> <Sparkles className="w-6 h-6" /> </div> <div className="flex-1"> <h3 className="text-lg font-bold mb-4"> ✨ Recomendaciones IA Regenerativa </h3> {aiRecommendations.length > 0 ? (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"> {aiRecommendations.map((rec, index) => { const IconComponent = rec.icon || AlertCircle; return (<div key={index} className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur hover:bg-opacity-20 transition-all" > <div className="flex items-start gap-3 h-full flex-col"> <div className="flex items-start gap-3 w-full"> <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${rec.priority === "high" ? "bg-red-400" : rec.priority === "medium" ? "bg-yellow-400" : "bg-green-400"}`} /> <div className="flex-1"> <div className="flex items-center gap-2 mb-1"> <IconComponent className="w-4 h-4" /> <p className="font-semibold text-sm"> {rec.title} </p> </div> <p className="text-xs opacity-90 mb-3"> {rec.description} </p> </div> </div> <button onClick={() => { if (rec.action_type === "open_generator") { setShowContentGenerator(true); setContentGeneratorTab("generator"); setContentType("quiz"); } else if (rec.action_type === "open_analytics") { generateAIAnalyticsImproved(); } else if (rec.targetTab) { setActiveTab(rec.targetTab); } }} className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded transition-colors flex items-center gap-1 w-full justify-center" > {rec.action_type === "open_generator" && (<Sparkles className="w-3 h-3" />)} {rec.action_type === "open_analytics" && (<BarChart3 className="w-3 h-3" />)} {rec.action} </button> </div> </div>); })} </div>) : (<div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur"> <p className="text-center"> ✅ Tu sistema está bien balanceado. ¡Buen trabajo! </p> </div>)}
 
-          <div className="flex gap-2 pt-4 border-t border-white border-opacity-20">
-            <button
-              onClick={() => generateAIAnalyticsImproved()}
-              className="bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Ver Análisis Detallado
-            </button>
+        <div className="bg-gradient-to-br from-indigo-900 to-blue-950 rounded-xl p-6 text-white">
+          <div className="flex items-start gap-4">
+
+            {/* Icono principal */}
+            <div className="bg-white/10 rounded-lg p-3 flex-shrink-0 border border-white/15">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold mb-5 text-white">
+                Recomendaciones IA Generativa
+              </h3>
+
+              {aiRecommendations.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  {aiRecommendations.map((rec, index) => (
+                    <div
+                      key={index}
+                      className="
+                bg-indigo-800/80
+                rounded-lg p-4
+                border border-white/20
+                hover:border-white/40
+                transition-colors
+              "
+                    >
+                      <div className="flex flex-col justify-between h-full">
+
+                        {/* Contenido */}
+                        <div>
+                          <div className="flex items-start gap-3 mb-3">
+                            <div
+                              className={`w-1.5 h-6 rounded-full mt-1 ${rec.priority === 'high'
+                                ? 'bg-red-500'
+                                : rec.priority === 'medium'
+                                  ? 'bg-amber-400'
+                                  : 'bg-emerald-400'
+                                }`}
+                            />
+                            <p className="text-sm font-semibold text-white leading-tight">
+                              {rec.title}
+                            </p>
+                          </div>
+
+                          <p className="text-xs text-indigo-200 leading-relaxed ml-4">
+                            {rec.description}
+                          </p>
+                        </div>
+
+                        {/* Acción */}
+                        <button
+                          onClick={() => {
+                            if (rec.action_type === 'open_generator') {
+                              setShowContentGenerator(true)
+                              setContentGeneratorTab('generator')
+                              setContentType('quiz')
+                            } else if (rec.action_type === 'open_analytics') {
+                              generateAIAnalyticsImproved()
+                            } else if (rec.targetTab) {
+                              setActiveTab(rec.targetTab)
+                            }
+                          }}
+                          className="
+                    mt-4 w-full
+                    text-xs font-semibold
+                    text-indigo-900
+                    bg-white
+                    hover:bg-indigo-100
+                    px-3 py-2
+                    rounded-md
+                    transition-colors
+                  "
+                        >
+                          {rec.action}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-indigo-800/60 rounded-lg p-4 border border-white/20">
+                  <p className="text-center text-sm text-indigo-200">
+                    Tu sistema está bien balanceado.
+                  </p>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex justify-start pt-4 border-t border-white/15">
+                <button
+                  onClick={() => generateAIAnalyticsImproved()}
+                  className="
+            flex items-center gap-2
+            text-sm font-semibold
+            text-indigo-900
+            bg-white
+            hover:bg-indigo-100
+            px-4 py-2
+            rounded-md
+            transition-colors
+          "
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Ver análisis detallado
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        </div>
-        </div>
+
 
         {/* Chat Flotante IA - Bola Flotante */}
         {!showAIChat && (
@@ -6490,12 +7402,15 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             </div>
           </div>
         )}
+
+        {showContentPreview && renderContentPreview()}
+
         {/* Análisis con Algoritmos */}
 
         <div className="bg-white rounded-lg shadow-sm border p-6">
           <h3 className="font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
-            🤖 Análisis Inteligente de Cursos
+            Análisis Inteligente de Cursos
           </h3>
 
           {/* DESCRIPCIÓN CLARA */}
@@ -7228,38 +8143,83 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     );
   };
 
+  // Selector visual de emojis mejorado
+  const EmojiSelector = ({ onSelect, currentEmoji }) => {
+    const [searchEmoji, setSearchEmoji] = useState('');
+
+    const emojiCategories = {
+      'Formas': ["🔴", "🔵", "🟡", "🟢", "🟣", "🟠", "⭕", "📍"],
+      'Números': ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"],
+      'Animales': ["🦁", "🐘", "🦒", "🐼", "🦊", "🐶", "🐱", "🦆", "🦉"],
+      'Comida': ["🍎", "🍊", "🍋", "🍌", "🍓", "🥕", "🌽", "🍕", "🍔"],
+      'Transporte': ["🚀", "✈️", "🚂", "🚗", "🚢", "⛵", "🚁", "🛸"],
+      'Deportes': ["⚽", "🏀", "🏈", "⚾", "🎾", "🏐", "🎱", "⛳"],
+      'Educación': ["📚", "📖", "📝", "✏️", "📐", "📏", "📊", "🎓", "🔬"],
+      'Emojis': ["🎉", "🎊", "🎈", "🎀", "🎁", "✅", "❌", "👍", "👏"]
+    };
+
+    return (
+      <div className="space-y-3">
+        {Object.entries(emojiCategories).map(([category, emojis]) => (
+          <div key={category}>
+            <p className="text-xs font-bold text-gray-600 uppercase mb-2">{category}</p>
+            <div className="grid grid-cols-8 gap-2">
+              {emojis.map((emoji, idx) => (
+                <button
+                  key={`${category}_${idx}`}
+                  onClick={() => onSelect(emoji)}
+                  className={`w-10 h-10 rounded-lg text-xl transition-all transform hover:scale-110 ${currentEmoji === emoji
+                    ? 'bg-purple-500 scale-110 shadow-lg ring-2 ring-purple-300'
+                    : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderContentGenerator = () => {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
-          {/* HEADER */}
-          <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-t-2xl z-10">
+      <div className="fixed inset-0 bg-indigo-900/30 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-indigo-900/20">
+
+          {/* ================= HEADER ================= */}
+          <div className="sticky top-0 bg-gradient-to-br from-indigo-900 to-indigo-800 text-white p-6 rounded-t-2xl z-20">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-3xl font-bold mb-1">✨ Generador de Contenido Educativo</h2>
-                <p className="text-purple-100">Crea Quiz, Juegos, Ejercicios y más con IA</p>
+                <h2 className="text-3xl font-bold mb-1">
+                  Generador de Contenido Educativo
+                </h2>
+                <p className="text-indigo-200">
+                  Crea actividades con IA generativa
+                </p>
               </div>
               <button
                 onClick={() => setShowContentGenerator(false)}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+                className="bg-white/15 hover:bg-white/25 p-2 rounded-lg transition"
               >
-                <X className="w-6 h-6" />
+                <X className="w-6 h-6 text-white" />
               </button>
             </div>
           </div>
 
-          {/* TABS */}
-          <div className="flex gap-4 p-6 border-b border-gray-200">
+          {/* ================= TABS ================= */}
+          <div className="flex gap-3 p-6 border-b border-indigo-200 bg-white">
             {[
-              { id: 'generator', label: '⚡ Generador' },
-              { id: 'library', label: '📚 Biblioteca' },
+              { id: "generator", label: "Generador" },
+              { id: "library", label: "Biblioteca" },
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setContentGeneratorTab(tab.id)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${contentGeneratorTab === tab.id
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                className={`px-6 py-3 rounded-lg font-semibold transition-all ${contentGeneratorTab === tab.id
+                  ? "bg-indigo-900 text-white"
+                  : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
                   }`}
               >
                 {tab.label}
@@ -7267,251 +8227,553 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             ))}
           </div>
 
-          <div className="p-6">
-            {contentGeneratorTab === 'generator' && (
+          {/*  BODY  */}
+          <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-50">
+
+            {/*  GENERADOR  */}
+            {contentGeneratorTab === "generator" && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* TIPOS DE CONTENIDO */}
-                <div className="lg:col-span-1">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">📦 Tipos de Contenido</h3>
+
+                {/* TIPOS */}
+                <div>
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4">
+                    Tipos de Contenido
+                  </h3>
+
                   <div className="space-y-3">
                     {contentTypes.map(type => (
                       <button
                         key={type.id}
                         onClick={() => setContentType(type.id)}
-                        className={`w-full text-left p-4 rounded-xl transition-all border-2 ${contentType === type.id
-                          ? `bg-gradient-to-r ${type.color} text-white border-current shadow-lg`
-                          : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-300'
+                        className={`w-full text-left p-4 rounded-xl border transition-all ${contentType === type.id
+                          ? "bg-indigo-900 text-white border-indigo-900"
+                          : "bg-white border-indigo-200 hover:bg-indigo-50"
                           }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-3xl">{type.icon}</span>
-                          <div>
-                            <h4 className="font-bold">{type.name}</h4>
-                            <p className="text-xs opacity-80">{type.description}</p>
-                          </div>
-                        </div>
+                        <h4 className="font-semibold">{type.name}</h4>
+                        <p className="text-xs opacity-80">
+                          {type.description}
+                        </p>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* GENERADOR */}
+                {/* FORM */}
                 <div className="lg:col-span-2">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">✨ Crear Contenido</h3>
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4">
+                    Crear Contenido
+                  </h3>
 
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
-                    <p className="text-sm text-gray-800">
-                      💡 {contentTypes.find(c => c.id === contentType)?.prompt}
+                  <div className="bg-indigo-100 border-l-4 border-indigo-600 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-indigo-900">
+                      {contentTypes.find(c => c.id === contentType)?.prompt}
                     </p>
                   </div>
 
-                  <div className="space-y-4">
-                    <textarea
-                      value={generatorPrompt}
-                      onChange={(e) => setGeneratorPrompt(e.target.value)}
-                      placeholder="Ejemplo: Crea un quiz sobre los verbos en inglés con 5 preguntas..."
-                      className="w-full h-40 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 resize-none"
-                    />
+                  <textarea
+                    value={generatorPrompt}
+                    onChange={(e) => setGeneratorPrompt(e.target.value)}
+                    placeholder="Ejemplo: Crea un quiz sobre fracciones para primaria..."
+                    className="w-full h-40 px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 resize-none"
+                  />
 
-                    <button
-                      onClick={generateContentWithAI}
-                      disabled={generatingContent}
-                      className="w-full bg-gradient-to-r from-yellow-400 via-pink-500 to-red-500 hover:from-yellow-500 hover:via-pink-600 hover:to-red-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2 text-lg shadow-lg"
-                    >
-                      {generatingContent ? (
-                        <>
-                          <Loader className="w-6 h-6 animate-spin" />
-                          Generando...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-6 h-6" />
-                          Generar con IA
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* RESULTADO */}
-                  {generatedContent && (
-                    <div className="mt-8 border-t border-gray-200 pt-8">
-                      <h4 className="text-lg font-bold text-gray-800 mb-4">✅ Contenido Generado</h4>
-                      <div className="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300">
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h5 className="font-bold text-lg text-gray-800">{generatedContent.title}</h5>
-                            <p className="text-sm text-gray-600">Creado: {generatedContent.createdAt}</p>
-                          </div>
-                          <span className="text-5xl">
-                            {contentTypes.find(c => c.id === generatedContent.type)?.icon}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3">
-                          <button className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2">
-                            <Eye className="w-4 h-4" />
-                            Ver
-                          </button>
-                          <button
-                            onClick={() => downloadContentFile(generatedContent)}
-                            className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-                          >
-                            <Download className="w-4 h-4" />
-                            Descargar
-                          </button>
-                          <button className="bg-white hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2">
-                            <Plus className="w-4 h-4" />
-                            Guardar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    onClick={generateContentWithAI}
+                    disabled={generatingContent}
+                    className="mt-4 w-full bg-indigo-900 hover:bg-indigo-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {generatingContent ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        Generando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        Generar con IA
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
 
-            {contentGeneratorTab === 'library' && (
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">📚 Biblioteca de Contenidos</h3>
-
-                {contentLibrary.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
-                    <BookOpen className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-                    <p className="text-2xl font-bold text-gray-800">No hay contenido aún</p>
-                    <p className="text-gray-600 mt-2">Genera tu primer contenido usando el generador</p>
+            {/*  BIBLIOTECA  */}
+            {contentGeneratorTab === "library" && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-indigo-900">
+                      📚 Biblioteca de Contenido Generado
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Haz clic en "✏️ Editar" para modificar cualquier contenido
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {contentLibrary.map(item => {
-                      const type = contentTypes.find(c => c.id === item.type);
-                      const isExpanded = expandedContentId === item.id;
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden hover:shadow-lg transition-all"
-                        >
-                          {/* HEADER */}
-                          <button
-                            onClick={() => setExpandedContentId(isExpanded ? null : item.id)}
-                            className="w-full text-left p-6 hover:bg-gray-50 transition-all"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 flex-1">
-                                <span className="text-5xl">{type?.icon}</span>
-                                <div className="flex-1">
-                                  <h4 className="text-lg font-bold text-gray-800">{item.title}</h4>
-                                  <p className="text-sm text-gray-600">{item.createdAt}</p>
-                                </div>
-                                <span className={`inline-block px-4 py-2 rounded-full font-semibold text-sm bg-gradient-to-r ${type?.color} text-white`}>
-                                  {type?.name}
-                                </span>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedContentId(isExpanded ? null : item.id);
-                                }}
-                                className="text-gray-600"
-                              >
-                                {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                              </button>
+                  {/* BOTÓN GUARDAR TODO (solo visible si hay cambios) */}
+                  {editingContent && (
+                    <button
+                      onClick={saveEditedContent}
+                      disabled={savingChanges}
+                      className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
+                    >
+                      {savingChanges ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-5 h-5" />
+                          Guardar Todos los Cambios
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {contentLibrary.length === 0 && (
+                  <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-indigo-300">
+                    <Sparkles className="w-16 h-16 text-indigo-400 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg font-bold text-gray-700">📭 Aún no hay contenido generado</p>
+                    <p className="text-sm text-gray-500 mt-2">¡Genera tu primer contenido usando el Generador!</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {contentLibrary.map(item => {
+                    const isEditing = editingContent?.id === item.id;
+                    const currentData = isEditing ? editingContent : item;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 ${isEditing
+                          ? 'border-yellow-400 ring-4 ring-yellow-200'
+                          : 'border-blue-500'
+                          }`}
+                      >
+                        {/* HEADER */}
+                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white relative overflow-hidden">
+                          <div className="absolute inset-0 opacity-10">
+                            <div className="absolute inset-0" style={{
+                              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
+                              backgroundSize: '20px 20px'
+                            }}></div>
+                          </div>
+
+                          <div className="relative flex justify-between items-start z-10">
+                            <div className="flex-1">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={currentData.title}
+                                  onChange={(e) => setEditingContent({
+                                    ...currentData,
+                                    title: e.target.value
+                                  })}
+                                  className="w-full bg-white bg-opacity-20 border-2 border-white border-opacity-40 rounded-lg px-3 py-2 text-white font-bold placeholder-white placeholder-opacity-60"
+                                  placeholder="Título del contenido"
+                                />
+                              ) : (
+                                <>
+                                  <p className="text-xs font-bold opacity-90 uppercase tracking-wider">
+                                    {contentTypes.find(c => c.id === item.type)?.name}
+                                  </p>
+                                  <h3 className="font-black text-lg mt-2 line-clamp-2">
+                                    {item.title}
+                                  </h3>
+                                </>
+                              )}
                             </div>
-                          </button>
+                            <span className="text-4xl ml-2 flex-shrink-0">
+                              {contentTypes.find(c => c.id === item.type)?.icon}
+                            </span>
+                          </div>
+                        </div>
 
-                          {/* CONTENIDO EXPANDIDO */}
-                          {isExpanded && (
-                            <div className="border-t border-gray-200 p-6 bg-gray-50">
-                              <div className="text-gray-800 mb-6 space-y-2">
-                                {item.type === 'quiz' && (
-                                  <>
-                                    <p><strong>📊 Preguntas:</strong> {item.content.questions?.length || 0}</p>
-                                    <p><strong>⭐ Puntos totales:</strong> {item.content.totalPoints || 0}</p>
-                                    <p><strong>⏱️ Tiempo límite:</strong> {item.content.timeLimit || 0}s</p>
-                                  </>
-                                )}
-                                {item.type === 'game' && (
-                                  <>
-                                    <p><strong>🎮 Niveles:</strong> {item.content.levels}</p>
-                                    <p><strong>🎯 Mecánicas:</strong> {item.content.mechanics.join(', ')}</p>
-                                  </>
-                                )}
-                                {item.type === 'exercise' && (
-                                  <>
-                                    <p><strong>📝 Ejercicios:</strong> {item.content.exercises.length}</p>
-                                    <p><strong>⏱️ Tiempo:</strong> {item.content.estimatedTime} min</p>
-                                  </>
-                                )}
-                                {item.type === 'story' && (
-                                  <>
-                                    <p><strong>📖 Título:</strong> {item.content.title}</p>
-                                    <p><strong>📚 Capítulos:</strong> {item.content.chapters}</p>
-                                  </>
-                                )}
-                                {item.type === 'challenge' && (
-                                  <>
-                                    <p><strong>⚡ Dificultad:</strong> {item.content.difficulty}</p>
-                                    <p><strong>📅 Duración:</strong> {item.content.duration}</p>
-                                  </>
-                                )}
+                        {/* BODY */}
+                        <div className="p-5 space-y-4 bg-white">
+                          {/* PROMPT */}
+                          <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                            {isEditing ? (
+                              <textarea
+                                value={currentData.prompt}
+                                onChange={(e) => setEditingContent({
+                                  ...currentData,
+                                  prompt: e.target.value
+                                })}
+                                className="w-full bg-white border-2 border-blue-300 rounded px-3 py-2 text-sm resize-none"
+                                rows="2"
+                                placeholder="Descripción del contenido"
+                              />
+                            ) : (
+                              <p className="text-sm text-gray-700 line-clamp-3 font-medium">
+                                💡 {item.prompt}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* ===== EDICIÓN ESPECÍFICA POR TIPO ===== */}
+
+                          {/* QUIZ EDITABLE */}
+                          {item.type === 'quiz' && isEditing && (
+                            <div className="space-y-3 max-h-96 overflow-y-auto border-2 border-blue-200 rounded-lg p-3">
+                              <p className="font-bold text-sm text-gray-800 sticky top-0 bg-white pb-2">
+                                📝 Preguntas ({currentData.content.questions?.length || 0})
+                              </p>
+
+                              {currentData.content.questions?.map((q, qIdx) => (
+                                <div key={qIdx} className="bg-gray-50 rounded-lg p-3 border border-gray-300 space-y-2">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                      {qIdx + 1}
+                                    </span>
+
+                                    {/* EMOJI DE LA PREGUNTA */}
+                                    <select
+                                      value={q.imagen_url || q.image_url || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...currentData };
+                                        updated.content.questions[qIdx].imagen_url = e.target.value;
+                                        updated.content.questions[qIdx].image_url = e.target.value;
+                                        setEditingContent(updated);
+                                      }}
+                                      className="w-12 text-xl bg-white border border-gray-300 rounded"
+                                    >
+                                      <option value="">❓</option>
+                                      {emojis.slice(0, 20).map(emoji => (
+                                        <option key={emoji} value={emoji}>{emoji}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* TEXTO PREGUNTA */}
+                                  <input
+                                    type="text"
+                                    value={q.text || q.pregunta || ''}
+                                    onChange={(e) => {
+                                      const updated = { ...currentData };
+                                      updated.content.questions[qIdx].text = e.target.value;
+                                      updated.content.questions[qIdx].pregunta = e.target.value;
+                                      setEditingContent(updated);
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-semibold"
+                                    placeholder="Pregunta"
+                                  />
+
+                                  {/* OPCIONES */}
+                                  <div className="space-y-1">
+                                    {(q.options || q.opciones || []).map((opt, oIdx) => (
+                                      <div key={oIdx} className="flex gap-2 items-center">
+                                        {/* EMOJI OPCIÓN */}
+                                        <select
+                                          value={(q.imagen_opciones || q.image_options || [])[oIdx] || ''}
+                                          onChange={(e) => {
+                                            const updated = { ...currentData };
+                                            if (!updated.content.questions[qIdx].imagen_opciones) {
+                                              updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
+                                            }
+                                            if (!updated.content.questions[qIdx].image_options) {
+                                              updated.content.questions[qIdx].image_options = ['', '', '', ''];
+                                            }
+                                            updated.content.questions[qIdx].imagen_opciones[oIdx] = e.target.value;
+                                            updated.content.questions[qIdx].image_options[oIdx] = e.target.value;
+                                            setEditingContent(updated);
+                                          }}
+                                          className="w-10 text-lg bg-white border border-gray-300 rounded"
+                                        >
+                                          <option value="">🎨</option>
+                                          {emojis.slice(0, 15).map(emoji => (
+                                            <option key={emoji} value={emoji}>{emoji}</option>
+                                          ))}
+                                        </select>
+
+                                        {/* TEXTO OPCIÓN */}
+                                        <input
+                                          type="text"
+                                          value={opt}
+                                          onChange={(e) => {
+                                            const updated = { ...currentData };
+                                            if (updated.content.questions[qIdx].options) {
+                                              updated.content.questions[qIdx].options[oIdx] = e.target.value;
+                                            }
+                                            if (updated.content.questions[qIdx].opciones) {
+                                              updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
+                                            }
+                                            setEditingContent(updated);
+                                          }}
+                                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+                                          placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
+                                        />
+
+                                        {/* CORRECTA */}
+                                        <button
+                                          onClick={() => {
+                                            const updated = { ...currentData };
+                                            updated.content.questions[qIdx].correct = oIdx;
+                                            updated.content.questions[qIdx].respuesta_correcta = oIdx;
+                                            setEditingContent(updated);
+                                          }}
+                                          className={`w-8 h-8 rounded font-bold text-xs ${(q.correct ?? q.respuesta_correcta) === oIdx
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-gray-200 text-gray-600'
+                                            }`}
+                                        >
+                                          {(q.correct ?? q.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* PUNTOS Y TIEMPO */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-xs font-bold text-gray-600">⭐ Puntos</label>
+                                      <input
+                                        type="number"
+                                        value={q.puntos || q.points || 10}
+                                        onChange={(e) => {
+                                          const updated = { ...currentData };
+                                          updated.content.questions[qIdx].puntos = parseInt(e.target.value);
+                                          updated.content.questions[qIdx].points = parseInt(e.target.value);
+                                          setEditingContent(updated);
+                                        }}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                        min="1"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs font-bold text-gray-600">⏱️ Tiempo(s)</label>
+                                      <input
+                                        type="number"
+                                        value={q.tiempo_limite || q.timeLimit || 0}
+                                        onChange={(e) => {
+                                          const updated = { ...currentData };
+                                          updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
+                                          updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
+                                          setEditingContent(updated);
+                                        }}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                        min="0"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* JUEGO EDITABLE */}
+                          {item.type === 'game' && isEditing && (
+                            <div className="space-y-3 border-2 border-purple-200 rounded-lg p-3">
+                              <div>
+                                <label className="text-xs font-bold text-gray-600">🎮 Nombre del Juego</label>
+                                <input
+                                  type="text"
+                                  value={currentData.content.name || ''}
+                                  onChange={(e) => setEditingContent({
+                                    ...currentData,
+                                    content: { ...currentData.content, name: e.target.value }
+                                  })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                />
                               </div>
+                              <div>
+                                <label className="text-xs font-bold text-gray-600">📝 Descripción</label>
+                                <textarea
+                                  value={currentData.content.description || ''}
+                                  onChange={(e) => setEditingContent({
+                                    ...currentData,
+                                    content: { ...currentData.content, description: e.target.value }
+                                  })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none"
+                                  rows="2"
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-gray-600">🎯 Niveles</label>
+                                  <input
+                                    type="number"
+                                    value={currentData.content.levels || 3}
+                                    onChange={(e) => setEditingContent({
+                                      ...currentData,
+                                      content: { ...currentData.content, levels: parseInt(e.target.value) }
+                                    })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    min="1"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-gray-600">❤️ Vidas</label>
+                                  <input
+                                    type="number"
+                                    value={currentData.content.lives || 3}
+                                    onChange={(e) => setEditingContent({
+                                      ...currentData,
+                                      content: { ...currentData.content, lives: parseInt(e.target.value) }
+                                    })}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                    min="1"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
-                              <div className="grid grid-cols-4 gap-3">
-                                {/* ✅ BOTÓN VER - Abre modal con todas las preguntas */}
+                          {/* EJERCICIOS EDITABLES */}
+                          {item.type === 'exercise' && isEditing && (
+                            <div className="space-y-2 max-h-96 overflow-y-auto border-2 border-green-200 rounded-lg p-3">
+                              <p className="font-bold text-sm text-gray-800">
+                                📝 Ejercicios ({currentData.content.exercises?.length || 0})
+                              </p>
+                              {currentData.content.exercises?.map((ex, idx) => (
+                                <div key={idx} className="bg-gray-50 rounded p-2 border border-gray-300 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                      {idx + 1}
+                                    </span>
+                                    <select
+                                      value={ex.difficulty || 'medio'}
+                                      onChange={(e) => {
+                                        const updated = { ...currentData };
+                                        updated.content.exercises[idx].difficulty = e.target.value;
+                                        setEditingContent(updated);
+                                      }}
+                                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    >
+                                      <option value="facil">😊 Fácil</option>
+                                      <option value="medio">😐 Medio</option>
+                                      <option value="dificil">🤔 Difícil</option>
+                                    </select>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={ex.instruction || ''}
+                                    onChange={(e) => {
+                                      const updated = { ...currentData };
+                                      updated.content.exercises[idx].instruction = e.target.value;
+                                      setEditingContent(updated);
+                                    }}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                    placeholder="Instrucción"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={ex.example || ''}
+                                    onChange={(e) => {
+                                      const updated = { ...currentData };
+                                      updated.content.exercises[idx].example = e.target.value;
+                                      setEditingContent(updated);
+                                    }}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                    placeholder="Ejemplo"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* FECHA Y TIPO */}
+                          <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
+                            <span className="text-gray-500 font-semibold">📅 {item.createdAt}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${item.type === 'quiz' ? 'bg-blue-500' :
+                              item.type === 'game' ? 'bg-purple-500' :
+                                item.type === 'exercise' ? 'bg-green-500' :
+                                  item.type === 'story' ? 'bg-orange-500' : 'bg-red-500'
+                              }`}>
+                              {item.type.toUpperCase()}
+                            </span>
+                          </div>
+
+                          {/* BOTONES */}
+                          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-200">
+                            {isEditing ? (
+                              <>
                                 <button
-                                  onClick={() => viewGeneratedContentImproved(item)}
-                                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                  onClick={() => {
+                                    saveEditedContent();
+                                    setEditingContent(null);
+                                  }}
+                                  className="col-span-2 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
                                 >
-                                  <Eye className="w-4 h-4" />
-                                  Ver
+                                  <Save className="w-4 h-4" />
+                                  Guardar
                                 </button>
-
-                                {/* ✅ BOTÓN EDITAR - Solo para QUIZ, abre Quiz Builder */}
+                                <button
+                                  onClick={() => setEditingContent(null)}
+                                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg text-xs font-bold"
+                                >
+                                  Cancelar
+                                </button>
+                              </>
+                            ) : (
+                              <>
                                 {item.type === 'quiz' && (
                                   <button
-                                    onClick={() => openQuizBuilderWithGeneratedContent(item)}
-                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                      setEditingGeneratedQuiz({
+                                        ...item,
+                                        preguntas: item.preguntas || item.content?.questions || [],
+                                        title: item.title
+                                      });
+                                      setShowContentPreview(true);
+                                      setQuizPreviewIndex(0);
+                                      setQuizPreviewAnswers({});
+                                    }}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                                    title="Vista previa"
                                   >
-                                    <Edit2 className="w-4 h-4" />
-                                    Editar
+                                    <Eye className="w-4 h-4" />
+                                    Ver
                                   </button>
                                 )}
 
                                 <button
+                                  onClick={() => {
+                                    const deepCopy = JSON.parse(JSON.stringify(item));
+                                    setEditingContent(deepCopy);
+                                  }}
+                                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                  Editar
+                                </button>
+
+                                <button
                                   onClick={() => downloadContentFile(item)}
-                                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
                                 >
                                   <Download className="w-4 h-4" />
                                   Descargar
                                 </button>
+                              </>
+                            )}
+                          </div>
 
-                                <button
-                                  onClick={() => convertContentToResource(item)}
-                                  className={`text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${item.type === 'quiz'
-                                    ? 'bg-blue-500 hover:bg-blue-600'
-                                    : 'bg-pink-500 hover:bg-pink-600'
-                                    }`}
-                                >
-                                  <Plus className="w-4 h-4" />
-                                  {item.type === 'quiz' ? 'Quiz' : 'Recurso'}
-                                </button>
-
-                                <button
-                                  onClick={() => deleteGeneratedContent(item.id)}
-                                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Eliminar
-                                </button>
-                              </div>
-                            </div>
+                          {/* BOTÓN ELIMINAR */}
+                          {!isEditing && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`¿Eliminar "${item.title}"?`)) {
+                                  deleteGeneratedContent(item.id);
+                                }
+                              }}
+                              className="w-full bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border border-red-200"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Eliminar
+                            </button>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -7519,6 +8781,8 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       </div>
     );
   };
+
+
 
   if (error && error.includes("permisos")) {
     return (
@@ -10102,6 +11366,43 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   })}
                 </div>
               </div>
+              {/* ✅ NUEVO: Botón para editar preguntas existentes */}
+              {currentQuiz.preguntas.length > 0 && (
+                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4">
+                  <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                    <Edit2 className="w-5 h-5" />
+                    ✏️ Editar Preguntas Existentes
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {currentQuiz.preguntas.map((q, idx) => (
+                      <button
+                        key={q.id}
+                        onClick={() => {
+                          // Cargar pregunta en el editor
+                          setCurrentQuestion({ ...q });
+                          setEditingQuestionIndex(idx);
+
+                          // Scroll al editor
+                          document.querySelector('[data-editor-section]')?.scrollIntoView({
+                            behavior: 'smooth'
+                          });
+                        }}
+                        className="w-full text-left p-3 bg-white border-2 border-yellow-200 rounded-lg hover:border-yellow-400 transition-all flex items-center justify-between group"
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 line-clamp-1">
+                            {idx + 1}. {q.pregunta}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {q.opciones.length} opciones • ⭐ {q.puntos} puntos
+                          </p>
+                        </div>
+                        <Edit2 className="w-4 h-4 text-yellow-600 group-hover:scale-110 transition-transform" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Campo de pregunta con audio automático */}
               <div>
@@ -10223,7 +11524,8 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 </div>
               </div>
 
-              {/* Opciones de respuesta */}
+
+              {/* Opciones de respuesta - DISEÑO MINIMALISTA MEJORADO */}
               {currentQuestion.tipo !== "completar" && (
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-3">
@@ -10234,10 +11536,128 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                       </span>
                     )}
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  <div className="space-y-3">
                     {currentQuestion.opciones.map((opcion, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex gap-2">
+                      <div
+                        key={idx}
+                        className={`bg-white rounded-xl border-2 p-4 transition-all ${currentQuestion.respuesta_correcta === idx
+                          ? "border-green-500 bg-green-50 shadow-md ring-2 ring-green-200"
+                          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                          }`}
+                      >
+                        {/* ===== HEADER DE LA OPCIÓN ===== */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg transition-all ${currentQuestion.respuesta_correcta === idx
+                            ? "bg-green-500 text-white shadow-md"
+                            : "bg-gray-200 text-gray-700"
+                            }`}>
+                            {String.fromCharCode(65 + idx)}
+                          </div>
+
+                          <div className="flex-1 font-semibold text-gray-700 text-sm">
+                            Opción {idx + 1}
+                            {currentQuestion.respuesta_correcta === idx && (
+                              <span className="ml-2 text-green-600 text-xs font-black">
+                                ✓ Correcta
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              setCurrentQuestion({
+                                ...currentQuestion,
+                                respuesta_correcta: idx,
+                              })
+                            }
+                            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all transform hover:scale-105 ${currentQuestion.respuesta_correcta === idx
+                              ? "bg-green-500 text-white shadow-md"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                          >
+                            {currentQuestion.respuesta_correcta === idx ? "✓ Correcta" : "Marcar"}
+                          </button>
+                        </div>
+
+                        {/* ===== SELECTOR DE EMOJI/IMAGEN VISUAL ===== */}
+                        <div className="mb-3">
+                          <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">
+                            🎨 Emoji/Imagen Visual
+                          </label>
+                          <div className="flex items-center gap-3">
+                            {/* Preview grande del emoji */}
+                            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100 rounded-xl flex items-center justify-center text-5xl border-2 border-purple-200 shadow-sm">
+                              {currentQuestion.imagen_opciones?.[idx] || "🎨"}
+                            </div>
+
+                            {/* Selector desplegable */}
+                            <div className="flex-1">
+                              <select
+                                value={currentQuestion.imagen_opciones?.[idx] || ""}
+                                onChange={(e) => {
+                                  const newImagenes = [...(currentQuestion.imagen_opciones || ["", "", "", ""])];
+                                  newImagenes[idx] = e.target.value;
+                                  setCurrentQuestion({
+                                    ...currentQuestion,
+                                    imagen_opciones: newImagenes,
+                                  });
+                                }}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xl bg-white cursor-pointer transition-all hover:border-purple-300"
+                              >
+                                <option value="">🚫 Sin emoji</option>
+
+                                {/* Formas geométricas */}
+                                <optgroup label="🔺 Formas">
+                                  {["🔴", "🔵", "🟡", "🟢", "🟣", "🟠", "⭕", "📍"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+
+                                {/* Números */}
+                                <optgroup label="🔢 Números">
+                                  {["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "0️⃣"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+
+                                {/* Animales */}
+                                <optgroup label="🦁 Animales">
+                                  {["🦁", "🐘", "🦒", "🐼", "🦊", "🐶", "🐱", "🦆", "🦉", "🐢"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+
+                                {/* Comida */}
+                                <optgroup label="🍎 Comida">
+                                  {["🍎", "🍊", "🍋", "🍌", "🍓", "🥕", "🌽", "🍕", "🍔", "🍟"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+
+                                {/* Transporte */}
+                                <optgroup label="🚗 Transporte">
+                                  {["🚀", "✈️", "🚂", "🚗", "🚢", "⛵", "🚁", "🛸", "🚲", "🛴"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+
+                                {/* Educación */}
+                                <optgroup label="📚 Educación">
+                                  {["📚", "📖", "📝", "✏️", "📐", "📏", "🎓", "🔬", "🧮", "🎨"].map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </optgroup>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ===== TEXTO DE LA OPCIÓN ===== */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">
+                            ✏️ Texto de la Opción
+                          </label>
                           <input
                             type="text"
                             value={opcion}
@@ -10249,55 +11669,57 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                 opciones: newOpciones,
                               });
                             }}
-                            disabled={
-                              currentQuestion.tipo === "verdadero_falso"
-                            }
-                            className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                            placeholder={`Opción ${idx + 1}`}
+                            disabled={currentQuestion.tipo === "verdadero_falso"}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium text-gray-800 transition-all"
+                            placeholder={`Escribe la opción ${String.fromCharCode(65 + idx)}...`}
                           />
-                          <button
-                            onClick={() =>
-                              setCurrentQuestion({
-                                ...currentQuestion,
-                                respuesta_correcta: idx,
-                              })
-                            }
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all ${currentQuestion.respuesta_correcta === idx
-                              ? "bg-green-500 text-white shadow-lg scale-105"
-                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                              }`}
-                          >
-                            {currentQuestion.respuesta_correcta === idx
-                              ? "✓"
-                              : idx + 1}
-                          </button>
                         </div>
 
-                        {currentQuestion.tipo === "imagen" && (
-                          <select
-                            value={currentQuestion.imagen_opciones[idx]}
-                            onChange={(e) => {
-                              const newImagenes = [
-                                ...currentQuestion.imagen_opciones,
-                              ];
-                              newImagenes[idx] = e.target.value;
-                              setCurrentQuestion({
-                                ...currentQuestion,
-                                imagen_opciones: newImagenes,
-                              });
-                            }}
-                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-2xl"
-                          >
-                            <option value="">Sin emoji</option>
-                            {emojis.map((emoji) => (
-                              <option key={emoji} value={emoji}>
-                                {emoji}
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                        {/* ===== PREVIEW VISUAL (Cómo se verá para el estudiante) ===== */}
+                        <div className="mt-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                          <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">
+                            👁️ Vista Previa del Estudiante
+                          </p>
+                          <div className="flex items-center gap-4 bg-white p-3 rounded-lg border border-gray-200">
+                            {/* Emoji en grande */}
+                            {currentQuestion.imagen_opciones?.[idx] && (
+                              <div className="text-5xl flex-shrink-0">
+                                {currentQuestion.imagen_opciones[idx]}
+                              </div>
+                            )}
+                            {/* Texto */}
+                            <span className="text-base font-semibold text-gray-800 flex-1">
+                              {opcion || `Opción ${String.fromCharCode(65 + idx)}`}
+                            </span>
+                            {/* Badge de letra */}
+                            <div className="w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0">
+                              {String.fromCharCode(65 + idx)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* ===== AYUDA EDUCATIVA ===== */}
+                  <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <span className="text-3xl flex-shrink-0">💡</span>
+                      <div>
+                        <p className="text-sm font-bold text-blue-800 mb-1">
+                          Tip Pedagógico para Básica Elemental
+                        </p>
+                        <p className="text-xs text-blue-700 leading-relaxed">
+                          Los emojis visuales ayudan a los niños a:
+                        </p>
+                        <ul className="text-xs text-blue-700 mt-2 space-y-1 ml-4">
+                          <li>✓ Identificar opciones más rápido</li>
+                          <li>✓ Asociar conceptos con imágenes</li>
+                          <li>✓ Mantener el interés y atención</li>
+                          <li>✓ Recordar mejor las respuestas</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -10699,7 +12121,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             <span>Usuarios: {users.length}</span>
             <span>Cursos: {courses.length}</span>
             <span>Recursos: {resources.length}</span>
-            <span>v2.2.0</span>
+            <span>v2.2.1</span>
           </div>
         </div>
       </footer>
