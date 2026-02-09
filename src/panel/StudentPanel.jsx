@@ -346,29 +346,47 @@ const StudentQuizView = ({
 
   // Función de voz mejorada en español
   const speakText = (text) => {
-    if (quizState.soundEnabled && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+    if (!quizState.soundEnabled || !("speechSynthesis" in window)) return;
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "es-ES";
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      utterance.volume = 1;
+    window.speechSynthesis.cancel();
 
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // 🎧 Configuración ideal para niños
+    utterance.lang = "es-MX";   // Español latino
+    utterance.rate = 0.8;       // Más lento = más comprensible
+    utterance.pitch = 1.25;     // Más agudo = voz amigable
+    utterance.volume = 1;
+
+    const loadVoicesAndSpeak = () => {
       const voices = window.speechSynthesis.getVoices();
-      const spanishVoice = voices.find(v =>
-        v.lang.startsWith('es') ||
-        v.name.toLowerCase().includes('spanish') ||
-        v.name.toLowerCase().includes('español')
-      );
 
-      if (spanishVoice) {
-        utterance.voice = spanishVoice;
-      } else if (voices.length > 0) {
-        utterance.voice = voices[0];
+      // 🌎 Prioridad: voz femenina latina
+      const preferredVoice =
+        voices.find(v =>
+          v.lang === "es-MX" &&
+          (
+            v.name.toLowerCase().includes("google") ||
+            v.name.toLowerCase().includes("female") ||
+            v.name.toLowerCase().includes("paulina") ||
+            v.name.toLowerCase().includes("luciana")
+          )
+        ) ||
+        voices.find(v => v.lang.startsWith("es")) ||
+        voices[0];
+
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
 
       window.speechSynthesis.speak(utterance);
+    };
+
+    // 🛠 Fix: esperar a que las voces carguen
+    if (speechSynthesis.getVoices().length === 0) {
+      speechSynthesis.onvoiceschanged = loadVoicesAndSpeak;
+    } else {
+      loadVoicesAndSpeak();
     }
   };
 
