@@ -570,7 +570,7 @@ export default function EnhancedAdminPanel() {
   const [quizPreviewIndex, setQuizPreviewIndex] = useState(0);
   const [quizPreviewAnswers, setQuizPreviewAnswers] = useState({});
   const [attemptCount, setAttemptCount] = useState({}); // Contador de intentos por pregunta
-const [lastAutoRepeat, setLastAutoRepeat] = useState(Date.now()); // Última repetición automática
+  const [lastAutoRepeat, setLastAutoRepeat] = useState(Date.now()); // Última repetición automática
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState("");
@@ -1193,164 +1193,20 @@ const [lastAutoRepeat, setLastAutoRepeat] = useState(Date.now()); // Última rep
     }
   };
 
-const renderContentPreview = () => {
-  if (!editingGeneratedQuiz) return null;
+  const renderContentPreview = () => {
+    if (!editingGeneratedQuiz) return null;
 
-  // Extraer preguntas del contenido generado
-  const questions = editingGeneratedQuiz.preguntas || 
-    editingGeneratedQuiz.content?.questions || [];
+    // Extraer preguntas del contenido generado
+    const questions = editingGeneratedQuiz.preguntas ||
+      editingGeneratedQuiz.content?.questions || [];
 
-  if (questions.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-md text-center shadow-2xl">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">No hay preguntas</h3>
-          <p className="text-gray-600 mb-4">Este quiz no tiene preguntas para mostrar</p>
-          <button
-            onClick={() => {
-              setShowContentPreview(false);
-              setEditingGeneratedQuiz(null);
-              setQuizPreviewIndex(0);
-              setQuizPreviewAnswers({});
-              setAttemptCount({});
-            }}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const currentQuestion = questions[quizPreviewIndex];
-  if (!currentQuestion) return null;
-
-  // Normalizar pregunta para usar la misma estructura
-  const normalizedQuestion = {
-    pregunta: currentQuestion.pregunta || currentQuestion.text || '',
-    opciones: currentQuestion.opciones || currentQuestion.options || [],
-    respuesta_correcta: currentQuestion.respuesta_correcta ?? currentQuestion.correct ?? 0,
-    puntos: currentQuestion.puntos || currentQuestion.points || 10,
-    retroalimentacion_correcta: currentQuestion.retroalimentacion_correcta ||
-      currentQuestion.feedback_correct ||
-      '¡Excelente! 🎉',
-    retroalimentacion_incorrecta: currentQuestion.retroalimentacion_incorrecta ||
-      currentQuestion.feedback_incorrect ||
-      '¡Intenta otra vez! 💪',
-    audio_pregunta: currentQuestion.audio_pregunta !== false,
-    audio_retroalimentacion: currentQuestion.audio_retroalimentacion !== false,
-    video_url: currentQuestion.video_url || '',
-    imagen_url: currentQuestion.imagen_url || currentQuestion.image_url || '',
-    imagen_opciones: currentQuestion.imagen_opciones || currentQuestion.image_options || [],
-    tiempo_limite: currentQuestion.tiempo_limite ?? currentQuestion.timeLimit ?? 0,
-  };
-
-  const answer = quizPreviewAnswers[quizPreviewIndex];
-  const attempts = attemptCount[quizPreviewIndex] || 0;
-  const maxAttempts = 3;
-
-  // Función para manejar la selección inmediata
-  const handleImmediateAnswer = (selectedIdx) => {
-    // Si ya acertó o agotó intentos, no hacer nada
-    if (answer?.isCorrect || attempts >= maxAttempts) return;
-
-    const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
-    const newAttempts = attempts + 1;
-
-    // 1. Repetir la palabra seleccionada
-    speakText(normalizedQuestion.opciones[selectedIdx]);
-
-    // 2. Actualizar contador de intentos
-    setAttemptCount({
-      ...attemptCount,
-      [quizPreviewIndex]: newAttempts
-    });
-
-    // 3. Guardar respuesta
-    const newAnswer = {
-      selected: selectedIdx,
-      isCorrect: isCorrect,
-      attempts: newAttempts,
-      showCorrect: newAttempts >= maxAttempts && !isCorrect
-    };
-
-    setQuizPreviewAnswers({
-      ...quizPreviewAnswers,
-      [quizPreviewIndex]: newAnswer
-    });
-
-    // 4. Dar retroalimentación inmediata
-    setTimeout(() => {
-      if (isCorrect) {
-        speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
-        // Repetir la pregunta y respuesta correcta después de 1.5 segundos
-        setTimeout(() => {
-          speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-        }, 1500);
-      } else if (newAttempts >= maxAttempts) {
-        speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-      } else {
-        const remaining = maxAttempts - newAttempts;
-        speakText(`Lo siento, te has equivocado. Te quedan ${remaining} intentos. Intenta de nuevo.`);
-      }
-    }, 1000);
-  };
-
-  // Determinar estado de Karin
-  const getKarinState = () => {
-    if (answer?.isCorrect) {
-      return {
-        state: "happy",
-        message: "¡Excelente! Respuesta correcta 🎉",
-      };
-    }
-    if (answer && !answer.isCorrect && attempts >= maxAttempts) {
-      return {
-        state: "encourage",
-        message: "No te preocupes, sigamos aprendiendo 💚",
-      };
-    }
-    if (attempts > 0 && attempts < maxAttempts) {
-      const remaining = maxAttempts - attempts;
-      return {
-        state: "thinking",
-        message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`,
-      };
-    }
-    return {
-      state: "idle",
-      message: "Escucha la pregunta y elige la respuesta correcta",
-    };
-  };
-
-  // Función para repetir pregunta y opciones
-  const repeatQuestionWithOptions = () => {
-    let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
-    fullText += `Las opciones son: `;
-    normalizedQuestion.opciones.forEach((opcion, idx) => {
-      fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-    });
-    speakText(fullText);
-  };
-
-  const karin = getKarinState();
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
-        {/* HEADER - YA ES AZUL, ESTÁ CORRECTO */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-black flex items-center gap-2">
-                👁️ Vista Previa del Quiz
-              </h2>
-              <p className="text-blue-100 text-sm mt-1">
-                {editingGeneratedQuiz.title || 'Quiz generado con IA'}
-              </p>
-            </div>
+    if (questions.length === 0) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md text-center shadow-2xl">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">No hay preguntas</h3>
+            <p className="text-gray-600 mb-4">Este quiz no tiene preguntas para mostrar</p>
             <button
               onClick={() => {
                 setShowContentPreview(false);
@@ -1359,363 +1215,503 @@ const renderContentPreview = () => {
                 setQuizPreviewAnswers({});
                 setAttemptCount({});
               }}
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
             >
-              <X className="w-6 h-6" />
+              Cerrar
             </button>
           </div>
         </div>
+      );
+    }
 
-        {/* CONTENIDO IDÉNTICO AL DE RECURSOS */}
-        <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
-          <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
-            {/* HEADER: KARIN + PROGRESO */}
-            <div className="flex justify-between items-start mb-6">
-              <KarinMascot state={karin.state} message={karin.message} />
-              <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
-                {quizPreviewIndex + 1} / {questions.length}
-              </div>
-            </div>
+    const currentQuestion = questions[quizPreviewIndex];
+    if (!currentQuestion) return null;
 
-            {/* BARRA DE PROGRESO */}
-            <div className="flex gap-2 mb-8">
-              {questions.map((_, idx) => (
-                <div
-                  key={idx}
-                  className={`flex-1 h-2 rounded-full transition-all ${
-                    idx === quizPreviewIndex
-                      ? "bg-blue-500"
-                      : idx < quizPreviewIndex
-                      ? "bg-green-400"
-                      : "bg-gray-200"
-                  }`}
-                />
-              ))}
-            </div>
+    // Normalizar pregunta para usar la misma estructura
+    const normalizedQuestion = {
+      pregunta: currentQuestion.pregunta || currentQuestion.text || '',
+      opciones: currentQuestion.opciones || currentQuestion.options || [],
+      respuesta_correcta: currentQuestion.respuesta_correcta ?? currentQuestion.correct ?? 0,
+      puntos: currentQuestion.puntos || currentQuestion.points || 10,
+      retroalimentacion_correcta: currentQuestion.retroalimentacion_correcta ||
+        currentQuestion.feedback_correct ||
+        '¡Excelente! 🎉',
+      retroalimentacion_incorrecta: currentQuestion.retroalimentacion_incorrecta ||
+        currentQuestion.feedback_incorrect ||
+        '¡Intenta otra vez! 💪',
+      audio_pregunta: currentQuestion.audio_pregunta !== false,
+      audio_retroalimentacion: currentQuestion.audio_retroalimentacion !== false,
+      video_url: currentQuestion.video_url || '',
+      imagen_url: currentQuestion.imagen_url || currentQuestion.image_url || '',
+      imagen_opciones: currentQuestion.imagen_opciones || currentQuestion.image_options || [],
+      tiempo_limite: currentQuestion.tiempo_limite ?? currentQuestion.timeLimit ?? 0,
+    };
 
-            {/* CONTADOR DE INTENTOS */}
-            {attempts > 0 && (
-              <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
-                <p className="text-lg font-bold text-yellow-800">
-                  🎯 Intentos: {attempts} / {maxAttempts}
+    const answer = quizPreviewAnswers[quizPreviewIndex];
+    const attempts = attemptCount[quizPreviewIndex] || 0;
+    const maxAttempts = 3;
+
+    // Función para manejar la selección inmediata
+    const handleImmediateAnswer = (selectedIdx) => {
+      // Si ya acertó o agotó intentos, no hacer nada
+      if (answer?.isCorrect || attempts >= maxAttempts) return;
+
+      const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
+      const newAttempts = attempts + 1;
+
+      // 1. Repetir la palabra seleccionada
+      speakText(normalizedQuestion.opciones[selectedIdx]);
+
+      // 2. Actualizar contador de intentos
+      setAttemptCount({
+        ...attemptCount,
+        [quizPreviewIndex]: newAttempts
+      });
+
+      // 3. Guardar respuesta
+      const newAnswer = {
+        selected: selectedIdx,
+        isCorrect: isCorrect,
+        attempts: newAttempts,
+        showCorrect: newAttempts >= maxAttempts && !isCorrect
+      };
+
+      setQuizPreviewAnswers({
+        ...quizPreviewAnswers,
+        [quizPreviewIndex]: newAnswer
+      });
+
+      // 4. Dar retroalimentación inmediata
+      setTimeout(() => {
+        if (isCorrect) {
+          speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
+          // Repetir la pregunta y respuesta correcta después de 1.5 segundos
+          setTimeout(() => {
+            speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
+          }, 1500);
+        } else if (newAttempts >= maxAttempts) {
+          speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
+        } else {
+          const remaining = maxAttempts - newAttempts;
+          speakText(`Lo siento, te has equivocado. Te quedan ${remaining} intentos. Intenta de nuevo.`);
+        }
+      }, 1000);
+    };
+
+    // Determinar estado de Karin
+    const getKarinState = () => {
+      if (answer?.isCorrect) {
+        return {
+          state: "happy",
+          message: "¡Excelente! Respuesta correcta 🎉",
+        };
+      }
+      if (answer && !answer.isCorrect && attempts >= maxAttempts) {
+        return {
+          state: "encourage",
+          message: "No te preocupes, sigamos aprendiendo 💚",
+        };
+      }
+      if (attempts > 0 && attempts < maxAttempts) {
+        const remaining = maxAttempts - attempts;
+        return {
+          state: "thinking",
+          message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`,
+        };
+      }
+      return {
+        state: "idle",
+        message: "Escucha la pregunta y elige la respuesta correcta",
+      };
+    };
+
+    // Función para repetir pregunta y opciones
+    const repeatQuestionWithOptions = () => {
+      let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
+      fullText += `Las opciones son: `;
+      normalizedQuestion.opciones.forEach((opcion, idx) => {
+        fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+      });
+      speakText(fullText);
+    };
+
+    const karin = getKarinState();
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+          {/* HEADER - YA ES AZUL, ESTÁ CORRECTO */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black flex items-center gap-2">
+                  👁️ Vista Previa del Quiz
+                </h2>
+                <p className="text-blue-100 text-sm mt-1">
+                  {editingGeneratedQuiz.title || 'Quiz generado con IA'}
                 </p>
-                <div className="flex gap-2 justify-center mt-2">
-                  {[...Array(maxAttempts)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-8 h-8 rounded-full ${
-                        i < attempts
-                          ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
-                          : 'bg-gray-300'
-                      }`}
-                    />
-                  ))}
+              </div>
+              <button
+                onClick={() => {
+                  setShowContentPreview(false);
+                  setEditingGeneratedQuiz(null);
+                  setQuizPreviewIndex(0);
+                  setQuizPreviewAnswers({});
+                  setAttemptCount({});
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* CONTENIDO IDÉNTICO AL DE RECURSOS */}
+          <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
+            <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
+              {/* HEADER: KARIN + PROGRESO */}
+              <div className="flex justify-between items-start mb-6">
+                <KarinMascot state={karin.state} message={karin.message} />
+                <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
+                  {quizPreviewIndex + 1} / {questions.length}
                 </div>
               </div>
-            )}
 
-            {/* PREGUNTA */}
-            <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
-              <div className="flex items-center gap-4 justify-center">
-                {normalizedQuestion.audio_pregunta && (
-                  <button
-                    onClick={() => speakText(normalizedQuestion.pregunta)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
-                  >
-                    🔊
-                  </button>
-                )}
-                {normalizedQuestion.imagen_url && (
-                  <div className="text-7xl flex-shrink-0">
-                    {normalizedQuestion.imagen_url}
-                  </div>
-                )}
-                <p className="text-3xl font-bold text-gray-800 text-center">
-                  {normalizedQuestion.pregunta}
-                </p>
-              </div>
-
-              {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - CAMBIADO DE MORADO A AZUL */}
-              <div className="mt-6 text-center">
-                <button
-                  onClick={() => repeatQuestionWithOptions()}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                  Repetir Pregunta y Opciones
-                </button>
-              </div>
-            </div>
-
-            {/* OPCIONES CON BOTÓN DE REPETIR */}
-            <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
-              {normalizedQuestion.opciones.map((opcion, idx) => {
-                const isSelected = answer?.selected === idx;
-                const isCorrectOption = idx === normalizedQuestion.respuesta_correcta;
-                const showAsCorrect = answer?.showCorrect && isCorrectOption;
-                const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
-                const emojiOpcion = normalizedQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
-
-                return (
+              {/* BARRA DE PROGRESO */}
+              <div className="flex gap-2 mb-8">
+                {questions.map((_, idx) => (
                   <div
                     key={idx}
-                    className={`relative p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 ${
-                      showAsCorrect
-                        ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
-                        : isDisabled && answer?.isCorrect && isSelected
-                        ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
-                        : isDisabled && !isCorrectOption
-                        ? 'bg-gray-100 border-gray-300 opacity-50'
-                        : isSelected && !answer?.isCorrect
-                        ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
-                        : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
-                    }`}
-                  >
-                    {/* BOTÓN REPETIR PALABRA (IZQUIERDA) */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
-                      }}
-                      className="absolute -left-12 top-1/2 transform -translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 z-10"
-                      title="Repetir esta palabra"
-                    >
-                      <Volume2 className="w-6 h-6" />
-                    </button>
+                    className={`flex-1 h-2 rounded-full transition-all ${idx === quizPreviewIndex
+                      ? "bg-blue-500"
+                      : idx < quizPreviewIndex
+                        ? "bg-green-400"
+                        : "bg-gray-200"
+                      }`}
+                  />
+                ))}
+              </div>
 
-                    {/* CONTENIDO DE LA OPCIÓN */}
-                    <div
-                      className="flex-1 flex items-center gap-4 cursor-pointer"
-                      onClick={() => handleImmediateAnswer(idx)}
-                    >
-                      <span className="text-5xl flex-shrink-0 drop-shadow-sm">
-                        {emojiOpcion}
-                      </span>
-                      <span className="flex-1">{opcion}</span>
-                    </div>
-
-                    {/* BOTÓN REPETIR PALABRA (DERECHA) */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        speakText(opcion);
-                      }}
-                      className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 ml-2"
-                      title="Repetir palabra"
-                    >
-                      <Volume2 className="w-6 h-6" />
-                    </button>
-
-                    {/* INDICADORES DE RESPUESTA */}
-                    {showAsCorrect && (
-                      <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                        ✅
-                      </span>
-                    )}
-                    {isSelected && answer?.isCorrect && (
-                      <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                        🎉
-                      </span>
-                    )}
-                    {isSelected && !answer?.isCorrect && (
-                      <span className="text-3xl flex-shrink-0 ml-2">
-                        ❌
-                      </span>
-                    )}
+              {/* CONTADOR DE INTENTOS */}
+              {attempts > 0 && (
+                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
+                  <p className="text-lg font-bold text-yellow-800">
+                    🎯 Intentos: {attempts} / {maxAttempts}
+                  </p>
+                  <div className="flex gap-2 justify-center mt-2">
+                    {[...Array(maxAttempts)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-8 h-8 rounded-full ${i < attempts
+                          ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
+                          : 'bg-gray-300'
+                          }`}
+                      />
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
 
-            {/* RETROALIMENTACIÓN */}
-            {answer && (
-              <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
-                <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${
-                  answer.isCorrect
-                    ? "bg-green-100 border-green-400 animate-pulse"
-                    : attempts >= maxAttempts
-                    ? "bg-orange-100 border-orange-400"
-                    : "bg-red-100 border-red-400"
-                }`}>
-                  <p className="text-5xl font-black mb-3">
-                    {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
-                  </p>
-                  <p className="text-3xl font-black mb-2">
-                    {answer.isCorrect
-                      ? "¡CORRECTO!"
-                      : attempts >= maxAttempts
-                      ? "VAMOS A APRENDER"
-                      : "¡INTENTA DE NUEVO!"}
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 mb-4">
-                    {answer.isCorrect
-                      ? normalizedQuestion.retroalimentacion_correcta
-                      : attempts >= maxAttempts
-                      ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`
-                      : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+              {/* PREGUNTA */}
+              <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
+                <div className="flex items-center gap-4 justify-center">
+                  {normalizedQuestion.audio_pregunta && (
+                    <button
+                      onClick={() => speakText(normalizedQuestion.pregunta)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
+                    >
+                      🔊
+                    </button>
+                  )}
+                  {normalizedQuestion.imagen_url && (
+                    <div className="text-7xl flex-shrink-0">
+                      {normalizedQuestion.imagen_url}
+                    </div>
+                  )}
+                  <p className="text-3xl font-bold text-gray-800 text-center">
+                    {normalizedQuestion.pregunta}
                   </p>
                 </div>
 
-                {/* BOTÓN SIGUIENTE */}
-                <button
-                  onClick={() => {
-                    if (quizPreviewIndex < questions.length - 1) {
-                      setQuizPreviewIndex(quizPreviewIndex + 1);
-                      // Resetear estados para la siguiente pregunta
-                      setQuizPreviewAnswers({
-                        ...quizPreviewAnswers,
-                        [quizPreviewIndex + 1]: undefined
-                      });
-                      setAttemptCount({
-                        ...attemptCount,
-                        [quizPreviewIndex + 1]: 0
-                      });
-                    } else {
-                      // FIN DEL QUIZ
-                      const correct = Object.values(quizPreviewAnswers).filter(a => a?.isCorrect).length;
-                      const totalQuestions = questions.length;
-                      const score = Math.round((correct / totalQuestions) * 100);
-
-                      let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                      message += `Total de preguntas: ${totalQuestions}\n`;
-                      message += `Correctas: ${correct}\n`;
-                      message += `Puntuación: ${score}%\n\n`;
-
-                      if (score >= 80) {
-                        message += "¡Excelente trabajo! Eres un experto 🏆";
-                      } else if (score >= 60) {
-                        message += "Buen trabajo, sigue practicando 💪";
-                      } else {
-                        message += "Sigue practicando, aprenderás más cada día 📚";
-                      }
-
-                      alert(message);
-                      setShowContentPreview(false);
-                      setEditingGeneratedQuiz(null);
-                      setQuizPreviewIndex(0);
-                      setQuizPreviewAnswers({});
-                      setAttemptCount({});
-                    }
-                  }}
-                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2"
-                >
-                  {quizPreviewIndex === questions.length - 1 ? (
-                    <>
-                      <Trophy className="w-6 h-6" />
-                      Finalizar Quiz
-                    </>
-                  ) : (
-                    <>
-                      <ChevronRight className="w-6 h-6" />
-                      Siguiente Pregunta
-                    </>
-                  )}
-                </button>
+                {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - CAMBIADO DE MORADO A AZUL */}
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={() => repeatQuestionWithOptions()}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    Repetir Pregunta y Opciones
+                  </button>
+                </div>
               </div>
-            )}
 
-            {/* NAVEGACIÓN */}
-            <div className="flex justify-between mt-10 gap-4">
-              <button
-                disabled={quizPreviewIndex === 0}
-                onClick={() => {
-                  setQuizPreviewIndex(quizPreviewIndex - 1);
-                  // Resetear estados para la pregunta anterior
-                  setQuizPreviewAnswers({
-                    ...quizPreviewAnswers,
-                    [quizPreviewIndex - 1]: undefined
-                  });
-                  setAttemptCount({
-                    ...attemptCount,
-                    [quizPreviewIndex - 1]: 0
-                  });
-                }}
-                className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
-              >
-                ← Anterior
-              </button>
+              {/* OPCIONES CON BOTÓN DE REPETIR */}
+              <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
+                {normalizedQuestion.opciones.map((opcion, idx) => {
+                  const isSelected = answer?.selected === idx;
+                  const isCorrectOption = idx === normalizedQuestion.respuesta_correcta;
+                  const showAsCorrect = answer?.showCorrect && isCorrectOption;
+                  const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
+                  const emojiOpcion = normalizedQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
 
-              {answer?.isCorrect || attempts >= maxAttempts ? (
-                <button
-                  onClick={() => {
-                    if (quizPreviewIndex < questions.length - 1) {
-                      setQuizPreviewIndex(quizPreviewIndex + 1);
-                      // Resetear estados para la siguiente pregunta
-                      setQuizPreviewAnswers({
-                        ...quizPreviewAnswers,
-                        [quizPreviewIndex + 1]: undefined
-                      });
-                      setAttemptCount({
-                        ...attemptCount,
-                        [quizPreviewIndex + 1]: 0
-                      });
-                    } else {
-                      // FIN DEL QUIZ
-                      const correct = Object.values(quizPreviewAnswers).filter(a => a?.isCorrect).length;
-                      const totalQuestions = questions.length;
-                      const score = Math.round((correct / totalQuestions) * 100);
+                  return (
+                    <div
+                      key={idx}
+                      className={`relative p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 ${showAsCorrect
+                        ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
+                        : isDisabled && answer?.isCorrect && isSelected
+                          ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
+                          : isDisabled && !isCorrectOption
+                            ? 'bg-gray-100 border-gray-300 opacity-50'
+                            : isSelected && !answer?.isCorrect
+                              ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
+                              : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
+                        }`}
+                    >
+                      {/* BOTÓN REPETIR PALABRA (IZQUIERDA) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
+                        }}
+                        className="absolute -left-12 top-1/2 transform -translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 z-10"
+                        title="Repetir esta palabra"
+                      >
+                        <Volume2 className="w-6 h-6" />
+                      </button>
 
-                      let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                      message += `Total de preguntas: ${totalQuestions}\n`;
-                      message += `Correctas: ${correct}\n`;
-                      message += `Puntuación: ${score}%\n\n`;
+                      {/* CONTENIDO DE LA OPCIÓN */}
+                      <div
+                        className="flex-1 flex items-center gap-4 cursor-pointer"
+                        onClick={() => handleImmediateAnswer(idx)}
+                      >
+                        <span className="text-5xl flex-shrink-0 drop-shadow-sm">
+                          {emojiOpcion}
+                        </span>
+                        <span className="flex-1">{opcion}</span>
+                      </div>
 
-                      if (score >= 80) {
-                        message += "¡Excelente trabajo! Eres un experto 🏆";
-                      } else if (score >= 60) {
-                        message += "Buen trabajo, sigue practicando 💪";
+                      {/* BOTÓN REPETIR PALABRA (DERECHA) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakText(opcion);
+                        }}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 ml-2"
+                        title="Repetir palabra"
+                      >
+                        <Volume2 className="w-6 h-6" />
+                      </button>
+
+                      {/* INDICADORES DE RESPUESTA */}
+                      {showAsCorrect && (
+                        <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
+                          ✅
+                        </span>
+                      )}
+                      {isSelected && answer?.isCorrect && (
+                        <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
+                          🎉
+                        </span>
+                      )}
+                      {isSelected && !answer?.isCorrect && (
+                        <span className="text-3xl flex-shrink-0 ml-2">
+                          ❌
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* RETROALIMENTACIÓN */}
+              {answer && (
+                <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
+                  <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect
+                    ? "bg-green-100 border-green-400 animate-pulse"
+                    : attempts >= maxAttempts
+                      ? "bg-orange-100 border-orange-400"
+                      : "bg-red-100 border-red-400"
+                    }`}>
+                    <p className="text-5xl font-black mb-3">
+                      {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
+                    </p>
+                    <p className="text-3xl font-black mb-2">
+                      {answer.isCorrect
+                        ? "¡CORRECTO!"
+                        : attempts >= maxAttempts
+                          ? "VAMOS A APRENDER"
+                          : "¡INTENTA DE NUEVO!"}
+                    </p>
+                    <p className="text-lg font-bold text-gray-800 mb-4">
+                      {answer.isCorrect
+                        ? normalizedQuestion.retroalimentacion_correcta
+                        : attempts >= maxAttempts
+                          ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`
+                          : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+                    </p>
+                  </div>
+
+                  {/* BOTÓN SIGUIENTE */}
+                  <button
+                    onClick={() => {
+                      if (quizPreviewIndex < questions.length - 1) {
+                        setQuizPreviewIndex(quizPreviewIndex + 1);
+                        // Resetear estados para la siguiente pregunta
+                        setQuizPreviewAnswers({
+                          ...quizPreviewAnswers,
+                          [quizPreviewIndex + 1]: undefined
+                        });
+                        setAttemptCount({
+                          ...attemptCount,
+                          [quizPreviewIndex + 1]: 0
+                        });
                       } else {
-                        message += "Sigue practicando, aprenderás más cada día 📚";
-                      }
+                        // FIN DEL QUIZ
+                        const correct = Object.values(quizPreviewAnswers).filter(a => a?.isCorrect).length;
+                        const totalQuestions = questions.length;
+                        const score = Math.round((correct / totalQuestions) * 100);
 
-                      alert(message);
-                      setShowContentPreview(false);
-                      setEditingGeneratedQuiz(null);
-                      setQuizPreviewIndex(0);
-                      setQuizPreviewAnswers({});
-                      setAttemptCount({});
-                    }
-                  }}
-                  className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-                >
-                  {quizPreviewIndex === questions.length - 1 ? (
-                    <>
-                      <Trophy className="w-6 h-6" />
-                      Finalizar Quiz
-                    </>
-                  ) : (
-                    <>
-                      Siguiente →
-                    </>
-                  )}
-                </button>
-              ) : (
+                        let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
+                        message += `Total de preguntas: ${totalQuestions}\n`;
+                        message += `Correctas: ${correct}\n`;
+                        message += `Puntuación: ${score}%\n\n`;
+
+                        if (score >= 80) {
+                          message += "¡Excelente trabajo! Eres un experto 🏆";
+                        } else if (score >= 60) {
+                          message += "Buen trabajo, sigue practicando 💪";
+                        } else {
+                          message += "Sigue practicando, aprenderás más cada día 📚";
+                        }
+
+                        alert(message);
+                        setShowContentPreview(false);
+                        setEditingGeneratedQuiz(null);
+                        setQuizPreviewIndex(0);
+                        setQuizPreviewAnswers({});
+                        setAttemptCount({});
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    {quizPreviewIndex === questions.length - 1 ? (
+                      <>
+                        <Trophy className="w-6 h-6" />
+                        Finalizar Quiz
+                      </>
+                    ) : (
+                      <>
+                        <ChevronRight className="w-6 h-6" />
+                        Siguiente Pregunta
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* NAVEGACIÓN */}
+              <div className="flex justify-between mt-10 gap-4">
                 <button
-                  disabled={quizPreviewIndex === questions.length - 1}
+                  disabled={quizPreviewIndex === 0}
                   onClick={() => {
-                    setQuizPreviewIndex(quizPreviewIndex + 1);
-                    // Resetear estados para la siguiente pregunta
+                    setQuizPreviewIndex(quizPreviewIndex - 1);
+                    // Resetear estados para la pregunta anterior
                     setQuizPreviewAnswers({
                       ...quizPreviewAnswers,
-                      [quizPreviewIndex + 1]: undefined
+                      [quizPreviewIndex - 1]: undefined
                     });
                     setAttemptCount({
                       ...attemptCount,
-                      [quizPreviewIndex + 1]: 0
+                      [quizPreviewIndex - 1]: 0
                     });
                   }}
-                  className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
+                  className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
                 >
-                  Saltar Pregunta →
+                  ← Anterior
                 </button>
-              )}
+
+                {answer?.isCorrect || attempts >= maxAttempts ? (
+                  <button
+                    onClick={() => {
+                      if (quizPreviewIndex < questions.length - 1) {
+                        setQuizPreviewIndex(quizPreviewIndex + 1);
+                        // Resetear estados para la siguiente pregunta
+                        setQuizPreviewAnswers({
+                          ...quizPreviewAnswers,
+                          [quizPreviewIndex + 1]: undefined
+                        });
+                        setAttemptCount({
+                          ...attemptCount,
+                          [quizPreviewIndex + 1]: 0
+                        });
+                      } else {
+                        // FIN DEL QUIZ
+                        const correct = Object.values(quizPreviewAnswers).filter(a => a?.isCorrect).length;
+                        const totalQuestions = questions.length;
+                        const score = Math.round((correct / totalQuestions) * 100);
+
+                        let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
+                        message += `Total de preguntas: ${totalQuestions}\n`;
+                        message += `Correctas: ${correct}\n`;
+                        message += `Puntuación: ${score}%\n\n`;
+
+                        if (score >= 80) {
+                          message += "¡Excelente trabajo! Eres un experto 🏆";
+                        } else if (score >= 60) {
+                          message += "Buen trabajo, sigue practicando 💪";
+                        } else {
+                          message += "Sigue practicando, aprenderás más cada día 📚";
+                        }
+
+                        alert(message);
+                        setShowContentPreview(false);
+                        setEditingGeneratedQuiz(null);
+                        setQuizPreviewIndex(0);
+                        setQuizPreviewAnswers({});
+                        setAttemptCount({});
+                      }
+                    }}
+                    className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                  >
+                    {quizPreviewIndex === questions.length - 1 ? (
+                      <>
+                        <Trophy className="w-6 h-6" />
+                        Finalizar Quiz
+                      </>
+                    ) : (
+                      <>
+                        Siguiente →
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    disabled={quizPreviewIndex === questions.length - 1}
+                    onClick={() => {
+                      setQuizPreviewIndex(quizPreviewIndex + 1);
+                      // Resetear estados para la siguiente pregunta
+                      setQuizPreviewAnswers({
+                        ...quizPreviewAnswers,
+                        [quizPreviewIndex + 1]: undefined
+                      });
+                      setAttemptCount({
+                        ...attemptCount,
+                        [quizPreviewIndex + 1]: 0
+                      });
+                    }}
+                    className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
+                  >
+                    Saltar Pregunta →
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -2365,7 +2361,7 @@ const renderContentPreview = () => {
   const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
     try {
       const { data, error } = await supabase
-        .from("progreso_estudiantes") 
+        .from("progreso_estudiantes")
         .select(
           `
         *,
@@ -4773,83 +4769,110 @@ Genera ${num} preguntas.`;
   const handlePreviewAnswer = (questionIndex, optionIndex) => {
     const question = currentQuiz.preguntas[questionIndex];
     const isCorrect = optionIndex === question.respuesta_correcta;
-    
+
     // Obtener intentos actuales
     const currentAttempts = attemptCount[questionIndex] || 0;
-    
+
     // Si ya respondió correctamente o agotó intentos, no hacer nada
     if (previewAnswers[questionIndex]?.isCorrect || currentAttempts >= 3) {
-        return;
+      return;
     }
-    
+
     // Incrementar intentos
     const newAttempts = currentAttempts + 1;
     setAttemptCount({
-        ...attemptCount,
-        [questionIndex]: newAttempts
+      ...attemptCount,
+      [questionIndex]: newAttempts
     });
-    
+
     if (isCorrect) {
-        // CORRECTO: Guardar respuesta y mostrar feedback
-        setPreviewAnswers({
-            ...previewAnswers,
-            [questionIndex]: { selected: optionIndex, isCorrect: true, attempts: newAttempts }
-        });
-        
-        setTimeout(() => {
-            speakText(question.retroalimentacion_correcta);
-        }, 500);
-        
+      // CORRECTO: Guardar respuesta y mostrar feedback
+      setPreviewAnswers({
+        ...previewAnswers,
+        [questionIndex]: { selected: optionIndex, isCorrect: true, attempts: newAttempts }
+      });
+
+      setTimeout(() => {
+        speakText(question.retroalimentacion_correcta);
+      }, 500);
+
     } else {
-        // INCORRECTO: Verificar intentos
-        if (newAttempts >= 3) {
-            // AGOTÓ INTENTOS: Mostrar respuesta correcta
-            setPreviewAnswers({
-                ...previewAnswers,
-                [questionIndex]: { 
-                    selected: optionIndex, 
-                    isCorrect: false, 
-                    attempts: 3,
-                    showCorrect: true 
-                }
-            });
-            
-            setTimeout(() => {
-                speakText(`Has agotado tus intentos. La respuesta correcta era: ${question.opciones[question.respuesta_correcta]}`);
-            }, 500);
-            
-        } else {
-            // AÚN TIENE INTENTOS: Dar feedback y permitir reintentar
-            setTimeout(() => {
-                const remainingAttempts = 3 - newAttempts;
-                speakText(`${question.retroalimentacion_incorrecta} Te quedan ${remainingAttempts} intentos`);
-            }, 500);
-            
-            // Limpiar selección para permitir reintentar
-            setSelectedOption(null);
-        }
+      // INCORRECTO: Verificar intentos
+      if (newAttempts >= 3) {
+        // AGOTÓ INTENTOS: Mostrar respuesta correcta
+        setPreviewAnswers({
+          ...previewAnswers,
+          [questionIndex]: {
+            selected: optionIndex,
+            isCorrect: false,
+            attempts: 3,
+            showCorrect: true
+          }
+        });
+
+        setTimeout(() => {
+          speakText(`Has agotado tus intentos. La respuesta correcta era: ${question.opciones[question.respuesta_correcta]}`);
+        }, 500);
+
+      } else {
+        // AÚN TIENE INTENTOS: Dar feedback y permitir reintentar
+        setTimeout(() => {
+          const remainingAttempts = 3 - newAttempts;
+          speakText(`${question.retroalimentacion_incorrecta} Te quedan ${remainingAttempts} intentos`);
+        }, 500);
+
+        // Limpiar selección para permitir reintentar
+        setSelectedOption(null);
+      }
     }
-};
+  };
   // FUNCIÓN DE VOZ MEJORADA Y NATURAL
 
   const speakText = (text) => {
-  if ("speechSynthesis" in window) {
+    if (!("speechSynthesis" in window)) return;
+
     window.speechSynthesis.cancel();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "es";
-    utterance.rate = 0.75;
-    utterance.pitch = 1.4;
+    utterance.lang = "es-MX"; // Español latino
+    utterance.rate = 0.85;   // Más lento = más claro para niños
+    utterance.pitch = 1.2;   // Más agudo = más amigable
     utterance.volume = 1;
-    
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      utterance.voice = voices[0];
+
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+
+      // Buscar voz femenina latina
+      const femaleLatinVoice = voices.find(voice =>
+        (
+          voice.lang.includes("es-MX") ||
+          voice.lang.includes("es-US") ||
+          voice.lang.includes("es-ES")
+        ) &&
+        (
+          voice.name.toLowerCase().includes("female") ||
+          voice.name.toLowerCase().includes("mujer") ||
+          voice.name.toLowerCase().includes("google") ||
+          voice.name.toLowerCase().includes("luciana") ||
+          voice.name.toLowerCase().includes("paulina") ||
+          voice.name.toLowerCase().includes("monica")
+        )
+      );
+
+      if (femaleLatinVoice) {
+        utterance.voice = femaleLatinVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // Solución al bug de carga de voces
+    if (speechSynthesis.getVoices().length === 0) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    } else {
+      loadVoices();
     }
-    
-    window.speechSynthesis.speak(utterance);
-  }
-};
+  };
 
   // Cargar voces al iniciar 
   if ('speechSynthesis' in window) {
@@ -4924,38 +4947,38 @@ Genera ${num} preguntas.`;
 
     // NUEVO: Si viene del generador, buscar en contentLibrary
     if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
-        const generatedQuiz = contentLibrary.find(
-            item => item.type === 'quiz' && (
-                item.title === resource.titulo || 
-                item.id === resource.id
-            )
-        );
-        if (generatedQuiz?.content?.questions) {
-            quizQuestions = generatedQuiz.content.questions;
-        }
+      const generatedQuiz = contentLibrary.find(
+        item => item.type === 'quiz' && (
+          item.title === resource.titulo ||
+          item.id === resource.id
+        )
+      );
+      if (generatedQuiz?.content?.questions) {
+        quizQuestions = generatedQuiz.content.questions;
+      }
     }
 
     if (!quizQuestions || quizQuestions.length === 0) {
-        alert("⚠️ Este quiz no tiene preguntas aún");
-        return;
+      alert("⚠️ Este quiz no tiene preguntas aún");
+      return;
     }
 
     // Formatear preguntas UNIFICADO
     const preguntasFormateadas = quizQuestions.map((q, idx) => ({
-        id: q.id || `preview_${idx}`,
-        tipo: q.tipo || q.type || 'multiple',
-        pregunta: q.pregunta || q.text || q.question || '',
-        opciones: q.opciones || q.options || [],
-        respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
-        puntos: q.puntos ?? q.points ?? 10,
-        retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
-        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
-        audio_pregunta: q.audio_pregunta !== false,
-        audio_retroalimentacion: q.audio_retroalimentacion !== false,
-        video_url: q.video_url || '',
-        imagen_url: q.imagen_url || q.image_url || '',
-        imagen_opciones: q.imagen_opciones || q.image_options || ['🎨', '📚', '✏️', '🌟'],
-        tiempo_limite: q.tiempo_limite ?? q.timeLimit ?? 45,
+      id: q.id || `preview_${idx}`,
+      tipo: q.tipo || q.type || 'multiple',
+      pregunta: q.pregunta || q.text || q.question || '',
+      opciones: q.opciones || q.options || [],
+      respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+      puntos: q.puntos ?? q.points ?? 10,
+      retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
+      retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
+      audio_pregunta: q.audio_pregunta !== false,
+      audio_retroalimentacion: q.audio_retroalimentacion !== false,
+      video_url: q.video_url || '',
+      imagen_url: q.imagen_url || q.image_url || '',
+      imagen_opciones: q.imagen_opciones || q.image_options || ['🎨', '📚', '✏️', '🌟'],
+      tiempo_limite: q.tiempo_limite ?? q.timeLimit ?? 45,
     }));
 
     setSelectedResource(resource);
@@ -4967,7 +4990,7 @@ Genera ${num} preguntas.`;
     setSelectedOption(null);
 
     console.log('✅ Vista previa lista con', preguntasFormateadas.length, 'preguntas');
-};
+  };
 
   // FUNCIÓN 4: CERRAR VISTA PREVIA
   const closePreview = () => {
@@ -4981,7 +5004,7 @@ Genera ${num} preguntas.`;
     setSelectedResource(null);
     setSelectedOption(null);
     setLastAutoRepeat(Date.now()); // 
-};
+  };
 
   // FUNCIÓN 5: GUARDAR QUIZ A RECURSO (MEJORADA)
   const saveQuizToResource = async () => {
@@ -5742,70 +5765,70 @@ ${courseReportData.stats.avgProgress >= 70
     window.print();
   };
 
-useEffect(() => {
-  if (!previewQuiz || !currentQuiz.preguntas.length) return;
+  useEffect(() => {
+    if (!previewQuiz || !currentQuiz.preguntas.length) return;
 
-  const question = currentQuiz.preguntas[currentPreviewQuestion];
-  const answer = previewAnswers[currentPreviewQuestion];
-  const attempts = attemptCount[currentPreviewQuestion] || 0;
-  
-  let timeoutId1, timeoutId2, timeoutId3;
+    const question = currentQuiz.preguntas[currentPreviewQuestion];
+    const answer = previewAnswers[currentPreviewQuestion];
+    const attempts = attemptCount[currentPreviewQuestion] || 0;
 
-  const executeAudioSequence = () => {
-    // Solo si no ha respondido y no ha agotado intentos
-    if (answer || attempts >= 3) return;
+    let timeoutId1, timeoutId2, timeoutId3;
 
-    // PRIMERO: "Responde la pregunta"
-    timeoutId1 = setTimeout(() => {
-      speakText("Responde la pregunta");
-    }, 300);
+    const executeAudioSequence = () => {
+      // Solo si no ha respondido y no ha agotado intentos
+      if (answer || attempts >= 3) return;
 
-    // SEGUNDO: Pregunta completa
-    timeoutId2 = setTimeout(() => {
-      speakText(question.pregunta);
-    }, 2000);
+      // PRIMERO: "Responde la pregunta"
+      timeoutId1 = setTimeout(() => {
+        speakText("Responde la pregunta");
+      }, 300);
 
-    // TERCERO: Opciones enumeradas
-    timeoutId3 = setTimeout(() => {
-      let opcionesTexto = "Las opciones son: ";
-      question.opciones.forEach((opcion, idx) => {
-        opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-      });
-      speakText(opcionesTexto);
-    }, 4000);
+      // SEGUNDO: Pregunta completa
+      timeoutId2 = setTimeout(() => {
+        speakText(question.pregunta);
+      }, 2000);
 
-    // REPETIR CADA 15 SEGUNDOS si no ha respondido
-    const repeatInterval = setInterval(() => {
-      if (!answer && attempts < 3) {
-        speakText("Recuerda responder la pregunta");
-        setTimeout(() => {
-          speakText(question.pregunta);
+      // TERCERO: Opciones enumeradas
+      timeoutId3 = setTimeout(() => {
+        let opcionesTexto = "Las opciones son: ";
+        question.opciones.forEach((opcion, idx) => {
+          opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+        });
+        speakText(opcionesTexto);
+      }, 4000);
+
+      // REPETIR CADA 15 SEGUNDOS si no ha respondido
+      const repeatInterval = setInterval(() => {
+        if (!answer && attempts < 3) {
+          speakText("Recuerda responder la pregunta");
           setTimeout(() => {
-            let opcionesTexto = "Las opciones son: ";
-            question.opciones.forEach((opcion, idx) => {
-              opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-            });
-            speakText(opcionesTexto);
-          }, 2000);
-        }, 1000);
-      } else {
-        clearInterval(repeatInterval);
-      }
-    }, 15000);
+            speakText(question.pregunta);
+            setTimeout(() => {
+              let opcionesTexto = "Las opciones son: ";
+              question.opciones.forEach((opcion, idx) => {
+                opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+              });
+              speakText(opcionesTexto);
+            }, 2000);
+          }, 1000);
+        } else {
+          clearInterval(repeatInterval);
+        }
+      }, 15000);
 
-    return () => clearInterval(repeatInterval);
-  };
+      return () => clearInterval(repeatInterval);
+    };
 
-  const cleanup = executeAudioSequence();
+    const cleanup = executeAudioSequence();
 
-  return () => {
-    clearTimeout(timeoutId1);
-    clearTimeout(timeoutId2);
-    clearTimeout(timeoutId3);
-    if (cleanup) cleanup();
-    window.speechSynthesis.cancel();
-  };
-}, [previewQuiz, currentPreviewQuestion, previewAnswers, attemptCount, currentQuiz.preguntas]);
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      if (cleanup) cleanup();
+      window.speechSynthesis.cancel();
+    };
+  }, [previewQuiz, currentPreviewQuestion, previewAnswers, attemptCount, currentQuiz.preguntas]);
   // Este se ejecuta cuando el usuario SELECCIONA una opción
   useEffect(() => {
     if (selectedOption === null || !previewQuiz) return;
@@ -5857,538 +5880,534 @@ useEffect(() => {
   }, [selectedOption, previewQuiz]);
 
   // Efecto para repetición automática en el Generador de Contenido
-useEffect(() => {
-  if (!showContentPreview || !editingGeneratedQuiz) return;
+  useEffect(() => {
+    if (!showContentPreview || !editingGeneratedQuiz) return;
 
-  const questions = editingGeneratedQuiz.preguntas || 
-                   editingGeneratedQuiz.content?.questions || [];
-  if (questions.length === 0) return;
+    const questions = editingGeneratedQuiz.preguntas ||
+      editingGeneratedQuiz.content?.questions || [];
+    if (questions.length === 0) return;
 
-  const currentQuestion = questions[quizPreviewIndex];
-  if (!currentQuestion) return;
+    const currentQuestion = questions[quizPreviewIndex];
+    if (!currentQuestion) return;
 
-  const normalizedQuestion = {
-    pregunta: currentQuestion.pregunta || currentQuestion.text || '',
-    opciones: currentQuestion.opciones || currentQuestion.options || [],
-    respuesta_correcta: currentQuestion.respuesta_correcta ?? currentQuestion.correct ?? 0,
-  };
+    const normalizedQuestion = {
+      pregunta: currentQuestion.pregunta || currentQuestion.text || '',
+      opciones: currentQuestion.opciones || currentQuestion.options || [],
+      respuesta_correcta: currentQuestion.respuesta_correcta ?? currentQuestion.correct ?? 0,
+    };
 
-  const answer = quizPreviewAnswers[quizPreviewIndex];
-  const attempts = attemptCount[quizPreviewIndex] || 0;
-  
-  let timeoutId1, timeoutId2, timeoutId3;
+    const answer = quizPreviewAnswers[quizPreviewIndex];
+    const attempts = attemptCount[quizPreviewIndex] || 0;
 
-  const executeAudioSequence = () => {
-    // Solo si no ha respondido y no ha agotado intentos
-    if (answer || attempts >= 3) return;
+    let timeoutId1, timeoutId2, timeoutId3;
 
-    // PRIMERO: "Responde la pregunta"
-    timeoutId1 = setTimeout(() => {
-      speakText("Responde la pregunta");
-    }, 300);
+    const executeAudioSequence = () => {
+      // Solo si no ha respondido y no ha agotado intentos
+      if (answer || attempts >= 3) return;
 
-    // SEGUNDO: Pregunta completa
-    timeoutId2 = setTimeout(() => {
-      speakText(normalizedQuestion.pregunta);
-    }, 2000);
+      // PRIMERO: "Responde la pregunta"
+      timeoutId1 = setTimeout(() => {
+        speakText("Responde la pregunta");
+      }, 300);
 
-    // TERCERO: Opciones enumeradas
-    timeoutId3 = setTimeout(() => {
-      let opcionesTexto = "Las opciones son: ";
-      normalizedQuestion.opciones.forEach((opcion, idx) => {
-        opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-      });
-      speakText(opcionesTexto);
-    }, 4000);
+      // SEGUNDO: Pregunta completa
+      timeoutId2 = setTimeout(() => {
+        speakText(normalizedQuestion.pregunta);
+      }, 2000);
 
-    // REPETIR CADA 15 SEGUNDOS si no ha respondido
-    const repeatInterval = setInterval(() => {
-      if (!answer && attempts < 3) {
-        speakText("Recuerda responder la pregunta");
-        setTimeout(() => {
-          speakText(normalizedQuestion.pregunta);
+      // TERCERO: Opciones enumeradas
+      timeoutId3 = setTimeout(() => {
+        let opcionesTexto = "Las opciones son: ";
+        normalizedQuestion.opciones.forEach((opcion, idx) => {
+          opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+        });
+        speakText(opcionesTexto);
+      }, 4000);
+
+      // REPETIR CADA 15 SEGUNDOS si no ha respondido
+      const repeatInterval = setInterval(() => {
+        if (!answer && attempts < 3) {
+          speakText("Recuerda responder la pregunta");
           setTimeout(() => {
-            let opcionesTexto = "Las opciones son: ";
-            normalizedQuestion.opciones.forEach((opcion, idx) => {
-              opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-            });
-            speakText(opcionesTexto);
-          }, 2000);
-        }, 1000);
-      } else {
-        clearInterval(repeatInterval);
-      }
-    }, 15000);
+            speakText(normalizedQuestion.pregunta);
+            setTimeout(() => {
+              let opcionesTexto = "Las opciones son: ";
+              normalizedQuestion.opciones.forEach((opcion, idx) => {
+                opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+              });
+              speakText(opcionesTexto);
+            }, 2000);
+          }, 1000);
+        } else {
+          clearInterval(repeatInterval);
+        }
+      }, 15000);
 
-    return () => clearInterval(repeatInterval);
-  };
+      return () => clearInterval(repeatInterval);
+    };
 
-  const cleanup = executeAudioSequence();
+    const cleanup = executeAudioSequence();
 
-  return () => {
-    clearTimeout(timeoutId1);
-    clearTimeout(timeoutId2);
-    clearTimeout(timeoutId3);
-    if (cleanup) cleanup();
-    window.speechSynthesis.cancel();
-  };
-}, [showContentPreview, editingGeneratedQuiz, quizPreviewIndex, quizPreviewAnswers, attemptCount]);
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      if (cleanup) cleanup();
+      window.speechSynthesis.cancel();
+    };
+  }, [showContentPreview, editingGeneratedQuiz, quizPreviewIndex, quizPreviewAnswers, attemptCount]);
 
   //  QUIZ REDISEÑADO PARA NIÑOS
-const renderQuestionPreview = () => {
-  if (!currentQuiz.preguntas || currentQuiz.preguntas.length === 0) return null;
+  const renderQuestionPreview = () => {
+    if (!currentQuiz.preguntas || currentQuiz.preguntas.length === 0) return null;
 
-  const question = currentQuiz.preguntas[currentPreviewQuestion];
-  if (!question) return null;
+    const question = currentQuiz.preguntas[currentPreviewQuestion];
+    if (!question) return null;
 
-  // Normalizar la pregunta (igual que en renderContentPreview)
-  const normalizedQuestion = {
-    pregunta: question.pregunta || question.text || '',
-    opciones: question.opciones || question.options || [],
-    respuesta_correcta: question.respuesta_correcta ?? question.correct ?? 0,
-    puntos: question.puntos || question.points || 10,
-    retroalimentacion_correcta: question.retroalimentacion_correcta ||
-      question.feedback_correct ||
-      '¡Excelente! 🎉',
-    retroalimentacion_incorrecta: question.retroalimentacion_incorrecta ||
-      question.feedback_incorrect ||
-      '¡Intenta otra vez! 💪',
-    audio_pregunta: question.audio_pregunta !== false,
-    audio_retroalimentacion: question.audio_retroalimentacion !== false,
-    video_url: question.video_url || '',
-    imagen_url: question.imagen_url || question.image_url || '',
-    imagen_opciones: question.imagen_opciones || question.image_options || [],
-    tiempo_limite: question.tiempo_limite ?? question.timeLimit ?? 0,
-  };
-
-  const answer = previewAnswers[currentPreviewQuestion];
-  const attempts = attemptCount[currentPreviewQuestion] || 0;
-  const maxAttempts = 3;
-
-  // Función para manejar la selección inmediata (IGUAL que en renderContentPreview)
-  const handleImmediateAnswer = (selectedIdx) => {
-    // Si ya acertó o agotó intentos, no hacer nada
-    if (answer?.isCorrect || attempts >= maxAttempts) return;
-
-    const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
-    const newAttempts = attempts + 1;
-
-    // 1. Repetir la palabra seleccionada
-    speakText(normalizedQuestion.opciones[selectedIdx]);
-
-    // 2. Actualizar contador de intentos
-    setAttemptCount({
-      ...attemptCount,
-      [currentPreviewQuestion]: newAttempts
-    });
-
-    // 3. Guardar respuesta
-    const newAnswer = {
-      selected: selectedIdx,
-      isCorrect: isCorrect,
-      attempts: newAttempts,
-      showCorrect: newAttempts >= maxAttempts && !isCorrect
+    // Normalizar la pregunta (igual que en renderContentPreview)
+    const normalizedQuestion = {
+      pregunta: question.pregunta || question.text || '',
+      opciones: question.opciones || question.options || [],
+      respuesta_correcta: question.respuesta_correcta ?? question.correct ?? 0,
+      puntos: question.puntos || question.points || 10,
+      retroalimentacion_correcta: question.retroalimentacion_correcta ||
+        question.feedback_correct ||
+        '¡Excelente! 🎉',
+      retroalimentacion_incorrecta: question.retroalimentacion_incorrecta ||
+        question.feedback_incorrect ||
+        '¡Intenta otra vez! 💪',
+      audio_pregunta: question.audio_pregunta !== false,
+      audio_retroalimentacion: question.audio_retroalimentacion !== false,
+      video_url: question.video_url || '',
+      imagen_url: question.imagen_url || question.image_url || '',
+      imagen_opciones: question.imagen_opciones || question.image_options || [],
+      tiempo_limite: question.tiempo_limite ?? question.timeLimit ?? 0,
     };
 
-    setPreviewAnswers({
-      ...previewAnswers,
-      [currentPreviewQuestion]: newAnswer
-    });
+    const answer = previewAnswers[currentPreviewQuestion];
+    const attempts = attemptCount[currentPreviewQuestion] || 0;
+    const maxAttempts = 3;
 
-    // 4. Dar retroalimentación inmediata
-    setTimeout(() => {
-      if (isCorrect) {
-        speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
-        // Repetir la pregunta y respuesta correcta después de 1.5 segundos
-        setTimeout(() => {
-          speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-        }, 1500);
-      } else if (newAttempts >= maxAttempts) {
-        speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-      } else {
-        const remaining = maxAttempts - newAttempts;
-        speakText(`Lo siento, te has equivocado. Te quedan ${remaining} intentos. Intenta de nuevo.`);
+    // Función para manejar la selección inmediata (IGUAL que en renderContentPreview)
+    const handleImmediateAnswer = (selectedIdx) => {
+      // Si ya acertó o agotó intentos, no hacer nada
+      if (answer?.isCorrect || attempts >= maxAttempts) return;
+
+      const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
+      const newAttempts = attempts + 1;
+
+      // 1. Repetir la palabra seleccionada
+      speakText(normalizedQuestion.opciones[selectedIdx]);
+
+      // 2. Actualizar contador de intentos
+      setAttemptCount({
+        ...attemptCount,
+        [currentPreviewQuestion]: newAttempts
+      });
+
+      // 3. Guardar respuesta
+      const newAnswer = {
+        selected: selectedIdx,
+        isCorrect: isCorrect,
+        attempts: newAttempts,
+        showCorrect: newAttempts >= maxAttempts && !isCorrect
+      };
+
+      setPreviewAnswers({
+        ...previewAnswers,
+        [currentPreviewQuestion]: newAnswer
+      });
+
+      // 4. Dar retroalimentación inmediata
+      setTimeout(() => {
+        if (isCorrect) {
+          speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
+          // Repetir la pregunta y respuesta correcta después de 1.5 segundos
+          setTimeout(() => {
+            speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
+          }, 1500);
+        } else if (newAttempts >= maxAttempts) {
+          speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
+        } else {
+          const remaining = maxAttempts - newAttempts;
+          speakText(`Lo siento, te has equivocado. Te quedan ${remaining} intentos. Intenta de nuevo.`);
+        }
+      }, 1000);
+    };
+
+    // Determinar estado de Karin (IGUAL que en renderContentPreview)
+    const getKarinState = () => {
+      if (answer?.isCorrect) {
+        return {
+          state: "happy",
+          message: "¡Excelente! Respuesta correcta 🎉",
+        };
       }
-    }, 1000);
-  };
-
-  // Determinar estado de Karin (IGUAL que en renderContentPreview)
-  const getKarinState = () => {
-    if (answer?.isCorrect) {
+      if (answer && !answer.isCorrect && attempts >= maxAttempts) {
+        return {
+          state: "encourage",
+          message: "No te preocupes, sigamos aprendiendo 💚",
+        };
+      }
+      if (attempts > 0 && attempts < maxAttempts) {
+        const remaining = maxAttempts - attempts;
+        return {
+          state: "thinking",
+          message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`,
+        };
+      }
       return {
-        state: "happy",
-        message: "¡Excelente! Respuesta correcta 🎉",
+        state: "idle",
+        message: "Escucha la pregunta y elige la respuesta correcta",
       };
-    }
-    if (answer && !answer.isCorrect && attempts >= maxAttempts) {
-      return {
-        state: "encourage",
-        message: "No te preocupes, sigamos aprendiendo 💚",
-      };
-    }
-    if (attempts > 0 && attempts < maxAttempts) {
-      const remaining = maxAttempts - attempts;
-      return {
-        state: "thinking",
-        message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`,
-      };
-    }
-    return {
-      state: "idle",
-      message: "Escucha la pregunta y elige la respuesta correcta",
     };
-  };
 
-  // Función para repetir pregunta y opciones (IGUAL que en renderContentPreview)
-  const repeatQuestionWithOptions = () => {
-    let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
-    fullText += `Las opciones son: `;
-    normalizedQuestion.opciones.forEach((opcion, idx) => {
-      fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-    });
-    speakText(fullText);
-  };
+    // Función para repetir pregunta y opciones (IGUAL que en renderContentPreview)
+    const repeatQuestionWithOptions = () => {
+      let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
+      fullText += `Las opciones son: `;
+      normalizedQuestion.opciones.forEach((opcion, idx) => {
+        fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+      });
+      speakText(fullText);
+    };
 
-  const karin = getKarinState();
+    const karin = getKarinState();
 
-  return (
-    <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
-      {/* HEADER: KARIN + PROGRESO - IDÉNTICO */}
-      <div className="flex justify-between items-start mb-6">
-        <KarinMascot state={karin.state} message={karin.message} />
-        <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
-          {currentPreviewQuestion + 1} / {currentQuiz.preguntas.length}
-        </div>
-      </div>
-
-      {/* BARRA DE PROGRESO - IDÉNTICA */}
-      <div className="flex gap-2 mb-8">
-        {currentQuiz.preguntas.map((_, idx) => (
-          <div
-            key={idx}
-            className={`flex-1 h-2 rounded-full transition-all ${
-              idx === currentPreviewQuestion
-                ? "bg-blue-500"
-                : idx < currentPreviewQuestion
-                ? "bg-green-400"
-                : "bg-gray-200"
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* CONTADOR DE INTENTOS - IDÉNTICO */}
-      {attempts > 0 && (
-        <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
-          <p className="text-lg font-bold text-yellow-800">
-            🎯 Intentos: {attempts} / {maxAttempts}
-          </p>
-          <div className="flex gap-2 justify-center mt-2">
-            {[...Array(maxAttempts)].map((_, i) => (
-              <div
-                key={i}
-                className={`w-8 h-8 rounded-full ${
-                  i < attempts
-                    ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
-                    : 'bg-gray-300'
-                }`}
-              />
-            ))}
+    return (
+      <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
+        {/* HEADER: KARIN + PROGRESO - IDÉNTICO */}
+        <div className="flex justify-between items-start mb-6">
+          <KarinMascot state={karin.state} message={karin.message} />
+          <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
+            {currentPreviewQuestion + 1} / {currentQuiz.preguntas.length}
           </div>
         </div>
-      )}
 
-      {/* PREGUNTA - IDÉNTICA */}
-      <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
-        <div className="flex items-center gap-4 justify-center">
-          {normalizedQuestion.audio_pregunta && (
-            <button
-              onClick={() => speakText(normalizedQuestion.pregunta)}
-              className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
-            >
-              🔊
-            </button>
-          )}
-          {normalizedQuestion.imagen_url && (
-            <div className="text-7xl flex-shrink-0">
-              {normalizedQuestion.imagen_url}
-            </div>
-          )}
-          <p className="text-3xl font-bold text-gray-800 text-center">
-            {normalizedQuestion.pregunta}
-          </p>
-        </div>
-
-        {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - AZUL (IDÉNTICO) */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => repeatQuestionWithOptions()}
-            className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Repetir Pregunta y Opciones
-          </button>
-        </div>
-      </div>
-
-      {/* OPCIONES CON BOTÓN DE REPETIR - IDÉNTICO */}
-      <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
-        {normalizedQuestion.opciones.map((opcion, idx) => {
-          const isSelected = answer?.selected === idx;
-          const isCorrectOption = idx === normalizedQuestion.respuesta_correcta;
-          const showAsCorrect = answer?.showCorrect && isCorrectOption;
-          const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
-          const emojiOpcion = normalizedQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
-
-          return (
+        {/* BARRA DE PROGRESO - IDÉNTICA */}
+        <div className="flex gap-2 mb-8">
+          {currentQuiz.preguntas.map((_, idx) => (
             <div
               key={idx}
-              className={`relative p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 ${
-                showAsCorrect
-                  ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
-                  : isDisabled && answer?.isCorrect && isSelected
-                  ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
-                  : isDisabled && !isCorrectOption
-                  ? 'bg-gray-100 border-gray-300 opacity-50'
-                  : isSelected && !answer?.isCorrect
-                  ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
-                  : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
-              }`}
-            >
-              {/* BOTÓN REPETIR PALABRA (IZQUIERDA) - AZUL */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
-                }}
-                className="absolute -left-12 top-1/2 transform -translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 z-10"
-                title="Repetir esta palabra"
-              >
-                <Volume2 className="w-6 h-6" />
-              </button>
+              className={`flex-1 h-2 rounded-full transition-all ${idx === currentPreviewQuestion
+                ? "bg-blue-500"
+                : idx < currentPreviewQuestion
+                  ? "bg-green-400"
+                  : "bg-gray-200"
+                }`}
+            />
+          ))}
+        </div>
 
-              {/* CONTENIDO DE LA OPCIÓN */}
-              <div
-                className="flex-1 flex items-center gap-4 cursor-pointer"
-                onClick={() => handleImmediateAnswer(idx)}
-              >
-                <span className="text-5xl flex-shrink-0 drop-shadow-sm">
-                  {emojiOpcion}
-                </span>
-                <span className="flex-1">{opcion}</span>
-              </div>
-
-              {/* BOTÓN REPETIR PALABRA (DERECHA) - AZUL */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakText(opcion);
-                }}
-                className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 ml-2"
-                title="Repetir palabra"
-              >
-                <Volume2 className="w-6 h-6" />
-              </button>
-
-              {/* INDICADORES DE RESPUESTA */}
-              {showAsCorrect && (
-                <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                  ✅
-                </span>
-              )}
-              {isSelected && answer?.isCorrect && (
-                <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                  🎉
-                </span>
-              )}
-              {isSelected && !answer?.isCorrect && (
-                <span className="text-3xl flex-shrink-0 ml-2">
-                  ❌
-                </span>
-              )}
+        {/* CONTADOR DE INTENTOS - IDÉNTICO */}
+        {attempts > 0 && (
+          <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
+            <p className="text-lg font-bold text-yellow-800">
+              🎯 Intentos: {attempts} / {maxAttempts}
+            </p>
+            <div className="flex gap-2 justify-center mt-2">
+              {[...Array(maxAttempts)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-8 h-8 rounded-full ${i < attempts
+                    ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
+                    : 'bg-gray-300'
+                    }`}
+                />
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        )}
 
-      {/* RETROALIMENTACIÓN - IDÉNTICA */}
-      {answer && (
-        <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
-          <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${
-            answer.isCorrect
-              ? "bg-green-100 border-green-400 animate-pulse"
-              : attempts >= maxAttempts
-              ? "bg-orange-100 border-orange-400"
-              : "bg-red-100 border-red-400"
-          }`}>
-            <p className="text-5xl font-black mb-3">
-              {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
-            </p>
-            <p className="text-3xl font-black mb-2">
-              {answer.isCorrect
-                ? "¡CORRECTO!"
-                : attempts >= maxAttempts
-                ? "VAMOS A APRENDER"
-                : "¡INTENTA DE NUEVO!"}
-            </p>
-            <p className="text-lg font-bold text-gray-800 mb-4">
-              {answer.isCorrect
-                ? normalizedQuestion.retroalimentacion_correcta
-                : attempts >= maxAttempts
-                ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`
-                : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+        {/* PREGUNTA - IDÉNTICA */}
+        <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
+          <div className="flex items-center gap-4 justify-center">
+            {normalizedQuestion.audio_pregunta && (
+              <button
+                onClick={() => speakText(normalizedQuestion.pregunta)}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
+              >
+                🔊
+              </button>
+            )}
+            {normalizedQuestion.imagen_url && (
+              <div className="text-7xl flex-shrink-0">
+                {normalizedQuestion.imagen_url}
+              </div>
+            )}
+            <p className="text-3xl font-bold text-gray-800 text-center">
+              {normalizedQuestion.pregunta}
             </p>
           </div>
 
-          {/* BOTÓN SIGUIENTE - AZUL (IDÉNTICO) */}
-          <button
-            onClick={() => {
-              if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                // Resetear estados para la siguiente pregunta
-                setPreviewAnswers({
-                  ...previewAnswers,
-                  [currentPreviewQuestion + 1]: undefined
-                });
-                setAttemptCount({
-                  ...attemptCount,
-                  [currentPreviewQuestion + 1]: 0
-                });
-              } else {
-                // FIN DEL QUIZ
-                const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
-                const totalQuestions = currentQuiz.preguntas.length;
-                const score = Math.round((correct / totalQuestions) * 100);
-
-                let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                message += `Total de preguntas: ${totalQuestions}\n`;
-                message += `Correctas: ${correct}\n`;
-                message += `Puntuación: ${score}%\n\n`;
-
-                if (score >= 80) {
-                  message += "¡Excelente trabajo! Eres un experto 🏆";
-                } else if (score >= 60) {
-                  message += "Buen trabajo, sigue practicando 💪";
-                } else {
-                  message += "Sigue practicando, aprenderás más cada día 📚";
-                }
-
-                alert(message);
-                closePreview();
-              }
-            }}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2"
-          >
-            {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
-              <>
-                <Trophy className="w-6 h-6" />
-                Finalizar Quiz
-              </>
-            ) : (
-              <>
-                <ChevronRight className="w-6 h-6" />
-                Siguiente Pregunta
-              </>
-            )}
-          </button>
+          {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - AZUL (IDÉNTICO) */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => repeatQuestionWithOptions()}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Repetir Pregunta y Opciones
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* NAVEGACIÓN - IDÉNTICA */}
-      <div className="flex justify-between mt-10 gap-4">
-        <button
-          disabled={currentPreviewQuestion === 0}
-          onClick={() => {
-            setCurrentPreviewQuestion(currentPreviewQuestion - 1);
-            // Resetear estados para la pregunta anterior
-            setPreviewAnswers({
-              ...previewAnswers,
-              [currentPreviewQuestion - 1]: undefined
-            });
-            setAttemptCount({
-              ...attemptCount,
-              [currentPreviewQuestion - 1]: 0
-            });
-          }}
-          className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
-        >
-          ← Anterior
-        </button>
+        {/* OPCIONES CON BOTÓN DE REPETIR - IDÉNTICO */}
+        <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
+          {normalizedQuestion.opciones.map((opcion, idx) => {
+            const isSelected = answer?.selected === idx;
+            const isCorrectOption = idx === normalizedQuestion.respuesta_correcta;
+            const showAsCorrect = answer?.showCorrect && isCorrectOption;
+            const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
+            const emojiOpcion = normalizedQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
 
-        {answer?.isCorrect || attempts >= maxAttempts ? (
-          <button
-            onClick={() => {
-              if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                // Resetear estados para la siguiente pregunta
-                setPreviewAnswers({
-                  ...previewAnswers,
-                  [currentPreviewQuestion + 1]: undefined
-                });
-                setAttemptCount({
-                  ...attemptCount,
-                  [currentPreviewQuestion + 1]: 0
-                });
-              } else {
-                // FIN DEL QUIZ
-                const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
-                const totalQuestions = currentQuiz.preguntas.length;
-                const score = Math.round((correct / totalQuestions) * 100);
+            return (
+              <div
+                key={idx}
+                className={`relative p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 ${showAsCorrect
+                  ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
+                  : isDisabled && answer?.isCorrect && isSelected
+                    ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
+                    : isDisabled && !isCorrectOption
+                      ? 'bg-gray-100 border-gray-300 opacity-50'
+                      : isSelected && !answer?.isCorrect
+                        ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
+                        : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
+                  }`}
+              >
+                {/* BOTÓN REPETIR PALABRA (IZQUIERDA) - AZUL */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
+                  }}
+                  className="absolute -left-12 top-1/2 transform -translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 z-10"
+                  title="Repetir esta palabra"
+                >
+                  <Volume2 className="w-6 h-6" />
+                </button>
 
-                let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                message += `Total de preguntas: ${totalQuestions}\n`;
-                message += `Correctas: ${correct}\n`;
-                message += `Puntuación: ${score}%\n\n`;
+                {/* CONTENIDO DE LA OPCIÓN */}
+                <div
+                  className="flex-1 flex items-center gap-4 cursor-pointer"
+                  onClick={() => handleImmediateAnswer(idx)}
+                >
+                  <span className="text-5xl flex-shrink-0 drop-shadow-sm">
+                    {emojiOpcion}
+                  </span>
+                  <span className="flex-1">{opcion}</span>
+                </div>
 
-                if (score >= 80) {
-                  message += "¡Excelente trabajo! Eres un experto 🏆";
-                } else if (score >= 60) {
-                  message += "Buen trabajo, sigue practicando 💪";
+                {/* BOTÓN REPETIR PALABRA (DERECHA) - AZUL */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakText(opcion);
+                  }}
+                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 ml-2"
+                  title="Repetir palabra"
+                >
+                  <Volume2 className="w-6 h-6" />
+                </button>
+
+                {/* INDICADORES DE RESPUESTA */}
+                {showAsCorrect && (
+                  <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
+                    ✅
+                  </span>
+                )}
+                {isSelected && answer?.isCorrect && (
+                  <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
+                    🎉
+                  </span>
+                )}
+                {isSelected && !answer?.isCorrect && (
+                  <span className="text-3xl flex-shrink-0 ml-2">
+                    ❌
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* RETROALIMENTACIÓN - IDÉNTICA */}
+        {answer && (
+          <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
+            <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect
+              ? "bg-green-100 border-green-400 animate-pulse"
+              : attempts >= maxAttempts
+                ? "bg-orange-100 border-orange-400"
+                : "bg-red-100 border-red-400"
+              }`}>
+              <p className="text-5xl font-black mb-3">
+                {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
+              </p>
+              <p className="text-3xl font-black mb-2">
+                {answer.isCorrect
+                  ? "¡CORRECTO!"
+                  : attempts >= maxAttempts
+                    ? "VAMOS A APRENDER"
+                    : "¡INTENTA DE NUEVO!"}
+              </p>
+              <p className="text-lg font-bold text-gray-800 mb-4">
+                {answer.isCorrect
+                  ? normalizedQuestion.retroalimentacion_correcta
+                  : attempts >= maxAttempts
+                    ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`
+                    : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+              </p>
+            </div>
+
+            {/* BOTÓN SIGUIENTE - AZUL (IDÉNTICO) */}
+            <button
+              onClick={() => {
+                if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
+                  setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+                  // Resetear estados para la siguiente pregunta
+                  setPreviewAnswers({
+                    ...previewAnswers,
+                    [currentPreviewQuestion + 1]: undefined
+                  });
+                  setAttemptCount({
+                    ...attemptCount,
+                    [currentPreviewQuestion + 1]: 0
+                  });
                 } else {
-                  message += "Sigue practicando, aprenderás más cada día 📚";
-                }
+                  // FIN DEL QUIZ
+                  const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
+                  const totalQuestions = currentQuiz.preguntas.length;
+                  const score = Math.round((correct / totalQuestions) * 100);
 
-                alert(message);
-                closePreview();
-              }
-            }}
-            className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-          >
-            {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
-              <>
-                <Trophy className="w-6 h-6" />
-                Finalizar Quiz
-              </>
-            ) : (
-              <>
-                Siguiente →
-              </>
-            )}
-          </button>
-        ) : (
+                  let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
+                  message += `Total de preguntas: ${totalQuestions}\n`;
+                  message += `Correctas: ${correct}\n`;
+                  message += `Puntuación: ${score}%\n\n`;
+
+                  if (score >= 80) {
+                    message += "¡Excelente trabajo! Eres un experto 🏆";
+                  } else if (score >= 60) {
+                    message += "Buen trabajo, sigue practicando 💪";
+                  } else {
+                    message += "Sigue practicando, aprenderás más cada día 📚";
+                  }
+
+                  alert(message);
+                  closePreview();
+                }
+              }}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2"
+            >
+              {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
+                <>
+                  <Trophy className="w-6 h-6" />
+                  Finalizar Quiz
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="w-6 h-6" />
+                  Siguiente Pregunta
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* NAVEGACIÓN - IDÉNTICA */}
+        <div className="flex justify-between mt-10 gap-4">
           <button
-            disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
+            disabled={currentPreviewQuestion === 0}
             onClick={() => {
-              setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-              // Resetear estados para la siguiente pregunta
+              setCurrentPreviewQuestion(currentPreviewQuestion - 1);
+              // Resetear estados para la pregunta anterior
               setPreviewAnswers({
                 ...previewAnswers,
-                [currentPreviewQuestion + 1]: undefined
+                [currentPreviewQuestion - 1]: undefined
               });
               setAttemptCount({
                 ...attemptCount,
-                [currentPreviewQuestion + 1]: 0
+                [currentPreviewQuestion - 1]: 0
               });
             }}
-            className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
+            className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
           >
-            Saltar Pregunta →
+            ← Anterior
           </button>
-        )}
+
+          {answer?.isCorrect || attempts >= maxAttempts ? (
+            <button
+              onClick={() => {
+                if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
+                  setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+                  // Resetear estados para la siguiente pregunta
+                  setPreviewAnswers({
+                    ...previewAnswers,
+                    [currentPreviewQuestion + 1]: undefined
+                  });
+                  setAttemptCount({
+                    ...attemptCount,
+                    [currentPreviewQuestion + 1]: 0
+                  });
+                } else {
+                  // FIN DEL QUIZ
+                  const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
+                  const totalQuestions = currentQuiz.preguntas.length;
+                  const score = Math.round((correct / totalQuestions) * 100);
+
+                  let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
+                  message += `Total de preguntas: ${totalQuestions}\n`;
+                  message += `Correctas: ${correct}\n`;
+                  message += `Puntuación: ${score}%\n\n`;
+
+                  if (score >= 80) {
+                    message += "¡Excelente trabajo! Eres un experto 🏆";
+                  } else if (score >= 60) {
+                    message += "Buen trabajo, sigue practicando 💪";
+                  } else {
+                    message += "Sigue practicando, aprenderás más cada día 📚";
+                  }
+
+                  alert(message);
+                  closePreview();
+                }
+              }}
+              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
+                <>
+                  <Trophy className="w-6 h-6" />
+                  Finalizar Quiz
+                </>
+              ) : (
+                <>
+                  Siguiente →
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
+              onClick={() => {
+                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+                // Resetear estados para la siguiente pregunta
+                setPreviewAnswers({
+                  ...previewAnswers,
+                  [currentPreviewQuestion + 1]: undefined
+                });
+                setAttemptCount({
+                  ...attemptCount,
+                  [currentPreviewQuestion + 1]: 0
+                });
+              }}
+              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
+            >
+              Saltar Pregunta →
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const generateAIRecommendations = () => {
     const recommendations = [];
@@ -6589,585 +6608,585 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
   };
 
   // RENDERIZADOR INTERACTIVO DE CONTENIDO
-// RENDERIZADOR INTERACTIVO DE CONTENIDO
-const renderInteractiveContent = () => {
-  if (!viewingContent || !editingContent) return null;
+  // RENDERIZADOR INTERACTIVO DE CONTENIDO
+  const renderInteractiveContent = () => {
+    if (!viewingContent || !editingContent) return null;
 
-  const type = contentTypes.find(c => c.id === viewingContent.type);
+    const type = contentTypes.find(c => c.id === viewingContent.type);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
-        {/* HEADER */}
-        <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-5xl">{type?.icon}</span>
-                <div>
-                  <h2 className="text-2xl font-bold">{viewingContent.title}</h2>
-                  <p className="text-sm text-white text-opacity-90">
-                    {type?.name} • {viewingContent.createdAt}
-                  </p>
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl my-8">
+          {/* HEADER */}
+          <div className={`sticky top-0 z-10 bg-gradient-to-r ${type?.color} text-white p-6`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-5xl">{type?.icon}</span>
+                  <div>
+                    <h2 className="text-2xl font-bold">{viewingContent.title}</h2>
+                    <p className="text-sm text-white text-opacity-90">
+                      {type?.name} • {viewingContent.createdAt}
+                    </p>
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={() => {
+                  setShowContentViewer(false);
+                  setViewingContent(null);
+                  setEditingContent(null);
+                  setGameState(null);
+                  setStoryPage(0);
+                  setChallengeProgress({});
+                  setExerciseAnswers({});
+                }}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setShowContentViewer(false);
-                setViewingContent(null);
-                setEditingContent(null);
-                setGameState(null);
-                setStoryPage(0);
-                setChallengeProgress({});
-                setExerciseAnswers({});
-              }}
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
           </div>
-        </div>
 
-        {/* CONTENIDO ESPECÍFICO */}
-        <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
-          {/* QUIZ INTERACTIVO Y EDITABLE */}
-          {viewingContent.type === 'quiz' && (
-            <div className="space-y-6">
-              {/* ===== HEADER CON BOTÓN EDITAR TODO ===== */}
-              <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">📝 Editor de Quiz</h3>
-                  <p className="text-sm text-gray-600">Haz clic en cualquier pregunta para editarla</p>
-                </div>
-                <button
-                  onClick={() => {
-                    if (editingCompleteQuiz) {
-                      saveEditedContent();
-                    } else {
-                      setEditingCompleteQuiz(true);
-                    }
-                  }}
-                  disabled={savingChanges}
-                  className={`px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-2 ${savingChanges
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : editingCompleteQuiz
-                    ? 'bg-green-500 hover:bg-green-600'
-                    : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  {savingChanges ? (
-                    <>
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : editingCompleteQuiz ? (
-                    <>
-                      <Save className="w-5 h-5" />
-                      Guardar Todo
-                    </>
-                  ) : (
-                    <>
-                      <Edit2 className="w-5 h-5" />
-                      Modo Edición
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* STATS */}
-              <div className="grid grid-cols-3 gap-4 bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-blue-600">
-                    {editingContent.content.questions?.length || 0}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Preguntas</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-green-600">
-                    {editingContent.content.totalPoints ||
-                      (editingContent.content.questions?.length * 10) || 0}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Puntos Totales</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-orange-600">
-                    {editingContent.content.timeLimit || 0}s
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">Tiempo Límite</p>
-                </div>
-              </div>
-
-              {/* ===== PREGUNTAS EDITABLES ===== */}
-              <div className="space-y-4">
-                {editingContent.content.questions?.map((question, qIdx) => (
-                  <div
-                    key={qIdx}
-                    className={`bg-white rounded-xl p-6 border-2 shadow-md transition-all ${editingQuizQuestion === qIdx
-                      ? 'border-blue-500 ring-4 ring-blue-200'
-                      : 'border-blue-200 hover:border-blue-300'
-                    }`}
+          {/* CONTENIDO ESPECÍFICO */}
+          <div className="overflow-y-auto max-h-[calc(95vh-250px)] p-6">
+            {/* QUIZ INTERACTIVO Y EDITABLE */}
+            {viewingContent.type === 'quiz' && (
+              <div className="space-y-6">
+                {/* ===== HEADER CON BOTÓN EDITAR TODO ===== */}
+                <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">📝 Editor de Quiz</h3>
+                    <p className="text-sm text-gray-600">Haz clic en cualquier pregunta para editarla</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (editingCompleteQuiz) {
+                        saveEditedContent();
+                      } else {
+                        setEditingCompleteQuiz(true);
+                      }
+                    }}
+                    disabled={savingChanges}
+                    className={`px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-2 ${savingChanges
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : editingCompleteQuiz
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-blue-500 hover:bg-blue-600'
+                      }`}
                   >
-                    {/* ===== MODO EDICIÓN ===== */}
-                    {editingQuizQuestion === qIdx ? (
-                      <div className="space-y-4">
-                        {/* TÍTULO */}
-                        <div className="bg-blue-100 rounded-lg p-3 border-l-4 border-blue-500">
-                          <p className="font-bold text-blue-800">
-                            ✏️ Editando Pregunta {qIdx + 1}
-                          </p>
-                        </div>
+                    {savingChanges ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : editingCompleteQuiz ? (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Guardar Todo
+                      </>
+                    ) : (
+                      <>
+                        <Edit2 className="w-5 h-5" />
+                        Modo Edición
+                      </>
+                    )}
+                  </button>
+                </div>
 
-                        {/* PREGUNTA */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            📝 Texto de la Pregunta
-                          </label>
-                          <textarea
-                            value={question.text || question.pregunta || ''}
-                            onChange={(e) => {
-                              const updated = { ...editingContent };
-                              if (!updated.content.questions[qIdx]) {
-                                updated.content.questions[qIdx] = {};
-                              }
-                              updated.content.questions[qIdx].text = e.target.value;
-                              updated.content.questions[qIdx].pregunta = e.target.value;
-                              setEditingContent(updated);
-                            }}
-                            className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                            rows="2"
-                            placeholder="Escribe tu pregunta aquí..."
-                          />
-                        </div>
+                {/* STATS */}
+                <div className="grid grid-cols-3 gap-4 bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-blue-600">
+                      {editingContent.content.questions?.length || 0}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Preguntas</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-green-600">
+                      {editingContent.content.totalPoints ||
+                        (editingContent.content.questions?.length * 10) || 0}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Puntos Totales</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-orange-600">
+                      {editingContent.content.timeLimit || 0}s
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">Tiempo Límite</p>
+                  </div>
+                </div>
 
-                        {/* IMAGEN/EMOJI DE LA PREGUNTA */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-2">
-                            🎨 Imagen/Emoji de la Pregunta (Opcional)
-                          </label>
-                          <div className="flex gap-2">
-                            <div className="flex-1 bg-gray-50 border-2 border-gray-300 rounded-lg p-3 flex items-center justify-center">
-                              <span className="text-6xl">
-                                {question.imagen_url || question.image_url || '❓'}
-                              </span>
+                {/* ===== PREGUNTAS EDITABLES ===== */}
+                <div className="space-y-4">
+                  {editingContent.content.questions?.map((question, qIdx) => (
+                    <div
+                      key={qIdx}
+                      className={`bg-white rounded-xl p-6 border-2 shadow-md transition-all ${editingQuizQuestion === qIdx
+                        ? 'border-blue-500 ring-4 ring-blue-200'
+                        : 'border-blue-200 hover:border-blue-300'
+                        }`}
+                    >
+                      {/* ===== MODO EDICIÓN ===== */}
+                      {editingQuizQuestion === qIdx ? (
+                        <div className="space-y-4">
+                          {/* TÍTULO */}
+                          <div className="bg-blue-100 rounded-lg p-3 border-l-4 border-blue-500">
+                            <p className="font-bold text-blue-800">
+                              ✏️ Editando Pregunta {qIdx + 1}
+                            </p>
+                          </div>
+
+                          {/* PREGUNTA */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                              📝 Texto de la Pregunta
+                            </label>
+                            <textarea
+                              value={question.text || question.pregunta || ''}
+                              onChange={(e) => {
+                                const updated = { ...editingContent };
+                                if (!updated.content.questions[qIdx]) {
+                                  updated.content.questions[qIdx] = {};
+                                }
+                                updated.content.questions[qIdx].text = e.target.value;
+                                updated.content.questions[qIdx].pregunta = e.target.value;
+                                setEditingContent(updated);
+                              }}
+                              className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                              rows="2"
+                              placeholder="Escribe tu pregunta aquí..."
+                            />
+                          </div>
+
+                          {/* IMAGEN/EMOJI DE LA PREGUNTA */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                              🎨 Imagen/Emoji de la Pregunta (Opcional)
+                            </label>
+                            <div className="flex gap-2">
+                              <div className="flex-1 bg-gray-50 border-2 border-gray-300 rounded-lg p-3 flex items-center justify-center">
+                                <span className="text-6xl">
+                                  {question.imagen_url || question.image_url || '❓'}
+                                </span>
+                              </div>
+                              {/* BOTÓN CAMBIAR - CAMBIADO DE MORADO A AZUL */}
+                              <button
+                                onClick={() => {
+                                  setShowEmojiPicker(true);
+                                  setEmojiPickerFor(`question-${qIdx}`);
+                                }}
+                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                              >
+                                Cambiar
+                              </button>
                             </div>
-                            {/* BOTÓN CAMBIAR - CAMBIADO DE MORADO A AZUL */}
+                          </div>
+
+                          {/* OPCIONES */}
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-3">
+                              📋 Opciones de Respuesta
+                            </label>
+                            <div className="space-y-3">
+                              {(question.options || question.opciones || ['', '', '', '']).map((opt, oIdx) => (
+                                <div key={oIdx} className="flex gap-2 items-center">
+                                  {/* EMOJI DE LA OPCIÓN */}
+                                  <button
+                                    onClick={() => {
+                                      setShowEmojiPicker(true);
+                                      setEmojiPickerFor(`option-${qIdx}-${oIdx}`);
+                                    }}
+                                    className="w-16 h-16 bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 rounded-lg flex items-center justify-center text-3xl transition-all"
+                                    title="Cambiar emoji"
+                                  >
+                                    {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
+                                  </button>
+
+                                  {/* TEXTO DE LA OPCIÓN */}
+                                  <input
+                                    type="text"
+                                    value={opt}
+                                    onChange={(e) => {
+                                      const updated = { ...editingContent };
+                                      if (updated.content.questions[qIdx].options) {
+                                        updated.content.questions[qIdx].options[oIdx] = e.target.value;
+                                      }
+                                      if (updated.content.questions[qIdx].opciones) {
+                                        updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
+                                      }
+                                      setEditingContent(updated);
+                                    }}
+                                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
+                                  />
+
+                                  {/* BOTÓN CORRECTA */}
+                                  <button
+                                    onClick={() => {
+                                      const updated = { ...editingContent };
+                                      updated.content.questions[qIdx].correct = oIdx;
+                                      updated.content.questions[qIdx].respuesta_correcta = oIdx;
+                                      setEditingContent(updated);
+                                    }}
+                                    className={`w-12 h-12 rounded-lg font-black text-lg transition-all ${(question.correct ?? question.respuesta_correcta) === oIdx
+                                      ? 'bg-green-500 text-white ring-4 ring-green-300'
+                                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                      }`}
+                                    title={
+                                      (question.correct ?? question.respuesta_correcta) === oIdx
+                                        ? 'Respuesta correcta'
+                                        : 'Marcar como correcta'
+                                    }
+                                  >
+                                    {(question.correct ?? question.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* CONFIGURACIÓN ADICIONAL */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ⭐ Puntos
+                              </label>
+                              <input
+                                type="number"
+                                value={question.puntos || question.points || 10}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].puntos = parseInt(e.target.value);
+                                  updated.content.questions[qIdx].points = parseInt(e.target.value);
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                                min="1"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ⏱️ Tiempo (seg)
+                              </label>
+                              <input
+                                type="number"
+                                value={question.tiempo_limite || question.timeLimit || 0}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
+                                  updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                                min="0"
+                                placeholder="0 = sin límite"
+                              />
+                            </div>
+                          </div>
+
+                          {/* RETROALIMENTACIÓN */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ✅ Retroalimentación Correcta
+                              </label>
+                              <input
+                                type="text"
+                                value={question.retroalimentacion_correcta || question.feedback_correct || '¡Excelente! 🎉'}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].retroalimentacion_correcta = e.target.value;
+                                  updated.content.questions[qIdx].feedback_correct = e.target.value;
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-green-300 rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-2">
+                                ❌ Retroalimentación Incorrecta
+                              </label>
+                              <input
+                                type="text"
+                                value={question.retroalimentacion_incorrecta || question.feedback_incorrect || '¡Intenta otra vez! 💪'}
+                                onChange={(e) => {
+                                  const updated = { ...editingContent };
+                                  updated.content.questions[qIdx].retroalimentacion_incorrecta = e.target.value;
+                                  updated.content.questions[qIdx].feedback_incorrect = e.target.value;
+                                  setEditingContent(updated);
+                                }}
+                                className="w-full px-4 py-2 border-2 border-red-300 rounded-lg"
+                              />
+                            </div>
+                          </div>
+
+                          {/* BOTONES DE ACCIÓN */}
+                          <div className="flex gap-2 pt-4 border-t-2 border-gray-200">
                             <button
                               onClick={() => {
-                                setShowEmojiPicker(true);
-                                setEmojiPickerFor(`question-${qIdx}`);
+                                setEditingQuizQuestion(null);
+                                // Auto-guardar
+                                saveEditedContent();
                               }}
-                              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
                             >
-                              Cambiar
+                              <Save className="w-5 h-5" />
+                              Guardar Cambios
+                            </button>
+                            <button
+                              onClick={() => setEditingQuizQuestion(null)}
+                              className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-bold"
+                            >
+                              Cancelar
                             </button>
                           </div>
                         </div>
+                      ) : (
+                        /* ===== MODO VISTA ===== */
+                        <>
+                          <div className="flex items-start gap-4 mb-4">
+                            <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                              {qIdx + 1}
+                            </div>
+                            {(question.imagen_url || question.image_url) && (
+                              <div className="text-5xl">{question.imagen_url || question.image_url}</div>
+                            )}
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg text-gray-800">
+                                {question.pregunta || question.text}
+                              </h3>
+                              <p className="text-xs text-gray-500 mt-1">
+                                ⭐ {question.puntos || 10} puntos
+                                {(question.tiempo_limite || question.timeLimit) > 0 && (
+                                  <> • ⏱️ {question.tiempo_limite || question.timeLimit}s</>
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setEditingQuizQuestion(qIdx)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              Editar
+                            </button>
+                          </div>
 
-                        {/* OPCIONES */}
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-3">
-                            📋 Opciones de Respuesta
-                          </label>
-                          <div className="space-y-3">
-                            {(question.options || question.opciones || ['', '', '', '']).map((opt, oIdx) => (
-                              <div key={oIdx} className="flex gap-2 items-center">
-                                {/* EMOJI DE LA OPCIÓN */}
-                                <button
-                                  onClick={() => {
-                                    setShowEmojiPicker(true);
-                                    setEmojiPickerFor(`option-${qIdx}-${oIdx}`);
-                                  }}
-                                  className="w-16 h-16 bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 rounded-lg flex items-center justify-center text-3xl transition-all"
-                                  title="Cambiar emoji"
-                                >
-                                  {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
-                                </button>
-
-                                {/* TEXTO DE LA OPCIÓN */}
-                                <input
-                                  type="text"
-                                  value={opt}
-                                  onChange={(e) => {
-                                    const updated = { ...editingContent };
-                                    if (updated.content.questions[qIdx].options) {
-                                      updated.content.questions[qIdx].options[oIdx] = e.target.value;
-                                    }
-                                    if (updated.content.questions[qIdx].opciones) {
-                                      updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
-                                    }
-                                    setEditingContent(updated);
-                                  }}
-                                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                  placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
-                                />
-
-                                {/* BOTÓN CORRECTA */}
-                                <button
-                                  onClick={() => {
-                                    const updated = { ...editingContent };
-                                    updated.content.questions[qIdx].correct = oIdx;
-                                    updated.content.questions[qIdx].respuesta_correcta = oIdx;
-                                    setEditingContent(updated);
-                                  }}
-                                  className={`w-12 h-12 rounded-lg font-black text-lg transition-all ${(question.correct ?? question.respuesta_correcta) === oIdx
-                                    ? 'bg-green-500 text-white ring-4 ring-green-300'
-                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          <div className="space-y-2 mb-4">
+                            {(question.opciones || question.options)?.map((option, oIdx) => (
+                              <div
+                                key={oIdx}
+                                className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 ${(question.respuesta_correcta ?? question.correct) === oIdx
+                                  ? "bg-green-100 border-2 border-green-500 text-green-800"
+                                  : "bg-gray-100 border-2 border-gray-200"
                                   }`}
-                                  title={
-                                    (question.correct ?? question.respuesta_correcta) === oIdx
-                                      ? 'Respuesta correcta'
-                                      : 'Marcar como correcta'
-                                  }
-                                >
-                                  {(question.correct ?? question.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
-                                </button>
+                              >
+                                <span className="text-2xl">
+                                  {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
+                                </span>
+                                <span className="flex-1">
+                                  {String.fromCharCode(65 + oIdx)}) {option}
+                                </span>
+                                {(question.respuesta_correcta ?? question.correct) === oIdx && (
+                                  <span className="text-2xl">✓</span>
+                                )}
                               </div>
                             ))}
                           </div>
-                        </div>
 
-                        {/* CONFIGURACIÓN ADICIONAL */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              ⭐ Puntos
-                            </label>
-                            <input
-                              type="number"
-                              value={question.puntos || question.points || 10}
-                              onChange={(e) => {
-                                const updated = { ...editingContent };
-                                updated.content.questions[qIdx].puntos = parseInt(e.target.value);
-                                updated.content.questions[qIdx].points = parseInt(e.target.value);
-                                setEditingContent(updated);
-                              }}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
-                              min="1"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              ⏱️ Tiempo (seg)
-                            </label>
-                            <input
-                              type="number"
-                              value={question.tiempo_limite || question.timeLimit || 0}
-                              onChange={(e) => {
-                                const updated = { ...editingContent };
-                                updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
-                                updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
-                                setEditingContent(updated);
-                              }}
-                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
-                              min="0"
-                              placeholder="0 = sin límite"
-                            />
-                          </div>
-                        </div>
+                          {(question.explanation || question.retroalimentacion_correcta) && (
+                            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                              <p className="text-sm text-gray-700">
+                                <strong>💡 Explicación:</strong> {question.explanation || question.retroalimentacion_correcta}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-                        {/* RETROALIMENTACIÓN */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              ✅ Retroalimentación Correcta
-                            </label>
-                            <input
-                              type="text"
-                              value={question.retroalimentacion_correcta || question.feedback_correct || '¡Excelente! 🎉'}
-                              onChange={(e) => {
-                                const updated = { ...editingContent };
-                                updated.content.questions[qIdx].retroalimentacion_correcta = e.target.value;
-                                updated.content.questions[qIdx].feedback_correct = e.target.value;
-                                setEditingContent(updated);
-                              }}
-                              className="w-full px-4 py-2 border-2 border-green-300 rounded-lg"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              ❌ Retroalimentación Incorrecta
-                            </label>
-                            <input
-                              type="text"
-                              value={question.retroalimentacion_incorrecta || question.feedback_incorrect || '¡Intenta otra vez! 💪'}
-                              onChange={(e) => {
-                                const updated = { ...editingContent };
-                                updated.content.questions[qIdx].retroalimentacion_incorrecta = e.target.value;
-                                updated.content.questions[qIdx].feedback_incorrect = e.target.value;
-                                setEditingContent(updated);
-                              }}
-                              className="w-full px-4 py-2 border-2 border-red-300 rounded-lg"
-                            />
-                          </div>
-                        </div>
-
-                        {/* BOTONES DE ACCIÓN */}
-                        <div className="flex gap-2 pt-4 border-t-2 border-gray-200">
+                {/* ===== SELECTOR DE EMOJIS MODAL ===== */}
+                {showEmojiPicker && (
+                  <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+                      {/* HEADER - CAMBIADO DE MORADO A AZUL */}
+                      <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 rounded-t-2xl">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-xl font-bold">🎨 Selector de Emojis</h3>
                           <button
                             onClick={() => {
-                              setEditingQuizQuestion(null);
-                              // Auto-guardar
-                              saveEditedContent();
+                              setShowEmojiPicker(false);
+                              setEmojiPickerFor(null);
                             }}
-                            className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
+                            className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
                           >
-                            <Save className="w-5 h-5" />
-                            Guardar Cambios
-                          </button>
-                          <button
-                            onClick={() => setEditingQuizQuestion(null)}
-                            className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-bold"
-                          >
-                            Cancelar
+                            <X className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      /* ===== MODO VISTA ===== */
-                      <>
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                            {qIdx + 1}
-                          </div>
-                          {(question.imagen_url || question.image_url) && (
-                            <div className="text-5xl">{question.imagen_url || question.image_url}</div>
-                          )}
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg text-gray-800">
-                              {question.pregunta || question.text}
-                            </h3>
-                            <p className="text-xs text-gray-500 mt-1">
-                              ⭐ {question.puntos || 10} puntos
-                              {(question.tiempo_limite || question.timeLimit) > 0 && (
-                                <> • ⏱️ {question.tiempo_limite || question.timeLimit}s</>
-                              )}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setEditingQuizQuestion(qIdx)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            Editar
-                          </button>
-                        </div>
 
-                        <div className="space-y-2 mb-4">
-                          {(question.opciones || question.options)?.map((option, oIdx) => (
-                            <div
-                              key={oIdx}
-                              className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 ${(question.respuesta_correcta ?? question.correct) === oIdx
-                                ? "bg-green-100 border-2 border-green-500 text-green-800"
-                                : "bg-gray-100 border-2 border-gray-200"
-                              }`}
-                            >
-                              <span className="text-2xl">
-                                {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
-                              </span>
-                              <span className="flex-1">
-                                {String.fromCharCode(65 + oIdx)}) {option}
-                              </span>
-                              {(question.respuesta_correcta ?? question.correct) === oIdx && (
-                                <span className="text-2xl">✓</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-
-                        {(question.explanation || question.retroalimentacion_correcta) && (
-                          <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                            <p className="text-sm text-gray-700">
-                              <strong>💡 Explicación:</strong> {question.explanation || question.retroalimentacion_correcta}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* ===== SELECTOR DE EMOJIS MODAL ===== */}
-              {showEmojiPicker && (
-                <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
-                  <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
-                    {/* HEADER - CAMBIADO DE MORADO A AZUL */}
-                    <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 rounded-t-2xl">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-xl font-bold">🎨 Selector de Emojis</h3>
-                        <button
-                          onClick={() => {
-                            setShowEmojiPicker(false);
-                            setEmojiPickerFor(null);
-                          }}
-                          className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-6 grid grid-cols-8 gap-2">
-                      {emojis.map((emoji, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            const updated = { ...editingContent };
-                            if (emojiPickerFor?.startsWith('question-')) {
-                              const qIdx = parseInt(emojiPickerFor.split('-')[1]);
-                              updated.content.questions[qIdx].imagen_url = emoji;
-                              updated.content.questions[qIdx].image_url = emoji;
-                            } else if (emojiPickerFor?.startsWith('option-')) {
-                              const [_, qIdx, oIdx] = emojiPickerFor.split('-').map(Number);
-                              if (!updated.content.questions[qIdx].imagen_opciones) {
-                                updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
-                              }
-                              if (!updated.content.questions[qIdx].image_options) {
-                                updated.content.questions[qIdx].image_options = ['', '', '', ''];
-                              }
-                              updated.content.questions[qIdx].imagen_opciones[oIdx] = emoji;
-                              updated.content.questions[qIdx].image_options[oIdx] = emoji;
-                            }
-                            setEditingContent(updated);
-                            setShowEmojiPicker(false);
-                            setEmojiPickerFor(null);
-                          }}
-                          className="w-16 h-16 rounded-lg text-4xl hover:bg-gray-100 transition-all transform hover:scale-110 flex items-center justify-center"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ===== JUEGO INTERACTIVO ===== */}
-          {viewingContent.type === 'game' && (
-            <div className="space-y-6">
-              {!gameState ? (
-                /* PANTALLA INICIAL */
-                <div className="text-center py-12">
-                  <div className="text-8xl mb-6 animate-bounce">🎮</div>
-                  <h2 className="text-4xl font-black text-gray-800 mb-4">
-                    {editingContent.content.name}
-                  </h2>
-                  <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-                    {editingContent.content.description}
-                  </p>
-                  <div className="grid grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
-                    <div className="bg-blue-100 rounded-xl p-4 border-2 border-blue-300">
-                      <p className="text-3xl font-bold text-blue-600">
-                        {editingContent.content.levels}
-                      </p>
-                      <p className="text-sm text-gray-700 font-semibold">Niveles</p>
-                    </div>
-                    <div className="bg-yellow-100 rounded-xl p-4 border-2 border-yellow-300">
-                      <p className="text-3xl font-bold text-yellow-600">
-                        {editingContent.content.challenges?.length || 0}
-                      </p>
-                      <p className="text-sm text-gray-700 font-semibold">Desafíos</p>
-                    </div>
-                    <div className="bg-green-100 rounded-xl p-4 border-2 border-green-300">
-                      <p className="text-3xl font-bold text-green-600">3</p>
-                      <p className="text-sm text-gray-700 font-semibold">Vidas</p>
-                    </div>
-                  </div>
-                  {/* BOTÓN JUGAR - CAMBIADO DE MORADO A AZUL */}
-                  <button
-                    onClick={() => setGameState({
-                      level: 0,
-                      score: 0,
-                      lives: 3,
-                      currentChallenge: 0,
-                      completedMechanics: []
-                    })}
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-12 py-4 rounded-2xl text-xl font-black shadow-2xl transform hover:scale-105 transition-all"
-                  >
-                    🚀 ¡JUGAR AHORA!
-                  </button>
-                </div>
-              ) : (
-                /* JUEGO ACTIVO */
-                <div>
-                  {/* HUD - CAMBIADO DE MORADO A AZUL */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 mb-6 text-white">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-bold opacity-90">NIVEL</p>
-                        <p className="text-3xl font-black">{gameState.level + 1}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold opacity-90">PUNTOS</p>
-                        <p className="text-3xl font-black">{gameState.score}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold opacity-90">VIDAS</p>
-                        <p className="text-3xl">{'❤️'.repeat(gameState.lives)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DESAFÍO ACTUAL - CAMBIADO BORDE DE MORADO A AZUL */}
-                  {editingContent.content.challenges?.[gameState.currentChallenge] && (
-                    <div className="bg-white rounded-2xl p-8 border-4 border-blue-300 shadow-xl">
-                      <h3 className="text-2xl font-black text-gray-800 mb-6 text-center">
-                        {editingContent.content.challenges[gameState.currentChallenge].question}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {editingContent.content.challenges[gameState.currentChallenge].options.map((opt, idx) => (
+                      <div className="p-6 grid grid-cols-8 gap-2">
+                        {emojis.map((emoji, idx) => (
                           <button
                             key={idx}
                             onClick={() => {
-                              const challenge = editingContent.content.challenges[gameState.currentChallenge];
-                              const isCorrect = idx === challenge.correct;
-                              if (isCorrect) {
-                                const newScore = gameState.score + challenge.reward;
-                                const nextChallenge = gameState.currentChallenge + 1;
-                                if (nextChallenge >= editingContent.content.challenges.length) {
-                                  // JUEGO COMPLETADO
-                                  alert(`🎉 ¡FELICIDADES! Ganaste con ${newScore} puntos`);
-                                  setGameState(null);
-                                } else {
-                                  setGameState({
-                                    ...gameState,
-                                    score: newScore,
-                                    currentChallenge: nextChallenge
-                                  });
+                              const updated = { ...editingContent };
+                              if (emojiPickerFor?.startsWith('question-')) {
+                                const qIdx = parseInt(emojiPickerFor.split('-')[1]);
+                                updated.content.questions[qIdx].imagen_url = emoji;
+                                updated.content.questions[qIdx].image_url = emoji;
+                              } else if (emojiPickerFor?.startsWith('option-')) {
+                                const [_, qIdx, oIdx] = emojiPickerFor.split('-').map(Number);
+                                if (!updated.content.questions[qIdx].imagen_opciones) {
+                                  updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
                                 }
-                              } else {
-                                const newLives = gameState.lives - 1;
-                                if (newLives <= 0) {
-                                  alert(`💀 ¡GAME OVER! Puntuación final: ${gameState.score}`);
-                                  setGameState(null);
-                                } else {
-                                  setGameState({
-                                    ...gameState,
-                                    lives: newLives
-                                  });
+                                if (!updated.content.questions[qIdx].image_options) {
+                                  updated.content.questions[qIdx].image_options = ['', '', '', ''];
                                 }
+                                updated.content.questions[qIdx].imagen_opciones[oIdx] = emoji;
+                                updated.content.questions[qIdx].image_options[oIdx] = emoji;
                               }
+                              setEditingContent(updated);
+                              setShowEmojiPicker(false);
+                              setEmojiPickerFor(null);
                             }}
-                            className="p-4 rounded-xl bg-gray-100 hover:bg-blue-100 border-2 border-gray-300 hover:border-blue-400 transition-all text-center"
+                            className="w-16 h-16 rounded-lg text-4xl hover:bg-gray-100 transition-all transform hover:scale-110 flex items-center justify-center"
                           >
-                            <span className="text-lg font-medium">{opt}</span>
+                            {emoji}
                           </button>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===== JUEGO INTERACTIVO ===== */}
+            {viewingContent.type === 'game' && (
+              <div className="space-y-6">
+                {!gameState ? (
+                  /* PANTALLA INICIAL */
+                  <div className="text-center py-12">
+                    <div className="text-8xl mb-6 animate-bounce">🎮</div>
+                    <h2 className="text-4xl font-black text-gray-800 mb-4">
+                      {editingContent.content.name}
+                    </h2>
+                    <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                      {editingContent.content.description}
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 max-w-xl mx-auto mb-8">
+                      <div className="bg-blue-100 rounded-xl p-4 border-2 border-blue-300">
+                        <p className="text-3xl font-bold text-blue-600">
+                          {editingContent.content.levels}
+                        </p>
+                        <p className="text-sm text-gray-700 font-semibold">Niveles</p>
+                      </div>
+                      <div className="bg-yellow-100 rounded-xl p-4 border-2 border-yellow-300">
+                        <p className="text-3xl font-bold text-yellow-600">
+                          {editingContent.content.challenges?.length || 0}
+                        </p>
+                        <p className="text-sm text-gray-700 font-semibold">Desafíos</p>
+                      </div>
+                      <div className="bg-green-100 rounded-xl p-4 border-2 border-green-300">
+                        <p className="text-3xl font-bold text-green-600">3</p>
+                        <p className="text-sm text-gray-700 font-semibold">Vidas</p>
+                      </div>
+                    </div>
+                    {/* BOTÓN JUGAR - CAMBIADO DE MORADO A AZUL */}
+                    <button
+                      onClick={() => setGameState({
+                        level: 0,
+                        score: 0,
+                        lives: 3,
+                        currentChallenge: 0,
+                        completedMechanics: []
+                      })}
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-12 py-4 rounded-2xl text-xl font-black shadow-2xl transform hover:scale-105 transition-all"
+                    >
+                      🚀 ¡JUGAR AHORA!
+                    </button>
+                  </div>
+                ) : (
+                  /* JUEGO ACTIVO */
+                  <div>
+                    {/* HUD - CAMBIADO DE MORADO A AZUL */}
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 mb-6 text-white">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold opacity-90">NIVEL</p>
+                          <p className="text-3xl font-black">{gameState.level + 1}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold opacity-90">PUNTOS</p>
+                          <p className="text-3xl font-black">{gameState.score}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold opacity-90">VIDAS</p>
+                          <p className="text-3xl">{'❤️'.repeat(gameState.lives)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DESAFÍO ACTUAL - CAMBIADO BORDE DE MORADO A AZUL */}
+                    {editingContent.content.challenges?.[gameState.currentChallenge] && (
+                      <div className="bg-white rounded-2xl p-8 border-4 border-blue-300 shadow-xl">
+                        <h3 className="text-2xl font-black text-gray-800 mb-6 text-center">
+                          {editingContent.content.challenges[gameState.currentChallenge].question}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {editingContent.content.challenges[gameState.currentChallenge].options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const challenge = editingContent.content.challenges[gameState.currentChallenge];
+                                const isCorrect = idx === challenge.correct;
+                                if (isCorrect) {
+                                  const newScore = gameState.score + challenge.reward;
+                                  const nextChallenge = gameState.currentChallenge + 1;
+                                  if (nextChallenge >= editingContent.content.challenges.length) {
+                                    // JUEGO COMPLETADO
+                                    alert(`🎉 ¡FELICIDADES! Ganaste con ${newScore} puntos`);
+                                    setGameState(null);
+                                  } else {
+                                    setGameState({
+                                      ...gameState,
+                                      score: newScore,
+                                      currentChallenge: nextChallenge
+                                    });
+                                  }
+                                } else {
+                                  const newLives = gameState.lives - 1;
+                                  if (newLives <= 0) {
+                                    alert(`💀 ¡GAME OVER! Puntuación final: ${gameState.score}`);
+                                    setGameState(null);
+                                  } else {
+                                    setGameState({
+                                      ...gameState,
+                                      lives: newLives
+                                    });
+                                  }
+                                }
+                              }}
+                              className="p-4 rounded-xl bg-gray-100 hover:bg-blue-100 border-2 border-gray-300 hover:border-blue-400 transition-all text-center"
+                            >
+                              <span className="text-lg font-medium">{opt}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   //  FUNCIÓN: Abrir Quiz Builder con contenido generado
   const openQuizBuilderWithGeneratedContent = (generatedQuiz) => {
@@ -12200,34 +12219,34 @@ const renderInteractiveContent = () => {
       )}
 
       {/* PREVIEW MODAL */}
-     {previewQuiz && (
-  <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
-    <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
-      {/* HEADER AZUL IDÉNTICO */}
-      <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black flex items-center gap-2">
-              👁️ Vista Previa del Quiz
-            </h2>
-            <p className="text-blue-100 text-sm mt-1">
-              {selectedResource?.titulo || 'Quiz desde Recursos'}
-            </p>
+      {previewQuiz && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+            {/* HEADER AZUL IDÉNTICO */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-black flex items-center gap-2">
+                    👁️ Vista Previa del Quiz
+                  </h2>
+                  <p className="text-blue-100 text-sm mt-1">
+                    {selectedResource?.titulo || 'Quiz desde Recursos'}
+                  </p>
+                </div>
+                <button
+                  onClick={closePreview}
+                  className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
+              {renderQuestionPreview()}
+            </div>
           </div>
-          <button
-            onClick={closePreview}
-            className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all"
-          >
-            <X className="w-6 h-6" />
-          </button>
         </div>
-      </div>
-      <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
-        {renderQuestionPreview()}
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* MODAL DE ANÁLISIS DETALLADO */}
       {showDetailedAnalytics && renderDetailedAnalyticsImproved()}
