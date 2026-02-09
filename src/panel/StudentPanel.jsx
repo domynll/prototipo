@@ -4,7 +4,8 @@ import {
   CheckCircle, Clock, Award, TrendingUp, Target, Sparkles,
   Volume2, VolumeX, Heart, Brain, ChevronRight, Home,
   BarChart3, Gift, Calendar, MessageCircle, Medal, XCircle,
-  Headphones, Video, Image, HelpCircle, ArrowLeft, ChevronDown
+  Headphones, Video, Image, HelpCircle, ArrowLeft, ChevronDown,
+  RefreshCw, X
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -17,11 +18,9 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [currentViewRole, setCurrentViewRole] = useState(() => {
-    // Leer el rol desde localStorage AL INICIO
     const savedRole = localStorage.getItem('didaktik_view_role');
     const currentPath = window.location.pathname;
 
-    // Detectar según la ruta actual
     if (currentPath.includes('/student')) return 'estudiante';
     if (currentPath.includes('/teacher')) return 'docente';
     if (currentPath.includes('/admin')) return 'admin';
@@ -33,18 +32,15 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
     if (user) {
       loadAvailableRoles();
 
-      // ✅ Sincronizar con localStorage cada vez que carga
       const savedViewRole = localStorage.getItem('didaktik_view_role');
       const currentPath = window.location.pathname;
 
       let correctRole = null;
 
-      // Prioridad 1: Detectar por ruta
       if (currentPath.includes('/student')) correctRole = 'estudiante';
       else if (currentPath.includes('/teacher')) correctRole = 'docente';
       else if (currentPath.includes('/admin')) correctRole = 'admin';
 
-      // Prioridad 2: Usar localStorage
       if (!correctRole && savedViewRole) {
         const userRoles = [user.rol, ...(user.roles_adicionales || [])];
         if (userRoles.includes(savedViewRole)) {
@@ -52,17 +48,8 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
         }
       }
 
-      // Prioridad 3: Usar rol principal del usuario
       if (!correctRole) correctRole = user.rol;
 
-      console.log('🔄 Sincronizando rol de vista:', {
-        ruta: currentPath,
-        rolDetectado: correctRole,
-        localStorage: savedViewRole,
-        estadoActual: currentViewRole
-      });
-
-      // ✅ CRÍTICO: Actualizar el estado Y el localStorage
       if (correctRole !== currentViewRole) {
         setCurrentViewRole(correctRole);
         localStorage.setItem('didaktik_view_role', correctRole);
@@ -70,35 +57,23 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
     }
   }, [user]);
 
-  // useEffect para forzar actualización al montar el componente
   useEffect(() => {
-    // Forzar lectura del rol de vista cuando el componente se monta
     const currentPath = window.location.pathname;
     const savedViewRole = localStorage.getItem('didaktik_view_role');
 
-    console.log('🔄 ComponentDidMount - Verificando rol:', {
-      path: currentPath,
-      savedViewRole,
-      currentViewRole
-    });
-
     if (savedViewRole && savedViewRole !== currentViewRole) {
-      console.log('⚡ Actualizando rol de vista a:', savedViewRole);
       setCurrentViewRole(savedViewRole);
     }
-  }, []); // Solo al montar
-
+  }, []);
 
   const loadAvailableRoles = () => {
     if (!user) return;
 
     try {
       const roles = [user.rol];
-
       if (user.roles_adicionales && Array.isArray(user.roles_adicionales)) {
         roles.push(...user.roles_adicionales);
       }
-
       const uniqueRoles = [...new Set(roles)];
       setAvailableRoles(uniqueRoles);
     } catch (error) {
@@ -136,7 +111,6 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
     return paths[role] || '/';
   };
 
-  // ✅ FUNCIÓN CORREGIDA: Solo cambia la vista, NO la BD
   const handleSwitchRole = async (newRole) => {
     try {
       if (newRole === currentViewRole) {
@@ -145,7 +119,6 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
         return;
       }
 
-      // Verificar que el usuario tenga acceso al rol
       const userRoles = [user.rol, ...(user.roles_adicionales || [])];
       if (!userRoles.includes(newRole)) {
         alert("❌ No tienes acceso a este rol");
@@ -158,24 +131,11 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
         return;
       }
 
-      console.log('🔄 Cambiando vista a rol:', newRole);
-      console.log('⚠️ NO se modificará la BD - Solo cambio de interfaz');
-
-      // ✅ PASO 1: Guardar en localStorage
       localStorage.setItem('didaktik_view_role', newRole);
-      console.log('💾 Guardado en localStorage:', localStorage.getItem('didaktik_view_role'));
-
-      // Actualizar estado local ANTES de navegar
       setCurrentViewRole(newRole);
-
-      //  Cerrar menú
       setShowRoleMenu(false);
 
-      //  Navegar y forzar recarga
       const targetPath = getRolePath(newRole);
-      console.log('🚀 Redirigiendo a:', targetPath);
-
-      // Usar setTimeout para asegurar que localStorage se guardó
       setTimeout(() => {
         window.location.replace(targetPath);
       }, 100);
@@ -188,7 +148,6 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
 
   const handleLogoutClick = () => {
     setShowRoleMenu(false);
-    // ✅ Limpiar el rol de vista al cerrar sesión
     localStorage.removeItem('didaktik_view_role');
     onLogout();
   };
@@ -295,10 +254,674 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
   );
 };
 
-// [RESTO DEL CÓDIGO DE StudentPanel.jsx SIN CAMBIOS...]
-// Copio todo el código restante exactamente como estaba
+// ========================================
+// 🐢 COMPONENTE: KARIN MASCOT SIMPLIFICADO
+// ========================================
+const KarinMascot = ({ state = 'idle', message }) => {
+  const getStateEmoji = () => {
+    const emojis = {
+      idle: '🐢',
+      thinking: '🤔',
+      happy: '😊',
+      encourage: '💪',
+      explain: '📚'
+    };
+    return emojis[state] || '🐢';
+  };
 
-// Componente de Tarjeta de Logro
+  const getBgColor = () => {
+    const colors = {
+      idle: 'from-green-100 to-emerald-100',
+      thinking: 'from-blue-100 to-cyan-100',
+      happy: 'from-yellow-100 to-amber-100',
+      encourage: 'from-purple-100 to-pink-100',
+      explain: 'from-indigo-100 to-blue-100'
+    };
+    return colors[state] || 'from-green-100 to-emerald-100';
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border-2 border-green-200 overflow-hidden">
+      <div className={`bg-gradient-to-r ${getBgColor()} p-4`}>
+        <div className="flex items-center gap-4">
+          <div className="text-5xl animate-pulse">{getStateEmoji()}</div>
+          <div className="flex-1">
+            <p className="text-lg font-bold text-gray-800">¡Hola! Soy Karin 🐢</p>
+            <p className="text-gray-700">{message || "¿Listo para aprender?"}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========================================
+// 📝 COMPONENTE: QUIZ IDÉNTICO AL ADMINISTRADOR
+// ========================================
+const StudentQuizView = ({
+  resource,
+  onClose,
+  user,
+  onComplete
+}) => {
+  const navigate = useNavigate();
+
+  const [quizState, setQuizState] = useState({
+    questions: [],
+    currentQuestionIndex: 0,
+    answers: {},
+    attemptCount: {},
+    selectedOption: null,
+    results: null,
+    soundEnabled: true
+  });
+
+  // Cargar preguntas del recurso
+  useEffect(() => {
+    if (resource?.contenido_quiz) {
+      const questions = Array.isArray(resource.contenido_quiz)
+        ? resource.contenido_quiz
+        : JSON.parse(resource.contenido_quiz || '[]');
+
+      setQuizState(prev => ({
+        ...prev,
+        questions: questions.map((q, idx) => ({
+          id: q.id || `q_${idx}`,
+          pregunta: q.pregunta || q.text || '',
+          opciones: q.opciones || q.options || ['', '', '', ''],
+          respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+          puntos: q.puntos || q.points || 10,
+          retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
+          retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
+          audio_pregunta: q.audio_pregunta !== false,
+          audio_retroalimentacion: q.audio_retroalimentacion !== false,
+          video_url: q.video_url || '',
+          imagen_url: q.imagen_url || q.image_url || '',
+          imagen_opciones: q.imagen_opciones || q.image_options || ['🅰️', '🅱️', '🅲️', '🅳️'],
+          tiempo_limite: q.tiempo_limite || q.timeLimit || 0
+        }))
+      }));
+    }
+  }, [resource]);
+
+  // Función de voz mejorada en español
+  const speakText = (text) => {
+    if (quizState.soundEnabled && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "es-ES";
+      utterance.rate = 0.85;
+      utterance.pitch = 1.0;
+      utterance.volume = 1;
+
+      const voices = window.speechSynthesis.getVoices();
+      const spanishVoice = voices.find(v =>
+        v.lang.startsWith('es') ||
+        v.name.toLowerCase().includes('spanish') ||
+        v.name.toLowerCase().includes('español')
+      );
+
+      if (spanishVoice) {
+        utterance.voice = spanishVoice;
+      } else if (voices.length > 0) {
+        utterance.voice = voices[0];
+      }
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Repetir pregunta con opciones
+  const repeatQuestionWithOptions = () => {
+    const question = quizState.questions[quizState.currentQuestionIndex];
+    if (!question) return;
+
+    let fullText = `La pregunta es: ${question.pregunta}. `;
+    fullText += `Las opciones son: `;
+
+    question.opciones.forEach((opcion, idx) => {
+      fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+    });
+
+    speakText(fullText);
+  };
+
+  // Manejar selección de respuesta
+  const handleAnswerSelection = (selectedIdx) => {
+    const { currentQuestionIndex, questions, answers, attemptCount } = quizState;
+    const question = questions[currentQuestionIndex];
+
+    if (!question || answers[currentQuestionIndex]?.isCorrect) return;
+
+    const attempts = attemptCount[currentQuestionIndex] || 0;
+    const maxAttempts = 3;
+
+    if (attempts >= maxAttempts) return;
+
+    const isCorrect = selectedIdx === question.respuesta_correcta;
+    const newAttempts = attempts + 1;
+
+    // 1. Repetir la palabra seleccionada
+    speakText(question.opciones[selectedIdx]);
+
+    // 2. Actualizar intentos
+    setQuizState(prev => ({
+      ...prev,
+      attemptCount: {
+        ...prev.attemptCount,
+        [currentQuestionIndex]: newAttempts
+      }
+    }));
+
+    // 3. Guardar respuesta
+    const newAnswer = {
+      selected: selectedIdx,
+      isCorrect,
+      attempts: newAttempts,
+      showCorrect: newAttempts >= maxAttempts && !isCorrect
+    };
+
+    setQuizState(prev => ({
+      ...prev,
+      answers: {
+        ...prev.answers,
+        [currentQuestionIndex]: newAnswer
+      },
+      selectedOption: selectedIdx
+    }));
+
+    // 4. Dar retroalimentación inmediata
+    setTimeout(() => {
+      if (isCorrect) {
+        speakText("¡Correcto! " + question.retroalimentacion_correcta);
+
+        setTimeout(() => {
+          speakText(
+            `La pregunta era: ${question.pregunta}. ` +
+            `La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`
+          );
+        }, 1500);
+      } else if (newAttempts >= maxAttempts) {
+        speakText(
+          `Lo siento, te has equivocado ${maxAttempts} veces. ` +
+          `La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`
+        );
+      } else {
+        const remaining = maxAttempts - newAttempts;
+        speakText(`Incorrecto. Te quedan ${remaining} intentos. Intenta de nuevo.`);
+      }
+    }, 1000);
+  };
+
+  // Determinar estado de Karin
+  const getKarinState = () => {
+    const { currentQuestionIndex, answers, attemptCount } = quizState;
+    const answer = answers[currentQuestionIndex];
+    const attempts = attemptCount[currentQuestionIndex] || 0;
+    const maxAttempts = 3;
+
+    if (answer?.isCorrect) {
+      return {
+        state: "happy",
+        message: "¡Excelente! Respuesta correcta 🎉"
+      };
+    }
+
+    if (answer && !answer.isCorrect && attempts >= maxAttempts) {
+      return {
+        state: "encourage",
+        message: "No te preocupes, sigamos aprendiendo 💚"
+      };
+    }
+
+    if (attempts > 0 && attempts < maxAttempts) {
+      const remaining = maxAttempts - attempts;
+      return {
+        state: "thinking",
+        message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`
+      };
+    }
+
+    return {
+      state: "idle",
+      message: "Escucha la pregunta y elige la respuesta correcta"
+    };
+  };
+
+  // Navegar a siguiente pregunta
+  const goToNextQuestion = () => {
+    const { currentQuestionIndex, questions } = quizState;
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setQuizState(prev => ({
+        ...prev,
+        currentQuestionIndex: prev.currentQuestionIndex + 1,
+        selectedOption: null
+      }));
+    } else {
+      // Calcular resultados finales
+      const { answers, questions } = quizState;
+      const correct = Object.values(answers).filter(a => a?.isCorrect).length;
+      const totalQuestions = questions.length;
+      const score = Math.round((correct / totalQuestions) * 100);
+
+      const results = {
+        correct,
+        total: totalQuestions,
+        percentage: score,
+        points: questions.reduce((sum, q, idx) => {
+          if (answers[idx]?.isCorrect) {
+            return sum + (q.puntos || 10);
+          }
+          return sum;
+        }, 0),
+        passed: score >= 60
+      };
+
+      setQuizState(prev => ({ ...prev, results }));
+
+      // Guardar progreso
+      if (onComplete) {
+        onComplete(results);
+      }
+    }
+  };
+
+  // Reiniciar quiz
+  const restartQuiz = () => {
+    setQuizState(prev => ({
+      ...prev,
+      currentQuestionIndex: 0,
+      answers: {},
+      attemptCount: {},
+      selectedOption: null,
+      results: null
+    }));
+  };
+
+  const {
+    questions,
+    currentQuestionIndex,
+    answers,
+    attemptCount,
+    selectedOption,
+    results
+  } = quizState;
+
+  if (!questions.length) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-md text-center shadow-2xl">
+          <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-800 mb-2">No hay preguntas</h3>
+          <p className="text-gray-600 mb-4">Este quiz no tiene preguntas disponibles</p>
+          <button
+            onClick={onClose}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const answer = answers[currentQuestionIndex];
+  const attempts = attemptCount[currentQuestionIndex] || 0;
+  const maxAttempts = 3;
+  const karin = getKarinState();
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+        {/* HEADER */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-black flex items-center gap-2">
+                👁️ Quiz: {resource?.titulo || 'Quiz Interactivo'}
+              </h2>
+              <p className="text-blue-100 text-sm mt-1">
+                Responde correctamente para ganar puntos
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-xl transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENIDO DEL QUIZ */}
+        <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
+          {results ? (
+            /* RESULTADOS FINALES */
+            <div className="text-center space-y-8 p-8">
+              <div className={`w-32 h-32 rounded-full mx-auto flex items-center justify-center text-6xl ${results.passed
+                ? 'bg-gradient-to-r from-green-400 to-emerald-500'
+                : 'bg-gradient-to-r from-orange-400 to-red-500'
+                } text-white shadow-2xl`}>
+                {results.passed ? '🏆' : '💪'}
+              </div>
+
+              <div>
+                <h3 className="text-4xl font-black text-gray-800 mb-3">
+                  {results.passed ? '¡FELICITACIONES!' : '¡SIGUE PRACTICANDO!'}
+                </h3>
+                <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                  {results.passed
+                    ? 'Has completado el quiz exitosamente'
+                    : 'Necesitas al menos 60% para aprobar. ¡Sigue aprendiendo!'
+                  }
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+                <div className="bg-blue-50 rounded-2xl p-6 border-4 border-blue-200">
+                  <p className="text-sm text-gray-600 mb-2">RESPUESTAS CORRECTAS</p>
+                  <p className="text-5xl font-black text-blue-600">
+                    {results.correct}/{results.total}
+                  </p>
+                </div>
+                <div className="bg-purple-50 rounded-2xl p-6 border-4 border-purple-200">
+                  <p className="text-sm text-gray-600 mb-2">PUNTUACIÓN</p>
+                  <p className="text-5xl font-black text-purple-600">
+                    {results.percentage}%
+                  </p>
+                </div>
+                <div className="bg-yellow-50 rounded-2xl p-6 border-4 border-yellow-200">
+                  <p className="text-sm text-gray-600 mb-2">PUNTOS GANADOS</p>
+                  <p className="text-5xl font-black text-yellow-600">
+                    {results.points}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto">
+                <button
+                  onClick={restartQuiz}
+                  className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105"
+                >
+                  <RefreshCw className="inline w-6 h-6 mr-2" />
+                  Reintentar Quiz
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105"
+                >
+                  Salir
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* QUIZ EN PROCESO */
+            <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
+              {/* KARIN + PROGRESO */}
+              <div className="flex justify-between items-start mb-6">
+                <KarinMascot state={karin.state} message={karin.message} />
+                <div className="bg-white rounded-full px-6 py-3 shadow-sm border-2 text-lg font-bold">
+                  {currentQuestionIndex + 1} / {questions.length}
+                </div>
+              </div>
+
+              {/* BARRA DE PROGRESO */}
+              <div className="flex gap-2 mb-8">
+                {questions.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex-1 h-3 rounded-full transition-all ${idx === currentQuestionIndex
+                      ? 'bg-blue-500'
+                      : idx < currentQuestionIndex
+                        ? 'bg-green-400'
+                        : 'bg-gray-200'
+                      }`}
+                  />
+                ))}
+              </div>
+
+              {/* CONTADOR DE INTENTOS */}
+              {attempts > 0 && (
+                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-6 text-center">
+                  <p className="text-xl font-black text-yellow-800">
+                    🎯 INTENTOS: {attempts} / {maxAttempts}
+                  </p>
+                  <div className="flex gap-3 justify-center mt-3">
+                    {[...Array(maxAttempts)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${i < attempts
+                          ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
+                          : 'bg-gray-300'
+                          }`}
+                      >
+                        {i < attempts ? (answer?.isCorrect ? '✓' : '✗') : i + 1}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* PREGUNTA */}
+              <div className="bg-white rounded-3xl shadow-lg p-8 mb-8 border-2 border-blue-100">
+                <div className="flex items-center gap-6 justify-center">
+                  {currentQuestion.audio_pregunta && (
+                    <button
+                      onClick={() => speakText(currentQuestion.pregunta)}
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-5 rounded-full shadow-xl transition-all transform hover:scale-110"
+                    >
+                      <Volume2 className="w-8 h-8" />
+                    </button>
+                  )}
+                  {currentQuestion.imagen_url && (
+                    <div className="text-8xl flex-shrink-0 animate-bounce">
+                      {currentQuestion.imagen_url}
+                    </div>
+                  )}
+                  <p className="text-3xl md:text-4xl font-black text-gray-800 text-center">
+                    {currentQuestion.pregunta}
+                  </p>
+                </div>
+
+                {/* BOTÓN REPETIR PREGUNTA CON OPCIONES */}
+                <div className="mt-8 text-center">
+                  <button
+                    onClick={repeatQuestionWithOptions}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-3 mx-auto transform hover:scale-105 transition-all"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    Repetir Pregunta y Opciones
+                  </button>
+                </div>
+              </div>
+
+              {/* OPCIONES */}
+              <div className="grid grid-cols-1 gap-4 max-w-4xl mx-auto w-full">
+                {currentQuestion.opciones.map((opcion, idx) => {
+                  const isSelected = selectedOption === idx;
+                  const isCorrectOption = idx === currentQuestion.respuesta_correcta;
+                  const showAsCorrect = answer?.showCorrect && isCorrectOption;
+                  const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
+                  const emojiOpcion = currentQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`relative p-6 rounded-2xl text-2xl font-bold border-4 transition-all flex items-center gap-6 ${showAsCorrect
+                        ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
+                        : isDisabled && answer?.isCorrect && isSelected
+                          ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
+                          : isDisabled && !isCorrectOption
+                            ? 'bg-gray-100 border-gray-300 opacity-50'
+                            : isSelected && !answer?.isCorrect
+                              ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
+                              : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 hover:shadow-xl'
+                        }`}
+                    >
+                      {/* BOTÓN REPETIR PALABRA */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
+                        }}
+                        className="absolute -left-16 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white p-4 rounded-full shadow-lg z-10 transition-all"
+                        title="Repetir esta palabra"
+                      >
+                        <Volume2 className="w-6 h-6" />
+                      </button>
+
+                      {/* CONTENIDO DE LA OPCIÓN */}
+                      <div
+                        className="flex-1 flex items-center gap-6 cursor-pointer"
+                        onClick={() => !isDisabled && handleAnswerSelection(idx)}
+                      >
+                        <span className="text-6xl flex-shrink-0 drop-shadow-lg">
+                          {emojiOpcion}
+                        </span>
+                        <span className="flex-1 text-2xl">{opcion}</span>
+                      </div>
+
+                      {/* BOTÓN REPETIR PALABRA (DERECHA) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakText(opcion);
+                        }}
+                        className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white p-4 rounded-full shadow-lg transition-all"
+                        title="Repetir palabra"
+                      >
+                        <Volume2 className="w-6 h-6" />
+                      </button>
+
+                      {/* INDICADORES DE RESPUESTA */}
+                      {showAsCorrect && (
+                        <span className="text-4xl animate-bounce flex-shrink-0 ml-4">
+                          ✅
+                        </span>
+                      )}
+                      {isSelected && answer?.isCorrect && (
+                        <span className="text-4xl animate-bounce flex-shrink-0 ml-4">
+                          🎉
+                        </span>
+                      )}
+                      {isSelected && !answer?.isCorrect && (
+                        <span className="text-4xl flex-shrink-0 ml-4">
+                          ❌
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* RETROALIMENTACIÓN */}
+              {answer && (
+                <div className="mt-10 max-w-4xl mx-auto w-full space-y-6 animate-fadeIn">
+                  <div className={`rounded-3xl p-8 text-center border-4 shadow-2xl ${answer.isCorrect
+                    ? "bg-gradient-to-r from-green-100 to-emerald-100 border-green-400"
+                    : attempts >= maxAttempts
+                      ? "bg-gradient-to-r from-orange-100 to-red-100 border-orange-400"
+                      : "bg-gradient-to-r from-red-100 to-pink-100 border-red-400"
+                    }`}>
+                    <p className="text-6xl font-black mb-4">
+                      {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
+                    </p>
+                    <p className="text-4xl font-black mb-4">
+                      {answer.isCorrect
+                        ? "¡CORRECTO!"
+                        : attempts >= maxAttempts
+                          ? "VAMOS A APRENDER"
+                          : "¡INTENTA DE NUEVO!"}
+                    </p>
+                    <p className="text-2xl font-bold text-gray-800 mb-6">
+                      {answer.isCorrect
+                        ? currentQuestion.retroalimentacion_correcta
+                        : attempts >= maxAttempts
+                          ? `La respuesta correcta es: ${currentQuestion.opciones[currentQuestion.respuesta_correcta]}`
+                          : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+                    </p>
+                  </div>
+
+                  {/* BOTÓN SIGUIENTE */}
+                  <button
+                    onClick={goToNextQuestion}
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-5 rounded-2xl text-2xl font-black transition transform hover:scale-105 flex items-center justify-center gap-3 shadow-xl"
+                  >
+                    {currentQuestionIndex === questions.length - 1 ? (
+                      <>
+                        <Trophy className="w-8 h-8" />
+                        FINALIZAR QUIZ
+                      </>
+                    ) : (
+                      <>
+                        SIGUIENTE PREGUNTA
+                        <ChevronRight className="w-8 h-8" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* NAVEGACIÓN */}
+              {!answer && (
+                <div className="flex justify-between mt-10 gap-6">
+                  <button
+                    disabled={currentQuestionIndex === 0}
+                    onClick={() => setQuizState(prev => ({
+                      ...prev,
+                      currentQuestionIndex: Math.max(0, prev.currentQuestionIndex - 1),
+                      selectedOption: null
+                    }))}
+                    className="flex-1 py-4 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold text-lg disabled:opacity-40 transition-all"
+                  >
+                    ← ANTERIOR
+                  </button>
+
+                  {answer?.isCorrect || attempts >= maxAttempts ? (
+                    <button
+                      onClick={goToNextQuestion}
+                      className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3"
+                    >
+                      {currentQuestionIndex === questions.length - 1 ? (
+                        <>
+                          <Trophy className="w-6 h-6" />
+                          FINALIZAR QUIZ
+                        </>
+                      ) : (
+                        <>
+                          SIGUIENTE →
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      disabled={currentQuestionIndex === questions.length - 1}
+                      onClick={() => setQuizState(prev => ({
+                        ...prev,
+                        currentQuestionIndex: Math.min(questions.length - 1, prev.currentQuestionIndex + 1),
+                        selectedOption: null
+                      }))}
+                      className="flex-1 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-lg disabled:opacity-40 transition-all"
+                    >
+                      SALTAR PREGUNTA →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========================================
+// 📚 COMPONENTES AUXILIARES
+// ========================================
 const AchievementCard = ({ achievement, unlocked }) => (
   <div className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all ${unlocked ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50' : 'border-gray-200 opacity-60'
     }`}>
@@ -319,53 +942,47 @@ const AchievementCard = ({ achievement, unlocked }) => (
   </div>
 );
 
-// Componente de Tarjeta de Curso
-const CourseCard = ({ course, onClick, progress = 0 }) => {
-  const Icon = BookOpen;
-
-  return (
+const CourseCard = ({ course, onClick, progress = 0 }) => (
+  <div
+    onClick={onClick}
+    className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+  >
     <div
-      onClick={onClick}
-      className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+      className="h-32 flex items-center justify-center relative"
+      style={{ backgroundColor: course.color || '#3B82F6' }}
     >
-      <div
-        className="h-32 flex items-center justify-center relative"
-        style={{ backgroundColor: course.color || '#3B82F6' }}
-      >
-        <Icon className="w-16 h-16 text-white" />
-        {progress > 0 && (
-          <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
-            <span className="text-white text-sm font-bold">{progress}%</span>
-          </div>
-        )}
-      </div>
-      <div className="p-4">
-        <h3 className="font-bold text-lg text-gray-800 mb-2">{course.titulo}</h3>
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-          {course.descripcion || 'Curso interactivo de aprendizaje'}
-        </p>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="bg-gray-100 px-2 py-1 rounded-full">
-            {course.nivel_nombre || 'Básico'}
-          </span>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+      <BookOpen className="w-16 h-16 text-white" />
+      {progress > 0 && (
+        <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+          <span className="text-white text-sm font-bold">{progress}%</span>
         </div>
-        {progress > 0 && (
-          <div className="mt-3">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
-  );
-};
+    <div className="p-4">
+      <h3 className="font-bold text-lg text-gray-800 mb-2">{course.titulo}</h3>
+      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+        {course.descripcion || 'Curso interactivo de aprendizaje'}
+      </p>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <span className="bg-gray-100 px-2 py-1 rounded-full">
+          {course.nivel_nombre || 'Básico'}
+        </span>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+      </div>
+      {progress > 0 && (
+        <div className="mt-3">
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
 
-// Componente de Tarjeta de Recurso
 const ResourceCard = ({ resource, onClick, completed = false }) => {
   const getIcon = () => {
     const icons = {
@@ -376,8 +993,7 @@ const ResourceCard = ({ resource, onClick, completed = false }) => {
       pdf: BookOpen,
       juego: Target
     };
-    const Icon = icons[resource.tipo] || BookOpen;
-    return Icon;
+    return icons[resource.tipo] || BookOpen;
   };
 
   const Icon = getIcon();
@@ -419,7 +1035,9 @@ const ResourceCard = ({ resource, onClick, completed = false }) => {
   );
 };
 
-// Componente Principal
+// ========================================
+// 🎓 COMPONENTE PRINCIPAL STUDENT PANEL
+// ========================================
 export default function StudentPanel() {
   const navigate = useNavigate();
 
@@ -441,10 +1059,6 @@ export default function StudentPanel() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedResource, setSelectedResource] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState({});
-  const [quizResults, setQuizResults] = useState(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { type: 'bot', text: '¡Hola! Soy Carín 🐢 ¿En qué puedo ayudarte hoy?' }
@@ -462,7 +1076,6 @@ export default function StudentPanel() {
     }
   }, [user]);
 
-  // ✅ FUNCIÓN CORREGIDA: Verifica acceso sin modificar rol en BD
   const checkAuth = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -483,7 +1096,6 @@ export default function StudentPanel() {
         return;
       }
 
-      // ✅ Verificar acceso basado en rol + roles_adicionales
       const userRoles = [userData.rol, ...(userData.roles_adicionales || [])];
       const hasStudentAccess = userRoles.includes('estudiante');
 
@@ -493,7 +1105,6 @@ export default function StudentPanel() {
         return;
       }
 
-      // ✅ CRÍTICO: Forzar el rol correcto según la ruta ANTES de setUser
       const currentPath = window.location.pathname;
       let forceRole = null;
 
@@ -503,16 +1114,7 @@ export default function StudentPanel() {
 
       if (forceRole) {
         localStorage.setItem('didaktik_view_role', forceRole);
-        console.log('🔧 Rol forzado por ruta:', forceRole);
       }
-
-      console.log('✅ Usuario autenticado:', {
-        nombre: userData.nombre,
-        rolPrincipal: userData.rol,
-        rolesAdicionales: userData.roles_adicionales,
-        vistaActual: localStorage.getItem('didaktik_view_role'),
-        ruta: currentPath
-      });
 
       setUser(userData);
     } catch (err) {
@@ -677,58 +1279,24 @@ export default function StudentPanel() {
   const openResource = (resource) => {
     setSelectedResource(resource);
 
-    if (resource.tipo === 'quiz' && resource.contenido_quiz) {
+    if (resource.tipo === 'quiz') {
       setShowQuiz(true);
-      setCurrentQuestionIndex(0);
-      setQuizAnswers({});
-      setQuizResults(null);
     } else {
       setActiveTab('resource-detail');
     }
   };
 
-  const handleQuizAnswer = (questionIndex, answerIndex) => {
-    setQuizAnswers({
-      ...quizAnswers,
-      [questionIndex]: answerIndex
-    });
-  };
-
-  const submitQuiz = async () => {
-    const quiz = selectedResource.contenido_quiz;
-    let correctCount = 0;
-    let totalPoints = 0;
-
-    quiz.forEach((question, index) => {
-      const userAnswer = quizAnswers[index];
-      if (userAnswer === question.respuesta_correcta) {
-        correctCount++;
-        totalPoints += question.puntos;
-      }
-    });
-
-    const percentage = Math.round((correctCount / quiz.length) * 100);
-    const passed = percentage >= 60;
-
-    setQuizResults({
-      correct: correctCount,
-      total: quiz.length,
-      percentage,
-      points: totalPoints,
-      passed
-    });
-
+  const handleQuizComplete = async (results) => {
     try {
       const { error: progressError } = await supabase
         .from('progreso_estudiantes')
         .upsert({
           usuario_id: user.id,
           recurso_id: selectedResource.id,
-          completado: passed,
-          puntuacion: totalPoints,
-          mejor_puntuacion: totalPoints,
-          respuestas_quiz: quizAnswers,
-          fecha_completado: passed ? new Date().toISOString() : null,
+          completado: results.passed,
+          puntuacion: results.points,
+          mejor_puntuacion: results.points,
+          fecha_completado: results.passed ? new Date().toISOString() : null,
           intentos: 1
         }, {
           onConflict: 'usuario_id,recurso_id'
@@ -736,10 +1304,10 @@ export default function StudentPanel() {
 
       if (progressError) throw progressError;
 
-      if (passed) {
+      if (results.passed) {
         await supabase.rpc('increment', {
           row_id: user.id,
-          x: totalPoints
+          x: results.points
         });
 
         await fetchUserProgress();
@@ -753,22 +1321,9 @@ export default function StudentPanel() {
   const closeQuiz = () => {
     setShowQuiz(false);
     setSelectedResource(null);
-    setQuizResults(null);
-    setQuizAnswers({});
-  };
-
-  const speakText = (text) => {
-    if (soundEnabled && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
   };
 
   const handleLogout = async () => {
-    // ✅ Limpiar rol de vista
     localStorage.removeItem('didaktik_view_role');
     await supabase.auth.signOut();
     navigate('/');
@@ -867,13 +1422,6 @@ export default function StudentPanel() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="p-1.5 md:p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors hidden sm:block"
-              >
-                {soundEnabled ? <Volume2 className="w-4 h-4 md:w-5 md:h-5" /> : <VolumeX className="w-4 h-4 md:w-5 md:h-5" />}
-              </button>
-
               <div className="hidden lg:flex items-center gap-3">
                 <div className="text-right">
                   <p className="font-semibold text-sm">{user?.nombre || 'Estudiante'}</p>
@@ -881,7 +1429,6 @@ export default function StudentPanel() {
                 </div>
               </div>
 
-              {/* ✅ SELECTOR DE ROLES INTEGRADO - VERSION CORREGIDA */}
               <RoleSwitcherMejorado
                 user={user}
                 userPoints={userPoints}
@@ -1129,226 +1676,20 @@ export default function StudentPanel() {
         )}
       </main>
 
-      {/* QUIZ MODAL */}
+      {/* QUIZ MODAL - IDÉNTICO AL ADMINISTRADOR */}
       {showQuiz && selectedResource && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
-            {/* Quiz Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 md:p-6 rounded-t-2xl z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold mb-1">📝 {selectedResource.titulo}</h2>
-                  <p className="text-sm md:text-base text-purple-100">
-                    {quizResults
-                      ? '¡Quiz Completado!'
-                      : `Pregunta ${currentQuestionIndex + 1} de ${selectedResource.contenido_quiz.length}`
-                    }
-                  </p>
-                </div>
-                <button
-                  onClick={closeQuiz}
-                  className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
-                >
-                  <XCircle className="w-5 h-5 md:w-6 md:h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Quiz Results */}
-            {quizResults ? (
-              <div className="p-6 md:p-8 text-center space-y-6">
-                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto flex items-center justify-center text-4xl md:text-5xl ${quizResults.passed ? 'bg-green-100' : 'bg-orange-100'
-                  }`}>
-                  {quizResults.passed ? '🎉' : '💪'}
-                </div>
-
-                <div>
-                  <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                    {quizResults.passed ? '¡Felicitaciones!' : '¡Sigue intentando!'}
-                  </h3>
-                  <p className="text-gray-600">
-                    {quizResults.passed
-                      ? 'Has completado el quiz exitosamente'
-                      : 'Necesitas al menos 60% para aprobar'
-                    }
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-600 mb-1">Respuestas Correctas</p>
-                    <p className="text-2xl md:text-3xl font-bold text-blue-600">
-                      {quizResults.correct}/{quizResults.total}
-                    </p>
-                  </div>
-                  <div className="bg-purple-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-600 mb-1">Porcentaje</p>
-                    <p className="text-2xl md:text-3xl font-bold text-purple-600">
-                      {quizResults.percentage}%
-                    </p>
-                  </div>
-                  <div className="bg-yellow-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-600 mb-1">Puntos Ganados</p>
-                    <p className="text-2xl md:text-3xl font-bold text-yellow-600">
-                      {quizResults.points}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    onClick={() => {
-                      setQuizResults(null);
-                      setCurrentQuestionIndex(0);
-                      setQuizAnswers({});
-                    }}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors"
-                  >
-                    Reintentar Quiz
-                  </button>
-                  <button
-                    onClick={closeQuiz}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-xl font-semibold transition-colors"
-                  >
-                    Salir
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Quiz Questions */
-              <div className="p-4 md:p-6 space-y-6">
-                {selectedResource.contenido_quiz && selectedResource.contenido_quiz[currentQuestionIndex] && (
-                  <>
-                    {/* Progress Indicator */}
-                    <div className="flex gap-2 mb-6">
-                      {selectedResource.contenido_quiz.map((_, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex-1 h-2 rounded-full transition-colors ${idx < currentQuestionIndex
-                            ? 'bg-green-500'
-                            : idx === currentQuestionIndex
-                              ? 'bg-purple-500'
-                              : 'bg-gray-200'
-                            }`}
-                        />
-                      ))}
-                    </div>
-
-                    {(() => {
-                      const question = selectedResource.contenido_quiz[currentQuestionIndex];
-
-                      return (
-                        <div className="space-y-6">
-                          {/* Video */}
-                          {question.video_url && (
-                            <div className="rounded-2xl overflow-hidden">
-                              <video
-                                controls
-                                className="w-full"
-                                src={question.video_url}
-                              >
-                                Tu navegador no soporta video
-                              </video>
-                            </div>
-                          )}
-
-                          {/* Imagen/Emoji */}
-                          {question.imagen_url && !question.video_url && (
-                            <div className="flex justify-center">
-                              <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center text-5xl md:text-7xl shadow-lg">
-                                {question.imagen_url}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Pregunta */}
-                          <div className="flex items-center gap-3 justify-center">
-                            <h3 className="text-xl md:text-2xl font-bold text-gray-800 text-center">
-                              {question.pregunta}
-                            </h3>
-                            {question.audio_pregunta && (
-                              <button
-                                onClick={() => speakText(question.pregunta)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white p-2 md:p-3 rounded-full shadow-lg transition-all"
-                              >
-                                <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Opciones */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-3xl mx-auto">
-                            {question.opciones.map((opcion, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => handleQuizAnswer(currentQuestionIndex, idx)}
-                                className={`p-4 md:p-6 rounded-xl border-2 font-semibold text-base md:text-lg transition-all transform hover:scale-105 ${quizAnswers[currentQuestionIndex] === idx
-                                  ? 'border-purple-500 bg-purple-50 shadow-lg'
-                                  : 'border-gray-200 hover:border-purple-300 bg-white'
-                                  }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  {question.tipo === 'imagen' && question.imagen_opciones[idx] ? (
-                                    <div className="flex flex-col items-center gap-2 w-full">
-                                      <span className="text-4xl md:text-5xl">{question.imagen_opciones[idx]}</span>
-                                      <span className="text-xs md:text-sm">{opcion}</span>
-                                    </div>
-                                  ) : (
-                                    <span>{opcion}</span>
-                                  )}
-                                  {quizAnswers[currentQuestionIndex] === idx && (
-                                    <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-purple-600 flex-shrink-0" />
-                                  )}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Navegación */}
-                          <div className="flex justify-between gap-4 pt-6 border-t">
-                            <button
-                              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-                              disabled={currentQuestionIndex === 0}
-                              className="px-4 md:px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm md:text-base"
-                            >
-                              ← Anterior
-                            </button>
-
-                            {currentQuestionIndex === selectedResource.contenido_quiz.length - 1 ? (
-                              <button
-                                onClick={submitQuiz}
-                                disabled={Object.keys(quizAnswers).length !== selectedResource.contenido_quiz.length}
-                                className="px-4 md:px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm md:text-base"
-                              >
-                                Enviar Quiz 🎯
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => setCurrentQuestionIndex(prev =>
-                                  Math.min(selectedResource.contenido_quiz.length - 1, prev + 1)
-                                )}
-                                className="px-4 md:px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-semibold transition-colors text-sm md:text-base"
-                              >
-                                Siguiente →
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <StudentQuizView
+          resource={selectedResource}
+          onClose={closeQuiz}
+          user={user}
+          onComplete={handleQuizComplete}
+        />
       )}
 
       {/* Carín - Asistente de ayuda */}
       <div className="fixed bottom-6 right-6 z-50 flex items-end gap-4">
         {chatOpen && (
           <div className="w-80 md:w-96 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-right">
-            {/* Chat Header */}
             <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1369,7 +1710,6 @@ export default function StudentPanel() {
               </div>
             </div>
 
-            {/* Chat Messages */}
             <div className="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
               {chatMessages.map((msg, idx) => (
                 <div
@@ -1386,7 +1726,6 @@ export default function StudentPanel() {
               ))}
             </div>
 
-            {/* Chat Input */}
             <div className="p-4 bg-white border-t">
               <div className="flex gap-2">
                 <input
@@ -1404,35 +1743,6 @@ export default function StudentPanel() {
                   <MessageCircle className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                <button
-                  onClick={() => {
-                    setChatInput('¿Qué cursos tengo disponibles?');
-                    setTimeout(handleChatSend, 100);
-                  }}
-                  className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  Ver cursos
-                </button>
-                <button
-                  onClick={() => {
-                    setChatInput('¿Cuál es mi progreso?');
-                    setTimeout(handleChatSend, 100);
-                  }}
-                  className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  Mi progreso
-                </button>
-                <button
-                  onClick={() => {
-                    setChatInput('¿Cómo gano más puntos?');
-                    setTimeout(handleChatSend, 100);
-                  }}
-                  className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  Ganar puntos
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -1448,15 +1758,6 @@ export default function StudentPanel() {
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white"></div>
             )}
           </div>
-
-          {!chatOpen && (
-            <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block">
-              <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white px-4 py-2 rounded-xl shadow-lg whitespace-nowrap animate-in slide-in-from-bottom-2">
-                <p className="text-sm font-medium">¡Hola! Soy Carín 🌟</p>
-                <p className="text-xs text-emerald-50">¿En qué puedo ayudarte?</p>
-              </div>
-            </div>
-          )}
         </button>
       </div>
 
