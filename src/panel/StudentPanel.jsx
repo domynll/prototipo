@@ -740,23 +740,23 @@ const StudentQuizView = ({
             </div>
           ) : (
             /* QUIZ EN PROCESO - DISEÑO COMPACTO */
-            <div className="bg-[#F7F9FC] rounded-2xl md:rounded-3xl p-4 md:p-6 h-full flex flex-col">
+            <div className="bg-[#F7F9FC] rounded-2xl md:rounded-3xl p-3 md:p-4 h-full flex flex-col">
               {/* KARIN + PROGRESO */}
-              <div className="flex justify-between items-start mb-4 md:mb-6">
-                <div className="flex-1 min-w-0 mr-2 md:mr-4">
+              <div className="flex justify-between items-start mb-3 md:mb-4">
+                <div className="flex-1 min-w-0 mr-2">
                   <KarinMascot state={karin.state} message={karin.message} />
                 </div>
-                <div className="bg-white rounded-full px-4 py-2 md:px-6 md:py-3 shadow-sm border-2 text-base md:text-lg font-bold whitespace-nowrap">
+                <div className="bg-white rounded-full px-3 py-1 md:px-4 md:py-2 shadow-sm border-2 text-sm md:text-base font-bold whitespace-nowrap">
                   {currentQuestionIndex + 1} / {questions.length}
                 </div>
               </div>
 
               {/* BARRA DE PROGRESO */}
-              <div className="flex gap-1 md:gap-2 mb-4 md:mb-8">
+              <div className="flex gap-1 md:gap-2 mb-3 md:mb-4">
                 {questions.map((_, idx) => (
                   <div
                     key={idx}
-                    className={`flex-1 h-2 md:h-3 rounded-full transition-all ${idx === currentQuestionIndex
+                    className={`flex-1 h-2 rounded-full transition-all ${idx === currentQuestionIndex
                       ? 'bg-blue-500'
                       : idx < currentQuestionIndex
                         ? 'bg-green-400'
@@ -768,15 +768,15 @@ const StudentQuizView = ({
 
               {/* CONTADOR DE INTENTOS */}
               {attempts > 0 && (
-                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg md:rounded-xl p-3 md:p-4 mb-4 md:mb-6 text-center">
-                  <p className="text-base md:text-xl font-black text-yellow-800">
+                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg p-2 md:p-3 mb-3 md:mb-4 text-center">
+                  <p className="text-sm md:text-base font-black text-yellow-800">
                     🎯 INTENTOS: {attempts} / {maxAttempts}
                   </p>
-                  <div className="flex gap-2 md:gap-3 justify-center mt-2 md:mt-3">
+                  <div className="flex gap-1 md:gap-2 justify-center mt-1 md:mt-2">
                     {[...Array(maxAttempts)].map((_, i) => (
                       <div
                         key={i}
-                        className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${i < attempts
+                        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center ${i < attempts
                           ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
                           : 'bg-gray-300'
                           }`}
@@ -788,44 +788,42 @@ const StudentQuizView = ({
                 </div>
               )}
 
-              {/* PREGUNTA - COMPACTA */}
-              <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 mb-4 md:mb-6 border-2 border-blue-100 flex-shrink-0">
-                <div className="flex items-center justify-center gap-3 md:gap-6 mb-3 md:mb-4">
+              {/* PREGUNTA - MUY COMPACTA */}
+              <div className="bg-white rounded-xl shadow p-3 md:p-4 mb-3 md:mb-4 border border-blue-100 flex-shrink-0">
+                <div className="flex flex-col items-center justify-center gap-1 md:gap-2">
                   {currentQuestion.imagen_url && (
-                    <div className="text-4xl md:text-6xl flex-shrink-0 animate-bounce">
+                    <div className="text-2xl md:text-3xl flex-shrink-0 mb-1">
                       {currentQuestion.imagen_url}
                     </div>
                   )}
-                  <p className="text-lg md:text-2xl lg:text-3xl font-black text-gray-800 text-center flex-1">
+                  <p className="text-base md:text-lg font-bold text-gray-800 text-center mb-2">
                     {currentQuestion.pregunta}
                   </p>
-                  {currentQuestion.audio_pregunta && (
+                  <div className="flex items-center justify-center gap-2">
+                    {currentQuestion.audio_pregunta && (
+                      <button
+                        onClick={() => {
+                          updateActivity();
+                          speakText(currentQuestion.pregunta);
+                        }}
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-full shadow transition-all"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => {
-                        updateActivity();
-                        speakText(currentQuestion.pregunta);
-                      }}
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-3 md:p-4 rounded-full shadow-xl transition-all transform hover:scale-110 flex-shrink-0"
+                      onClick={repeatQuestionWithOptions}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-lg font-medium flex items-center gap-1 transition-all text-xs"
                     >
-                      <Volume2 className="w-5 h-5 md:w-6 md:h-6" />
+                      <RefreshCw className="w-3 h-3" />
+                      Repetir
                     </button>
-                  )}
-                </div>
-
-                {/* BOTÓN REPETIR PREGUNTA CON OPCIONES */}
-                <div className="text-center">
-                  <button
-                    onClick={repeatQuestionWithOptions}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold flex items-center gap-2 mx-auto transform hover:scale-105 transition-all text-sm md:text-base"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Repetir Pregunta y Opciones
-                  </button>
+                  </div>
                 </div>
               </div>
 
-              {/* OPCIONES - DISEÑO COMPACTO VISIBLE SIN SCROLL */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 flex-1 overflow-y-auto">
+              {/* OPCIONES - COMPACTAS Y VISIBLES */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 flex-1 overflow-y-auto">
                 {currentQuestion.opciones.map((opcion, idx) => {
                   const isSelected = selectedOption === idx;
                   const isCorrectOption = idx === currentQuestion.respuesta_correcta;
@@ -836,26 +834,26 @@ const StudentQuizView = ({
                   return (
                     <div
                       key={idx}
-                      className={`relative p-4 md:p-6 rounded-xl md:rounded-2xl text-lg md:text-xl font-bold border-3 md:border-4 transition-all flex items-center gap-3 md:gap-6 ${showAsCorrect
-                        ? 'bg-green-50 border-green-400 ring-2 md:ring-4 ring-green-200'
+                      className={`relative p-3 md:p-4 rounded-lg border-2 transition-all flex items-center gap-2 md:gap-3 ${showAsCorrect
+                        ? 'bg-green-50 border-green-400'
                         : isDisabled && answer?.isCorrect && isSelected
-                          ? 'bg-green-100 border-green-500 ring-2 md:ring-4 ring-green-200'
+                          ? 'bg-green-100 border-green-500'
                           : isDisabled && !isCorrectOption
                             ? 'bg-gray-100 border-gray-300 opacity-50'
                             : isSelected && !answer?.isCorrect
-                              ? 'bg-red-100 border-red-400 ring-2 md:ring-4 ring-red-200'
-                              : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400 hover:shadow-lg'
+                              ? 'bg-red-100 border-red-400'
+                              : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
                         }`}
                     >
                       {/* CONTENIDO DE LA OPCIÓN */}
                       <div
-                        className="flex-1 flex items-center gap-3 md:gap-6 cursor-pointer min-w-0"
+                        className="flex-1 flex items-center gap-2 md:gap-3 cursor-pointer"
                         onClick={() => !isDisabled && handleAnswerSelection(idx)}
                       >
-                        <span className="text-3xl md:text-5xl flex-shrink-0 drop-shadow-lg">
+                        <span className="text-xl md:text-2xl flex-shrink-0">
                           {emojiOpcion}
                         </span>
-                        <span className="flex-1 text-base md:text-xl truncate">{opcion}</span>
+                        <span className="flex-1 text-sm md:text-base">{opcion}</span>
                       </div>
 
                       {/* BOTÓN REPETIR PALABRA */}
@@ -863,27 +861,27 @@ const StudentQuizView = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           updateActivity();
-                          speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
+                          speakText(opcion);
                         }}
-                        className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white p-2 md:p-3 rounded-full shadow-lg transition-all flex-shrink-0"
+                        className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white p-1.5 rounded-full shadow transition-all flex-shrink-0"
                         title="Repetir palabra"
                       >
-                        <Volume2 className="w-4 h-4 md:w-5 md:h-5" />
+                        <Volume2 className="w-3 h-3" />
                       </button>
 
                       {/* INDICADORES DE RESPUESTA */}
                       {showAsCorrect && (
-                        <span className="text-2xl md:text-3xl animate-bounce flex-shrink-0 ml-2 md:ml-4">
+                        <span className="text-lg md:text-xl animate-bounce flex-shrink-0 ml-1">
                           ✅
                         </span>
                       )}
                       {isSelected && answer?.isCorrect && (
-                        <span className="text-2xl md:text-3xl animate-bounce flex-shrink-0 ml-2 md:ml-4">
+                        <span className="text-lg md:text-xl animate-bounce flex-shrink-0 ml-1">
                           🎉
                         </span>
                       )}
                       {isSelected && !answer?.isCorrect && (
-                        <span className="text-2xl md:text-3xl flex-shrink-0 ml-2 md:ml-4">
+                        <span className="text-lg md:text-xl flex-shrink-0 ml-1">
                           ❌
                         </span>
                       )}
@@ -893,57 +891,57 @@ const StudentQuizView = ({
               </div>
 
               {/* RETROALIMENTACIÓN Y NAVEGACIÓN */}
-              <div className="mt-4 md:mt-6 space-y-4">
+              <div className="mt-3 md:mt-4 space-y-3">
                 {answer && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className={`rounded-xl md:rounded-2xl p-4 md:p-6 text-center border-3 md:border-4 shadow-lg ${answer.isCorrect
-                      ? "bg-gradient-to-r from-green-100 to-emerald-100 border-green-400"
+                  <div className="space-y-3 animate-fadeIn">
+                    <div className={`rounded-lg p-3 md:p-4 text-center border-2 ${answer.isCorrect
+                      ? "bg-green-50 border-green-400"
                       : attempts >= maxAttempts
-                        ? "bg-gradient-to-r from-orange-100 to-red-100 border-orange-400"
-                        : "bg-gradient-to-r from-red-100 to-pink-100 border-red-400"
+                        ? "bg-orange-50 border-orange-400"
+                        : "bg-red-50 border-red-400"
                       }`}>
-                      <p className="text-3xl md:text-5xl font-black mb-2 md:mb-4">
+                      <p className="text-xl md:text-2xl font-black mb-1 md:mb-2">
                         {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
                       </p>
-                      <p className="text-xl md:text-2xl font-black mb-2 md:mb-4">
+                      <p className="text-sm md:text-base font-bold text-gray-800 mb-1">
                         {answer.isCorrect
                           ? "¡CORRECTO!"
                           : attempts >= maxAttempts
                             ? "VAMOS A APRENDER"
                             : "¡INTENTA DE NUEVO!"}
                       </p>
-                      <p className="text-base md:text-lg font-bold text-gray-800">
+                      <p className="text-xs md:text-sm text-gray-700">
                         {answer.isCorrect
                           ? currentQuestion.retroalimentacion_correcta
                           : attempts >= maxAttempts
                             ? `La respuesta correcta es: ${currentQuestion.opciones[currentQuestion.respuesta_correcta]}`
-                            : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+                            : `Te quedan ${maxAttempts - attempts} intentos.`}
                       </p>
                     </div>
 
                     {/* BOTÓN SIGUIENTE */}
                     <button
                       onClick={goToNextQuestion}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 md:py-4 rounded-xl md:rounded-2xl text-lg md:text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2 md:gap-3 shadow-xl"
+                      className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 md:py-3 rounded-lg text-base md:text-lg font-bold transition flex items-center justify-center gap-2 shadow"
                     >
                       {currentQuestionIndex === questions.length - 1 ? (
                         <>
-                          <Trophy className="w-5 h-5 md:w-6 md:h-6" />
+                          <Trophy className="w-4 h-4" />
                           FINALIZAR QUIZ
                         </>
                       ) : (
                         <>
-                          SIGUIENTE PREGUNTA
-                          <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+                          SIGUIENTE
+                          <ChevronRight className="w-4 h-4" />
                         </>
                       )}
                     </button>
                   </div>
                 )}
 
-                {/* NAVEGACIÓN */}
+                {/* NAVEGACIÓN - COMPACTA */}
                 {!answer && (
-                  <div className="flex justify-between gap-3 md:gap-6">
+                  <div className="flex justify-between gap-2">
                     <button
                       disabled={currentQuestionIndex === 0}
                       onClick={() => {
@@ -954,43 +952,25 @@ const StudentQuizView = ({
                           selectedOption: null
                         }));
                       }}
-                      className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold text-base disabled:opacity-40 transition-all"
+                      className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-xs disabled:opacity-40 transition-all"
                     >
-                      ← ANTERIOR
+                      ← Anterior
                     </button>
 
-                    {answer?.isCorrect || attempts >= maxAttempts ? (
-                      <button
-                        onClick={goToNextQuestion}
-                        className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2"
-                      >
-                        {currentQuestionIndex === questions.length - 1 ? (
-                          <>
-                            <Trophy className="w-4 h-4" />
-                            FINALIZAR QUIZ
-                          </>
-                        ) : (
-                          <>
-                            SIGUIENTE →
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={currentQuestionIndex === questions.length - 1}
-                        onClick={() => {
-                          updateActivity();
-                          setQuizState(prev => ({
-                            ...prev,
-                            currentQuestionIndex: Math.min(questions.length - 1, prev.currentQuestionIndex + 1),
-                            selectedOption: null
-                          }));
-                        }}
-                        className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-base disabled:opacity-40 transition-all"
-                      >
-                        SALTAR PREGUNTA →
-                      </button>
-                    )}
+                    <button
+                      disabled={currentQuestionIndex === questions.length - 1}
+                      onClick={() => {
+                        updateActivity();
+                        setQuizState(prev => ({
+                          ...prev,
+                          currentQuestionIndex: Math.min(questions.length - 1, prev.currentQuestionIndex + 1),
+                          selectedOption: null
+                        }));
+                      }}
+                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-xs disabled:opacity-40 transition-all"
+                    >
+                      Saltar →
+                    </button>
                   </div>
                 )}
               </div>
