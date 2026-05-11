@@ -1,48 +1,48 @@
-/* Variables CSS para modo claro (por defecto) */
+/* Variables CSS para modo claro (por defecto) - PALETA AZUL/CELESTE */
 :root {
-  /* Colores vibrantes para educación */
-  --primary: #00d26a;
-  --primary-dark: #00b85a;
-  --primary-light: #33db7a;
-  --secondary: #ff6b6b;
-  --accent: #4ecdc4;
-  --accent-warm: #ffe66d;
-  --accent-purple: #a8e6cf;
+  /* Colores en gama azul/celeste */
+  --primary: #0ea5e9;        /* celeste principal */
+  --primary-dark: #0284c7;
+  --primary-light: #38bdf8;
+  --secondary: #3b82f6;      /* azul secundario */
+  --accent: #06b6d4;         /* turquesa/cielo */
+  --accent-warm: #0ea5e9;    /* mismo celeste */
+  --accent-purple: #60a5fa;  /* azul claro */
   
-  /* Colores de texto brillantes */
-  --text-dark: #2d3748;
-  --text-medium: #4a5568;
-  --text-light: #718096;
+  /* Colores de texto */
+  --text-dark: #1e293b;
+  --text-medium: #475569;
+  --text-light: #64748b;
   --white: #ffffff;
   
-  /* Sombras coloridas */
-  --shadow-primary: 0 4px 20px rgba(0, 210, 106, 0.25);
-  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 30px rgba(0, 210, 106, 0.3);
+  /* Sombras */
+  --shadow-primary: 0 4px 20px rgba(14, 165, 233, 0.25);
+  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 30px rgba(14, 165, 233, 0.3);
   
   /* Otros */
   --border-radius: 16px;
   --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Variables para modo oscuro */
+/* Variables para modo oscuro - gama azul/celeste */
 [data-theme="dark"] {
-  --primary: #00f570;
-  --primary-dark: #00d26a;
-  --primary-light: #33f77f;
-  --secondary: #ff7979;
-  --accent: #74b9ff;
-  --accent-warm: #fdcb6e;
-  --accent-purple: #a29bfe;
+  --primary: #38bdf8;
+  --primary-dark: #0ea5e9;
+  --primary-light: #7dd3fc;
+  --secondary: #60a5fa;
+  --accent: #22d3ee;
+  --accent-warm: #38bdf8;
+  --accent-purple: #93c5fd;
   
-  --text-dark: #e2e8f0;
-  --text-medium: #cbd5e0;
-  --text-light: #a0aec0;
-  --white: #1a202c;
+  --text-dark: #f1f5f9;
+  --text-medium: #cbd5e1;
+  --text-light: #94a3b8;
+  --white: #0f172a;
   
-  --shadow-primary: 0 4px 20px rgba(0, 245, 112, 0.3);
-  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 30px rgba(0, 245, 112, 0.4);
+  --shadow-primary: 0 4px 20px rgba(56, 189, 248, 0.3);
+  --shadow-heavy: 0 15px 45px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(56, 189, 248, 0.4);
 }
 
 /* Botón toggle para modo oscuro */
@@ -55,7 +55,7 @@
   height: 50px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
   color: var(--white);
   cursor: pointer;
   transition: var(--transition);
@@ -136,7 +136,7 @@
   }
 }
 
-/* Fondo vibrante con gradientes coloridos */
+/* Fondo con gradiente suave */
 .app-container {
   min-height: 100vh;
   width: 100%;
@@ -144,13 +144,11 @@
   justify-content: center;
   align-items: center;
   padding: 1.5rem 1rem;
-  /* Gradiente vibrante para educación */
   background: linear-gradient(-45deg, 
-    #ff9a9e, #fecfef, #fecfef, #ff9a9e,
-    #a8edea, #fed6e3, #d299c2, #fef9d7
+    #e2e8f0, #f1f5f9, #cbd5e1, #e2e8f0
   );
-  background-size: 600% 600%;
-  animation: gradientShift 12s ease infinite;
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
   position: relative;
   overflow: hidden;
 }
@@ -158,12 +156,11 @@
 /* Modo oscuro para el fondo */
 [data-theme="dark"] .app-container {
   background: linear-gradient(-45deg, 
-    #1e3c72, #2a5298, #667eea, #764ba2,
-    #f093fb, #f5576c, #4facfe, #00f2fe
+    #0f172a, #1e293b, #0f172a, #1e1b2e
   );
 }
 
-/* Partículas brillantes flotantes */
+/* Partículas brillantes flotantes (sutiles) */
 .app-container::before {
   content: '';
   position: absolute;
@@ -172,16 +169,16 @@
   right: 0;
   bottom: 0;
   background-image: 
-    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.8) 2px, transparent 2px),
-    radial-gradient(circle at 75% 75%, rgba(0, 210, 106, 0.6) 1px, transparent 1px),
-    radial-gradient(circle at 50% 10%, rgba(255, 107, 107, 0.5) 1px, transparent 1px),
-    radial-gradient(circle at 90% 40%, rgba(78, 205, 196, 0.4) 2px, transparent 2px);
+    radial-gradient(circle at 25% 25%, rgba(14, 165, 233, 0.15) 2px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 50% 10%, rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 90% 40%, rgba(96, 165, 250, 0.1) 2px, transparent 2px);
   background-size: 150px 150px, 100px 100px, 200px 200px, 120px 120px;
-  animation: sparkle 8s ease-in-out infinite;
+  animation: sparkle 10s ease-in-out infinite;
   pointer-events: none;
 }
 
-/* Card principal más pequeña y vibrante */
+/* Card principal */
 .welcome-card {
   display: flex;
   flex-direction: column;
@@ -189,13 +186,13 @@
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 2.5rem; /* Cambiar de "2rem 1.8rem" */
+  padding: 2.5rem;
   border-radius: var(--border-radius);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.5);
   box-shadow: 
     var(--shadow-heavy),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  max-width: 420px; /* Cambiar de "350px" */
+  max-width: 420px;
   width: 100%;
   text-align: center;
   position: relative;
@@ -205,12 +202,11 @@
 
 /* Modo oscuro para la card */
 [data-theme="dark"] .welcome-card {
-  background: rgba(26, 32, 44, 0.95);
+  background: rgba(15, 23, 42, 0.95);
   border: 2px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dark);
 }
 
-/* Efecto hover colorido */
+/* Efecto hover */
 .welcome-card:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow: 
@@ -221,12 +217,12 @@
   transition: var(--transition);
 }
 
-/* Tortuga más pequeña y juguetona */
+/* Tortuga */
 .turtle-wrapper {
-  width: clamp(80px, 20vw, 120px); /* Reducido el tamaño */
+  width: clamp(80px, 20vw, 120px);
   height: clamp(80px, 20vw, 120px);
   margin-bottom: 1rem;
-  filter: drop-shadow(0 8px 16px rgba(0, 210, 106, 0.3));
+  filter: drop-shadow(0 8px 16px rgba(14, 165, 233, 0.3));
   animation: floating 5s ease-in-out infinite;
   transition: var(--transition);
   border-radius: 50%;
@@ -237,20 +233,18 @@
 .turtle-wrapper:hover {
   animation: pulse 0.8s ease-in-out;
   transform: scale(1.15);
-  filter: drop-shadow(0 12px 24px rgba(0, 210, 106, 0.4));
+  filter: drop-shadow(0 12px 24px rgba(14, 165, 233, 0.4));
 }
 
-/* Título súper vibrante */
+/* Título DIDACTIKAPP - degradado exclusivamente azul/celeste */
 .main-title {
-  font-size: clamp(1.8rem, 4vw, 2.3rem); /* Más pequeño */
+  font-size: clamp(1.8rem, 4vw, 2.3rem);
   font-weight: 800;
-  background: linear-gradient(
-    135deg, 
-    var(--primary) 0%, 
-    var(--secondary) 25%,
-    var(--accent) 50%,
-    var(--accent-warm) 75%,
-    var(--primary) 100%
+  background: linear-gradient(135deg, 
+    #38bdf8 0%,   /* celeste brillante */
+    #0ea5e9 30%,  /* azul cielo */
+    #3b82f6 60%,  /* azul primario */
+    #2563eb 100%  /* azul profundo */
   );
   background-size: 300% auto;
   -webkit-background-clip: text;
@@ -263,17 +257,16 @@
   animation: shimmer 3s ease-in-out infinite;
 }
 
-/* Descripción compacta */
+/* Descripción */
 .description {
-  font-size: clamp(0.9rem, 2vw, 1rem); /* Más pequeña */
+  font-size: clamp(0.9rem, 2vw, 1rem);
   color: var(--text-medium);
   margin-bottom: 1.5rem;
   line-height: 1.5;
   font-weight: 500;
-  max-width: 280px; /* Más estrecha */
+  max-width: 280px;
 }
 
-/* Efecto cursor parpadeante */
 .description::after {
   content: '|';
   color: var(--primary);
@@ -286,19 +279,19 @@
   51%, 100% { opacity: 0; }
 }
 
-/* Botones más compactos y vibrantes */
+/* Botones */
 .buttons-container {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem; /* Menor gap */
+  gap: 0.8rem;
   width: 100%;
   animation: fadeInUp 0.7s ease-out 0.2s both;
 }
 
 .btn {
   width: 100%;
-  padding: 0.8rem 1.5rem; /* Más compacto */
-  border-radius: 25px; /* Más redondeado */
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -312,7 +305,7 @@
   transform: translateZ(0);
 }
 
-/* Efecto ripple colorido */
+/* Efecto ripple */
 .btn::before {
   content: '';
   position: absolute;
@@ -321,7 +314,7 @@
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.5);
   transition: width 0.5s, height 0.5s;
   transform: translate(-50%, -50%);
   z-index: 0;
@@ -337,23 +330,23 @@
   z-index: 1;
 }
 
-/* Botón principal súper vibrante */
+/* Botón primario */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  background: linear-gradient(135deg, var(--primary), var(--accent-purple));
   color: var(--white);
   box-shadow: var(--shadow-primary);
   border: 2px solid transparent;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent));
   transform: translateY(-2px);
   box-shadow: 
-    0 10px 30px rgba(0, 210, 106, 0.4),
-    0 5px 15px rgba(255, 107, 107, 0.2);
+    0 10px 30px rgba(14, 165, 233, 0.4),
+    0 5px 15px rgba(96, 165, 250, 0.2);
 }
 
-/* Botón secundario colorido */
+/* Botón secundario */
 .btn-secondary {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
   backdrop-filter: blur(10px);
@@ -368,13 +361,13 @@
   background: linear-gradient(135deg, var(--accent-purple), rgba(255, 255, 255, 0.8));
   transform: translateY(-2px);
   box-shadow: 
-    0 10px 30px rgba(78, 205, 196, 0.3),
+    0 10px 30px rgba(6, 182, 212, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   border-color: var(--accent);
   color: var(--primary-dark);
 }
 
-/* Responsividad para card más pequeña */
+/* Responsividad */
 @media (max-width: 768px) {
   .app-container {
     padding: 1rem 0.5rem;
@@ -433,7 +426,7 @@
   }
 }
 
-/* Optimizaciones de rendimiento */
+/* Optimizaciones */
 .app-container,
 .welcome-card,
 .turtle-wrapper,

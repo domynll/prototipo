@@ -15,16 +15,18 @@ body {
   overflow-x: hidden;
 }
 
-/* Variables CSS para colores y espaciado */
+/* Variables CSS - PALETA AZUL/CELESTE */
 :root {
+  /* Colores principales en gama azul/celeste */
   --primary-blue: #3b82f6;
-  --primary-purple: #8b5cf6;
-  --primary-green: #10b981;
-  --primary-yellow: #f59e0b;
-  --primary-red: #ef4444;
-  --primary-orange: #f97316;
-  --primary-pink: #ec4899;
-  --primary-teal: #14b8a6;
+  --primary-light: #60a5fa;
+  --primary-dark: #2563eb;
+  --primary-extra-light: #93c5fd;
+  --primary-deep: #1e3a8a;
+  
+  --accent-teal: #14b8a6;
+  --accent-cyan: #06b6d4;
+  --accent-sky: #0ea5e9;
   
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
@@ -75,7 +77,7 @@ body {
   min-height: 100vh;
 }
 
-/* Gradientes de fondo */
+/* Gradientes de fondo - todos en azul/celeste/turquesa */
 .bg-gradient-to-br {
   background-image: linear-gradient(to bottom right, var(--tw-gradient-from), var(--tw-gradient-to));
 }
@@ -93,7 +95,7 @@ body {
 }
 
 .to-purple-100 {
-  --tw-gradient-to: #f3e8ff;
+  --tw-gradient-to: #dbeafe; /* azul muy claro en lugar de morado */
 }
 
 .from-indigo-600 {
@@ -101,26 +103,26 @@ body {
 }
 
 .to-purple-600 {
-  --tw-gradient-to: #9333ea;
+  --tw-gradient-to: #3b82f6; /* azul en lugar de morado */
 }
 
 .from-emerald-400 {
-  --tw-gradient-from: #34d399;
+  --tw-gradient-from: #14b8a6; /* turquesa */
 }
 
 .to-cyan-400 {
-  --tw-gradient-to: #22d3ee;
+  --tw-gradient-to: #06b6d4;
 }
 
 .from-green-400 {
-  --tw-gradient-from: #4ade80;
+  --tw-gradient-from: #34d399; /* reemplazado por turquesa */
 }
 
 .to-blue-500 {
   --tw-gradient-to: #3b82f6;
 }
 
-/* Gradientes para niveles */
+/* Gradientes para niveles - ahora solo azules/celestes */
 .from-blue-500 {
   --tw-gradient-from: #3b82f6;
 }
@@ -130,27 +132,27 @@ body {
 }
 
 .from-green-500 {
-  --tw-gradient-from: #22c55e;
+  --tw-gradient-from: #0ea5e9; /* celeste en lugar de verde */
 }
 
 .to-green-600 {
-  --tw-gradient-to: #16a34a;
+  --tw-gradient-to: #0284c7;
 }
 
 .from-purple-500 {
-  --tw-gradient-from: #a855f7;
+  --tw-gradient-from: #60a5fa; /* azul claro */
 }
 
 .to-purple-600 {
-  --tw-gradient-to: #9333ea;
+  --tw-gradient-to: #3b82f6;
 }
 
 .from-orange-500 {
-  --tw-gradient-from: #f97316;
+  --tw-gradient-from: #38bdf8; /* celeste */
 }
 
 .to-orange-600 {
-  --tw-gradient-to: #ea580c;
+  --tw-gradient-to: #0ea5e9;
 }
 
 .from-teal-500 {
@@ -162,15 +164,15 @@ body {
 }
 
 .from-pink-500 {
-  --tw-gradient-from: #ec4899;
+  --tw-gradient-from: #93c5fd; /* azul extra claro */
 }
 
 .to-pink-600 {
-  --tw-gradient-to: #db2777;
+  --tw-gradient-to: #60a5fa;
 }
 
 .from-green-600 {
-  --tw-gradient-from: #16a34a;
+  --tw-gradient-from: #0284c7; /* azul oscuro */
 }
 
 .to-blue-600 {
@@ -316,7 +318,7 @@ header {
   text-align: center;
 }
 
-/* Colores de texto */
+/* Colores de texto - todos azules/celestes */
 .text-white {
   color: #ffffff;
 }
@@ -345,20 +347,21 @@ header {
   color: #e0e7ff;
 }
 
+/* Antiguos colores amarillos/naranjas ahora azules */
 .text-yellow-300 {
-  color: #fcd34d;
+  color: #7dd3fc; /* celeste claro */
 }
 
 .text-yellow-500 {
-  color: #eab308;
+  color: #0ea5e9; /* celeste */
 }
 
 .text-yellow-600 {
-  color: #ca8a04;
+  color: #0284c7; /* azul */
 }
 
 .text-orange-300 {
-  color: #fdba74;
+  color: #38bdf8; /* celeste */
 }
 
 /* Colores de fondo */
@@ -378,20 +381,21 @@ header {
   background-color: var(--gray-300);
 }
 
+/* Botones y fondos ahora azules */
 .bg-green-500 {
-  background-color: var(--primary-green);
+  background-color: #0ea5e9; /* celeste */
 }
 
 .bg-green-600 {
-  background-color: #059669;
+  background-color: #0284c7;
 }
 
 .bg-yellow-100 {
-  background-color: #fef3c7;
+  background-color: #e0f2fe; /* azul muy claro */
 }
 
 .bg-yellow-300 {
-  background-color: #fcd34d;
+  background-color: #7dd3fc; /* celeste claro */
 }
 
 .bg-black\/50 {
@@ -408,11 +412,11 @@ header {
 
 /* Gradientes de fondo específicos para componentes */
 .from-yellow-50 {
-  --tw-gradient-from: #fffbeb;
+  --tw-gradient-from: #eff6ff; /* azul muy claro */
 }
 
 .to-orange-50 {
-  --tw-gradient-to: #fff7ed;
+  --tw-gradient-to: #f0f9ff; /* celeste muy claro */
 }
 
 /* Espaciado */
@@ -658,7 +662,7 @@ header {
 }
 
 .border-yellow-300 {
-  border-color: #fcd34d;
+  border-color: #7dd3fc; /* celeste claro */
 }
 
 .border-gray-200 {
@@ -740,7 +744,7 @@ header {
   transform: scale(1.1);
 }
 
-/* Estados hover */
+/* Estados hover - colores azules */
 .hover\:scale-105:hover {
   transform: scale(1.05);
 }
@@ -758,7 +762,7 @@ header {
 }
 
 .hover\:bg-green-600:hover {
-  background-color: #059669;
+  background-color: #0284c7;
 }
 
 .hover\:bg-white\/30:hover {
@@ -766,7 +770,7 @@ header {
 }
 
 .hover\:from-green-600:hover {
-  --tw-gradient-from: #16a34a;
+  --tw-gradient-from: #0284c7;
 }
 
 .hover\:to-blue-600:hover {
@@ -805,7 +809,7 @@ header {
 }
 
 .fill-yellow-300 {
-  fill: #fcd34d;
+  fill: #7dd3fc; /* celeste claro */
 }
 
 /* Animaciones */
@@ -1010,7 +1014,7 @@ header {
 }
 
 .progress-bar-fill {
-  background: linear-gradient(90deg, var(--primary-green), var(--primary-blue));
+  background: linear-gradient(90deg, var(--primary-blue), var(--accent-cyan));
   border-radius: inherit;
   transition: width 1s ease-out;
   position: relative;
@@ -1099,7 +1103,7 @@ textarea:focus {
   }
 }
 
-/* Dark mode support (opcional) */
+/* Dark mode support (actualizado a azules) */
 @media (prefers-color-scheme: dark) {
   :root {
     --gray-50: #18181b;
@@ -1115,7 +1119,7 @@ textarea:focus {
   }
   
   body {
-    background-color: #0f0f23;
+    background-color: #0f172a;
     color: #e4e4e7;
   }
 }

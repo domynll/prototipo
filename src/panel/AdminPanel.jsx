@@ -5,6 +5,7 @@ import {
   Star, TrendingUp, Calendar, Target, Zap, Trophy, CheckCircle, XCircle, Eye, Sparkles, Upload, Mic, Video,
   Volume2, Download, Move, ChevronUp, ChevronDown, ChevronRight, Clock, Activity, TrendingDown, Filter, UserCheck,
   UserX, FileUp, Brain, Search, PieChart, BarChart2, LineChart, Printer, Loader, Send, Copy, Shield,
+  Library, Grid, Lightbulb
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useNavigate } from "react-router-dom";
@@ -470,6 +471,7 @@ export default function EnhancedAdminPanel() {
   });
 
   // Estados para análisis detallado
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showDetailedAnalytics, setShowDetailedAnalytics] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -491,6 +493,7 @@ export default function EnhancedAdminPanel() {
   // ESTADOS PARA EDICIÓN AVANZADA DE CONTENIDO 
   const [editingQuizQuestion, setEditingQuizQuestion] = useState(null);
   const [editingCompleteQuiz, setEditingCompleteQuiz] = useState(null);
+  const [editingQuestionModal, setEditingQuestionModal] = useState(null);
   const [tempQuestionData, setTempQuestionData] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiPickerFor, setEmojiPickerFor] = useState(null); // 'question', 'option-0', 'option-1', etc.
@@ -507,6 +510,13 @@ export default function EnhancedAdminPanel() {
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [mascotAnimation, setMascotAnimation] = useState('idle');
+
+  // Notificaciones tipo Toast
+  const [toastMessage, setToastMessage] = useState(null);
+  const showToast = (message, type = 'success') => {
+    setToastMessage({ message, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const [currentQuiz, setCurrentQuiz] = useState({
     preguntas: [],
@@ -573,9 +583,10 @@ export default function EnhancedAdminPanel() {
   const [lastAutoRepeat, setLastAutoRepeat] = useState(Date.now()); // Última repetición automática
 
   // Estados de filtros de usuarios
-  const [filterRole, setFilterRole] = useState("");
-  const [filterGroup, setFilterGroup] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterRole, setFilterRole] = useState("todos");
+  const [filterGroup, setFilterGroup] = useState("todos");
+  const [filterStatus, setFilterStatus] = useState("todos");
+  const [searchUserText, setSearchUserText] = useState("");
   // Estados para reportes avanzados
   const [filterByGroup, setFilterByGroup] = useState("");
   const [filterByStatus, setFilterByStatus] = useState("");
@@ -648,6 +659,89 @@ export default function EnhancedAdminPanel() {
     };
   };
 
+  const formatLastConnection = (lastAccess) => {
+    if (!lastAccess) {
+      return { text: 'Nunca conectado', color: 'text-gray-500', bgColor: 'bg-gray-100', icon: '⚫', detail: 'Nunca ha iniciado sesión' };
+    }
+
+    const now = new Date();
+    const lastDate = new Date(lastAccess);
+    const diffMs = now - lastDate;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 300) {
+      return {
+        text: 'Conectado ahora',
+        color: 'text-green-700',
+        bgColor: 'bg-green-100',
+        icon: '🟢',
+        detail: 'Activo en este momento'
+      };
+    }
+
+    if (diffMinutes < 60) {
+      return {
+        text: `Conectado hace ${diffMinutes} minuto${diffMinutes !== 1 ? 's' : ''}`,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        icon: '🟢',
+        detail: `Última actividad: hace ${diffMinutes} minutos`
+      };
+    }
+
+    if (diffHours < 24) {
+      return {
+        text: `Conectado hace ${diffHours} hora${diffHours !== 1 ? 's' : ''}`,
+        color: 'text-yellow-700',
+        bgColor: 'bg-yellow-50',
+        icon: '🟡',
+        detail: `Última conexión: ${lastDate.toLocaleTimeString()}`
+      };
+    }
+
+    if (diffDays === 1) {
+      return {
+        text: 'Conectado ayer',
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        icon: '🟠',
+        detail: `Última conexión: ${lastDate.toLocaleDateString()}`
+      };
+    }
+
+    if (diffDays < 7) {
+      return {
+        text: `Conectado hace ${diffDays} día${diffDays !== 1 ? 's' : ''}`,
+        color: 'text-orange-700',
+        bgColor: 'bg-orange-50',
+        icon: '🟠',
+        detail: `Última conexión: ${lastDate.toLocaleDateString()}`
+      };
+    }
+
+    if (diffDays < 30) {
+      const semanas = Math.floor(diffDays / 7);
+      return {
+        text: `Conectado hace ${semanas} semana${semanas !== 1 ? 's' : ''}`,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        icon: '🔴',
+        detail: `Última conexión: ${lastDate.toLocaleDateString()}`
+      };
+    }
+
+    const meses = Math.floor(diffDays / 30);
+    return {
+      text: `Conectado hace ${meses} mes${meses !== 1 ? 'es' : ''}`,
+      color: 'text-red-700',
+      bgColor: 'bg-red-100',
+      icon: '🔴',
+      detail: `Última conexión: ${lastDate.toLocaleDateString()}`
+    };
+  };
   // 1. Análisis por Temas/Materias
   const analyzeStudentByTopic = async (studentId, courseId) => {
     try {
@@ -946,10 +1040,10 @@ export default function EnhancedAdminPanel() {
   ];
 
   const availableRoles = [
-    { value: "visitante", label: "Visitante", color: "gray" },
-    { value: "estudiante", label: "Estudiante", color: "green" },
-    { value: "docente", label: "Docente", color: "blue" },
     { value: "admin", label: "Admin", color: "red" },
+    { value: "docente", label: "Docente", color: "blue" },
+    { value: "estudiante", label: "Estudiante", color: "green" },
+    { value: "visitante", label: "Visitante", color: "gray" },
   ];
 
   const contentTypes = [
@@ -1012,9 +1106,8 @@ export default function EnhancedAdminPanel() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Detectar rol según la ruta actual
     const path = window.location.pathname;
-    let currentRole = 'admin'; // Por defecto admin si estamos en /admin
+    let currentRole = 'admin';
 
     if (path.includes('/teacher')) {
       currentRole = 'docente';
@@ -1022,25 +1115,47 @@ export default function EnhancedAdminPanel() {
       currentRole = 'estudiante';
     }
 
-    // Validar que el usuario tenga ese rol
     const allRoles = [currentUser.rol, ...(currentUser.roles_adicionales || [])];
     if (allRoles.includes(currentRole)) {
       setActiveRoleView(currentRole);
       localStorage.setItem(`activeRole_${currentUser.id}`, currentRole);
       console.log('✅ Rol activo detectado desde URL:', currentRole);
     } else {
-      // Si no tiene el rol, usar el rol principal
       setActiveRoleView(currentUser.rol);
       localStorage.setItem(`activeRole_${currentUser.id}`, currentUser.rol);
     }
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser) {
-      loadAllData();
-      loadContentLibrary(); // Cargar contenido generado
-    }
+    const initializeData = async () => {
+      if (currentUser && initialLoad) {
+        setLoading(true);
+        await loadAllData();
+        await loadContentLibrary();
+        await calculateAdvancedAnalytics();
+        setInitialLoad(false);
+        setLoading(false);
+      }
+    };
+    initializeData();
+  }, [currentUser, initialLoad]);
+
+  useEffect(() => {
+    const initializeData = async () => {
+      if (currentUser) {
+        await loadAllData();
+        await loadContentLibrary();
+        await calculateAdvancedAnalytics();
+      }
+    };
+    initializeData();
   }, [currentUser]);
+
+  useEffect(() => {
+    if (users.length > 0 && courses.length > 0) {
+      calculateAdvancedAnalytics();
+    }
+  }, [users, courses, resources]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -1251,41 +1366,63 @@ export default function EnhancedAdminPanel() {
     const attempts = attemptCount[quizPreviewIndex] || 0;
     const maxAttempts = 3;
 
-    // Función para manejar la selección inmediata
-    const handleImmediateAnswer = (selectedIdx) => {
-      // Si ya acertó o agotó intentos, no hacer nada
+    const handleImmediateAnswer = async (selectedIdx) => {
       if (answer?.isCorrect || attempts >= maxAttempts) return;
 
       const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
       const newAttempts = attempts + 1;
 
-      // 1. Repetir la palabra seleccionada
-      speakText(normalizedQuestion.opciones[selectedIdx]);
+      // Calcular el progreso actual basado en respuestas correctas
+      const respuestasTemp = { ...previewAnswers, [currentPreviewQuestion]: { isCorrect } };
+      const correctas = Object.values(respuestasTemp).filter(a => a?.isCorrect).length;
+      const nuevoProgreso = Math.round((correctas / currentQuiz.preguntas.length) * 100);
 
-      // 2. Actualizar contador de intentos
-      setAttemptCount({
-        ...attemptCount,
-        [quizPreviewIndex]: newAttempts
-      });
+      // Usar el estudiante real (si eres admin, necesitas un ID de estudiante)
+      const userId = currentUser?.rol === 'estudiante' ? currentUser.id : null;
+      if (userId && selectedResource?.id) {
+        try {
+          const { data: existing } = await supabase
+            .from('progreso_estudiantes')
+            .select('id')
+            .eq('usuario_id', userId)
+            .eq('recurso_id', selectedResource.id)
+            .maybeSingle();
 
-      // 3. Guardar respuesta
+          if (existing) {
+            await supabase
+              .from('progreso_estudiantes')
+              .update({ progreso: nuevoProgreso, intentos: newAttempts, updated_at: new Date() })
+              .eq('id', existing.id);
+          } else {
+            await supabase
+              .from('progreso_estudiantes')
+              .insert({
+                usuario_id: userId,
+                recurso_id: selectedResource.id,
+                progreso: nuevoProgreso,
+                intentos: newAttempts,
+                iniciado_en: new Date()  // ← necesario para trigger de tiempo
+              });
+          }
+        } catch (err) {
+          console.error("Error guardando progreso:", err);
+        }
+      }
+
+      // Actualizar el estado local (intentos, respuestas, etc.)
+      setAttemptCount({ ...attemptCount, [currentPreviewQuestion]: newAttempts });
       const newAnswer = {
         selected: selectedIdx,
         isCorrect: isCorrect,
         attempts: newAttempts,
         showCorrect: newAttempts >= maxAttempts && !isCorrect
       };
+      setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion]: newAnswer });
 
-      setQuizPreviewAnswers({
-        ...quizPreviewAnswers,
-        [quizPreviewIndex]: newAnswer
-      });
-
-      // 4. Dar retroalimentación inmediata
+      // Retroalimentación por voz (igual que antes)
       setTimeout(() => {
         if (isCorrect) {
           speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
-          // Repetir la pregunta y respuesta correcta después de 1.5 segundos
           setTimeout(() => {
             speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
           }, 1500);
@@ -1297,7 +1434,6 @@ export default function EnhancedAdminPanel() {
         }
       }, 1000);
     };
-
     // Determinar estado de Karin
     const getKarinState = () => {
       if (answer?.isCorrect) {
@@ -1800,24 +1936,31 @@ export default function EnhancedAdminPanel() {
 
   const fetchResources = async () => {
     try {
-      const { data, error } = await supabase
+      console.log("📚 Cargando recursos reales...");
+
+      // Contar recursos ACTIVOS (no todos)
+      const { data: recursosData, error, count } = await supabase
         .from("recursos")
-        .select(`*, cursos(titulo)`)
-        .eq("activo", true)
-        .order("created_at", { ascending: false });
+        .select("*", { count: 'exact', head: false })
+        .eq("activo", true);  // 👈 CLAVE: solo activos
 
       if (error) throw error;
 
-      const resourcesData =
-        data?.map((resource) => ({
-          ...resource,
-          curso_titulo: resource.cursos?.titulo || "Sin curso",
-          completados: 0,
-        })) || [];
+      console.log(`📊 Recursos encontrados: ${recursosData?.length || 0}`);
 
-      setResources(resourcesData);
+      // Mostrar en consola los recursos reales
+      if (recursosData && recursosData.length > 0) {
+        console.log("📋 Lista de recursos reales:");
+        recursosData.forEach(r => {
+          console.log(`   - ${r.titulo} (${r.tipo})`);
+        });
+      }
+
+      setResources(recursosData || []);
+
     } catch (err) {
-      console.error("Error cargando recursos:", err);
+      console.error("❌ Error cargando recursos:", err);
+      setResources([]);
     }
   };
 
@@ -1836,7 +1979,9 @@ export default function EnhancedAdminPanel() {
   };
 
   // Cargar biblioteca de contenido generado
+  // ========== MEJORAR loadContentLibrary ==========
   const loadContentLibrary = async () => {
+    if (!currentUser?.auth_id) return;
     try {
       const { data, error } = await supabase
         .from('contenido_generado')
@@ -1846,7 +1991,7 @@ export default function EnhancedAdminPanel() {
 
       if (error) throw error;
 
-      const formattedContent = data?.map(item => ({
+      const formatted = (data || []).map(item => ({
         id: item.id,
         type: item.type,
         prompt: item.prompt,
@@ -1854,35 +1999,168 @@ export default function EnhancedAdminPanel() {
         createdAt: new Date(item.created_at).toLocaleString('es-ES'),
         content: item.content,
         status: item.status,
-      })) || [];
-
-      setContentLibrary(formattedContent);
+      }));
+      setContentLibrary(formatted);
     } catch (err) {
       console.warn('Error cargando biblioteca:', err);
-      // No bloqueamos si falla
+      setContentLibrary([]);
     }
   };
 
+  // FUNCIÓN 1: Calcular Tiempo Promedio (CORREGIDA)
+
+  const calculateAvgTimePerResource = async () => {
+    try {
+      console.log("⏱️ Calculando tiempo promedio...");
+
+      const { data, error } = await supabase
+        .from("progreso_estudiantes")
+        .select("tiempo_dedicado")
+        .gt("tiempo_dedicado", 0)
+        .not("tiempo_dedicado", "is", null)
+        .lt("tiempo_dedicado", 7200); // Máximo 2 horas
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        console.warn("⚠️ No hay datos de tiempo");
+        return 0;
+      }
+
+      const totalSeconds = data.reduce((sum, item) => sum + (item.tiempo_dedicado || 0), 0);
+      const avgSeconds = totalSeconds / data.length;
+      const avgMinutes = Math.round(avgSeconds / 60);
+
+      console.log(`✅ Tiempo promedio: ${avgMinutes} minutos (${data.length} registros)`);
+      return avgMinutes;
+    } catch (err) {
+      console.error("❌ Error:", err);
+      return 0;
+    }
+  };
+
+  // FUNCIÓN 2: Calcular Engagement (CORREGIDA)
+
+  const calculateEngagementRate = async () => {
+    try {
+      console.log("📊 Calculando engagement correctamente...");
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      // ✅ Obtener TODOS los estudiantes
+      const { data: allStudents, error: studentsError } = await supabase
+        .from("usuarios")
+        .select("id, ultimo_acceso, activo")
+        .eq("rol", "estudiante");
+
+      if (studentsError) throw studentsError;
+
+      if (!allStudents || allStudents.length === 0) {
+        console.log("⚠️ No hay estudiantes registrados");
+        return 0;
+      }
+
+      const totalStudents = allStudents.length;
+
+      // ✅ Contar SOLO estudiantes que han tenido actividad en los últimos 7 días
+      const activeStudents = allStudents.filter(student => {
+        // Si no tiene último acceso, nunca ha entrado
+        if (!student.ultimo_acceso) return false;
+
+        // Convertir a Date y comparar
+        const lastAccess = new Date(student.ultimo_acceso);
+        return lastAccess > sevenDaysAgo;
+      }).length;
+
+      const engagementRate = Math.round((activeStudents / totalStudents) * 100);
+
+      console.log(`📊 RESULTADO ENGAGEMENT:`);
+      console.log(`   - Total estudiantes: ${totalStudents}`);
+      console.log(`   - Activos última semana: ${activeStudents}`);
+      console.log(`   - Inactivos: ${totalStudents - activeStudents}`);
+      console.log(`   - Tasa: ${engagementRate}%`);
+
+      // Mostrar lista de estudiantes inactivos (para debugging)
+      const inactiveStudents = allStudents.filter(student => {
+        if (!student.ultimo_acceso) return true;
+        return new Date(student.ultimo_acceso) <= sevenDaysAgo;
+      });
+
+      if (inactiveStudents.length > 0) {
+        console.log(`📋 Estudiantes inactivos (${inactiveStudents.length}):`);
+        inactiveStudents.slice(0, 5).forEach(s => {
+          console.log(`   - ID: ${s.id}, Último acceso: ${s.ultimo_acceso || 'NUNCA'}`);
+        });
+      }
+
+      return engagementRate;
+
+    } catch (err) {
+      console.error("❌ Error calculando engagement:", err);
+      return 0;
+    }
+  };
+
+  // FUNCIÓN 3: Calcular Analytics (CORREGIDA)
+
   const calculateAdvancedAnalytics = async () => {
     try {
-      const userGrowth = await calculateUserGrowth();
-      const engagementRate = await calculateEngagementRate();
-      const completionRate = await calculateCompletionRate();
-      const topCourses = await calculateTopCourses();
-      const avgTimePerResource = await calculateAvgTimePerResource();
+      console.log("🚀 Calculando analytics...");
+
+      // ✅ Obtener datos frescos de Supabase
+      const { data: estudiantes, error: studentsError } = await supabase
+        .from("usuarios")
+        .select("id, rol, activo, ultimo_acceso")
+        .eq("rol", "estudiante");
+
+      if (studentsError) throw studentsError;
+
+      const totalEstudiantes = estudiantes?.length || 0;
+      const estudiantesActivos = estudiantes?.filter(e => e.activo === true).length || 0;
+
+      // ✅ Calcular engagement correctamente
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const engagementReal = estudiantes?.filter(e => {
+        if (!e.ultimo_acceso) return false;
+        return new Date(e.ultimo_acceso) > sevenDaysAgo;
+      }).length || 0;
+
+      const tasaEngagement = totalEstudiantes === 0 ? 0 : Math.round((engagementReal / totalEstudiantes) * 100);
+
+      // ✅ Calcular tiempo promedio
+      let avgTimePerResource = 0;
+      const { data: timeData } = await supabase
+        .from("progreso_estudiantes")
+        .select("tiempo_dedicado")
+        .gt("tiempo_dedicado", 0);
+
+      if (timeData && timeData.length > 0) {
+        const totalSeconds = timeData.reduce((sum, t) => sum + (t.tiempo_dedicado || 0), 0);
+        avgTimePerResource = Math.round(totalSeconds / timeData.length / 60);
+      }
+
+      console.log(`📊 RESULTADOS REALES:`);
+      console.log(`   - Estudiantes totales: ${totalEstudiantes}`);
+      console.log(`   - Con actividad última semana: ${engagementReal}`);
+      console.log(`   - Tasa de compromiso real: ${tasaEngagement}%`);
+      console.log(`   - Tiempo promedio: ${avgTimePerResource} min`);
 
       setAnalytics({
-        totalUsers: users.length,
-        activeStudents: users.filter((u) => u.rol === "estudiante").length,
+        totalUsers: totalEstudiantes,
+        activeStudents: estudiantesActivos,
         completedResources: 0,
-        avgTimePerResource,
-        topCourses,
-        userGrowth,
-        engagementRate,
-        completionRate,
+        avgTimePerResource: avgTimePerResource,
+        topCourses: [],
+        userGrowth: 0,
+        engagementRate: tasaEngagement,
+        completionRate: 0,
       });
+
     } catch (err) {
-      console.error("Error calculando analytics:", err);
+      console.error("❌ Error:", err);
     }
   };
 
@@ -1905,29 +2183,6 @@ export default function EnhancedAdminPanel() {
       return Math.round(
         ((lastMonthUsers - previousMonthUsers) / previousMonthUsers) * 100
       );
-    } catch (err) {
-      return 0;
-    }
-  };
-
-  const calculateEngagementRate = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("progreso_estudiantes")
-        .select("*")
-        .gte(
-          "updated_at",
-          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        );
-
-      if (error) throw error;
-
-      const activeUsers = new Set(data?.map((p) => p.usuario_id) || []).size;
-      const totalStudents = users.filter((u) => u.rol === "estudiante").length;
-
-      return totalStudents > 0
-        ? Math.round((activeUsers / totalStudents) * 100)
-        : 0;
     } catch (err) {
       return 0;
     }
@@ -1994,24 +2249,6 @@ export default function EnhancedAdminPanel() {
     }
   };
 
-  const calculateAvgTimePerResource = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("progreso_estudiantes")
-        .select("tiempo_dedicado")
-        .not("tiempo_dedicado", "is", null);
-
-      if (error) throw error;
-
-      const totalTime =
-        data?.reduce((sum, item) => sum + (item.tiempo_dedicado || 0), 0) || 0;
-      const count = data?.length || 1;
-
-      return Math.round(totalTime / count / 60);
-    } catch (err) {
-      return 0;
-    }
-  };
 
   // VERSIÓN CON IA - RÁPIDA Y CONFIABLE
 
@@ -2694,358 +2931,178 @@ export default function EnhancedAdminPanel() {
   // Función para generar contenido con IA usando Gemini
   const generateContentWithAI = async () => {
     if (!generatorPrompt.trim()) {
-      alert('Por favor escribe qué contenido deseas generar');
+      alert("✏️ Escribe qué contenido deseas generar");
       return;
     }
 
     setGeneratingContent(true);
+    setError(null);
 
     try {
       const selectedType = contentTypes.find(c => c.id === contentType);
+      if (!selectedType) throw new Error("Tipo de contenido no válido");
 
-      // Prompts optimizados para Groq (rápido y preciso)
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+      if (!apiKey) throw new Error("❌ API Key de Groq no configurada");
+
+      // ⏱️ Timeout para evitar bloqueos
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
       const systemPrompts = {
-        quiz: `Eres un profesor creando quizzes para primaria.
+        quiz: `Genera un quiz de 5 preguntas sobre "${generatorPrompt}".
+Devuelve SOLO JSON válido.`,
 
-TAREA: Crea 5 preguntas sobre: "${generatorPrompt}"
+        game: `Diseña un juego educativo sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
 
-INSTRUCCIONES:
-- Preguntas simples (máximo 15 palabras)
-- 4 opciones cada una
-- Solo 1 respuesta correcta
-- Explicaciones claras
-- Lenguaje para niños 6-10 años
+        exercise: `Crea 5 ejercicios sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
 
-FORMATO JSON OBLIGATORIO (SOLO JSON, SIN TEXTO):
-{
-  "questions": [
-    {
-      "id": 1,
-      "text": "¿Pregunta aquí?",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correct": 0,
-      "explanation": "Explicación breve"
-    },
-    {
-      "id": 2,
-      "text": "Otra pregunta?",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correct": 2,
-      "explanation": "Explicación"
-    },
-    {
-      "id": 3,
-      "text": "Tercera pregunta?",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correct": 1,
-      "explanation": "Explicación"
-    },
-    {
-      "id": 4,
-      "text": "Cuarta pregunta?",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correct": 3,
-      "explanation": "Explicación"
-    },
-    {
-      "id": 5,
-      "text": "Quinta pregunta?",
-      "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-      "correct": 0,
-      "explanation": "Explicación"
-    }
-  ],
-  "totalPoints": 50,
-  "timeLimit": 300
-}`,
+        story: `Escribe una historia educativa sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
 
-        game: `Eres un diseñador de juegos educativos.
-
-TAREA: Diseña un juego educativo sobre: "${generatorPrompt}"
-
-FORMATO JSON (SOLO JSON):
-{
-  "name": "Nombre creativo del juego",
-  "description": "Descripción breve del juego",
-  "levels": 3,
-  "mechanics": ["Mecánica de juego 1", "Mecánica de juego 2", "Mecánica de juego 3"],
-  "rewards": ["Recompensa 1", "Recompensa 2", "Recompensa 3"],
-  "instructions": ["Instrucción paso 1", "Instrucción paso 2", "Instrucción paso 3"]
-}`,
-
-        exercise: `Eres un profesor creando ejercicios prácticos.
-
-TAREA: Crea 10 ejercicios sobre: "${generatorPrompt}"
-
-FORMATO JSON (SOLO JSON):
-{
-  "exercises": [
-    {
-      "id": 1,
-      "instruction": "Instrucción clara del ejercicio",
-      "example": "Ejemplo de cómo resolverlo",
-      "difficulty": "facil"
-    },
-    {
-      "id": 2,
-      "instruction": "Segundo ejercicio",
-      "example": "Ejemplo",
-      "difficulty": "facil"
-    },
-    {
-      "id": 3,
-      "instruction": "Tercer ejercicio",
-      "example": "Ejemplo",
-      "difficulty": "medio"
-    },
-    {
-      "id": 4,
-      "instruction": "Cuarto",
-      "example": "Ejemplo",
-      "difficulty": "medio"
-    },
-    {
-      "id": 5,
-      "instruction": "Quinto",
-      "example": "Ejemplo",
-      "difficulty": "medio"
-    },
-    {
-      "id": 6,
-      "instruction": "Sexto",
-      "example": "Ejemplo",
-      "difficulty": "dificil"
-    },
-    {
-      "id": 7,
-      "instruction": "Séptimo",
-      "example": "Ejemplo",
-      "difficulty": "dificil"
-    },
-    {
-      "id": 8,
-      "instruction": "Octavo",
-      "example": "Ejemplo",
-      "difficulty": "dificil"
-    },
-    {
-      "id": 9,
-      "instruction": "Noveno",
-      "example": "Ejemplo",
-      "difficulty": "dificil"
-    },
-    {
-      "id": 10,
-      "instruction": "Décimo",
-      "example": "Ejemplo",
-      "difficulty": "dificil"
-    }
-  ],
-  "difficulty": "medio",
-  "estimatedTime": 45
-}`,
-
-        story: `Eres un escritor de historias educativas.
-
-TAREA: Crea una historia educativa sobre: "${generatorPrompt}"
-
-FORMATO JSON (SOLO JSON):
-{
-  "title": "Título de la historia",
-  "chapters": 5,
-  "description": "Descripción breve de la historia",
-  "keywords": ["palabra_clave_1", "palabra_clave_2", "palabra_clave_3"],
-  "moralLesson": "La lección educativa principal de la historia"
-}`,
-
-        challenge: `Eres un experto en crear desafíos educativos.
-
-TAREA: Crea un desafío semanal sobre: "${generatorPrompt}"
-
-FORMATO JSON (SOLO JSON):
-{
-  "title": "Título del desafío",
-  "difficulty": "medio",
-  "reward": "Descripción de la recompensa",
-  "duration": "7 días",
-  "tasks": ["Tarea 1 a completar", "Tarea 2 a completar", "Tarea 3 a completar"],
-  "criteria": ["Criterio de éxito 1", "Criterio de éxito 2"]
-}`
+        challenge: `Crea un desafío sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
       };
 
-      const prompt = systemPrompts[contentType] || systemPrompts.quiz;
+      const prompt = systemPrompts[contentType];
+      if (!prompt) throw new Error("Tipo no soportado");
 
-      // Llamar a Groq API
-      console.log('🚀 Enviando solicitud a Groq...');
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-70b-versatile",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "Responde ÚNICAMENTE con JSON válido. No agregues texto.",
+              },
+              { role: "user", content: prompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 3000,
+          }),
+        }
+      );
 
-      const apiKey = import.meta.env.VITE_GROQ_API_KEY || '';
-
-      if (!apiKey) {
-        console.error('❌ API Key no configurada');
-        throw new Error('API Key de Groq no está configurada en .env.local');
-      }
-
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un asistente experto en educación que crea contenido educativo de alta calidad. SIEMPRE respondes SOLO con JSON válido, sin explicaciones adicionales.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2048,
-          top_p: 1,
-          stream: false
-        })
-      });
-
-      console.log('📨 Respuesta recibida:', response.status);
+      clearTimeout(timeout);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData?.error?.message || `Error Groq: ${response.status}`;
-        console.error('❌ Error de Groq:', errorMsg);
-        throw new Error(errorMsg);
+        const err = await response.json();
+        throw new Error(err.error?.message || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
-      let aiText = data?.choices?.[0]?.message?.content || '';
+      let aiText = data?.choices?.[0]?.message?.content?.trim();
 
-      if (!aiText || aiText.trim().length === 0) {
-        throw new Error('Groq no devolvió respuesta válida');
-      }
+      if (!aiText) throw new Error("Respuesta vacía de la IA");
 
-      console.log('📝 Respuesta de IA (primeros 200 chars):', aiText.substring(0, 200));
-
-      // Limpiar JSON
+      // 🔥 Limpieza inteligente
       aiText = aiText
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .replace(/^[^{]*/, '')
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
         .trim();
 
-      // Parsear JSON
-      let parsedContent;
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No se encontró JSON válido");
+
+      let parsed;
       try {
-        parsedContent = JSON.parse(aiText);
-        console.log('✅ JSON parseado exitosamente');
-      } catch (parseError) {
-        console.error('❌ Error parseando JSON:', parseError);
-        console.log('Texto que se intentó parsear:', aiText);
-        throw new Error('La IA devolvió un formato inválido. Intenta con otro prompt.');
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        throw new Error("JSON inválido generado por la IA");
       }
 
-      // Validar estructura básica
-      if (!parsedContent || typeof parsedContent !== 'object') {
-        throw new Error('Contenido inválido recibido de la IA');
+      // ✅ Validaciones según tipo
+      if (contentType === "quiz") {
+        if (!parsed.questions?.length)
+          throw new Error("El quiz no tiene preguntas");
+
+        parsed.questions = parsed.questions.map((q, i) => ({
+          id: i + 1,
+          pregunta: q.text || "Pregunta",
+          opciones: q.options || [],
+          respuesta_correcta: q.correct ?? 0,
+          puntos: 10,
+          imagen_url: q.image_theme || "❓",
+          imagen_opciones: q.option_emojis || ["🔴", "🔵", "🟢", "🟡"],
+        }));
+
+        parsed.totalPoints =
+          parsed.totalPoints || parsed.questions.length * 10;
       }
 
       const newContent = {
         id: Date.now(),
         type: contentType,
         prompt: generatorPrompt,
-        title: `${selectedType.name}: ${generatorPrompt.substring(0, 40)}${generatorPrompt.length > 40 ? '...' : ''}`,
-        createdAt: new Date().toLocaleString('es-ES'),
-        content: parsedContent,
-        status: 'generated',
-        //  NUEVOS CAMPOS PARA MEJORAR VISUALIZACIÓN
-        preguntas: parsedContent.questions || [],
-        totalPoints: parsedContent.totalPoints || 0,
-        timeLimit: parsedContent.timeLimit || 0,
+        title: `${selectedType.name}: ${generatorPrompt.slice(0, 40)}`,
+        createdAt: new Date().toLocaleString(),
+        content: parsed,
+        status: "generated",
+        preguntas: parsed.questions || [],
       };
 
-      console.log('✨ Contenido generado con éxito:', newContent);
-
-      // AUTOMÁTICAMENTE ABRIR PREVIEW
-      setTimeout(() => {
-        setEditingGeneratedQuiz(newContent);
-        setShowContentPreview(true);
-        setQuizPreviewIndex(0);
-        setQuizPreviewAnswers({});
-      }, 500);
-      console.log('✅ Contenido generado:', newContent.id);
-
       setGeneratedContent(newContent);
-      setContentLibrary([newContent, ...contentLibrary]);
-      setGeneratorPrompt('');
-      if (contentType === 'quiz' && currentUser?.id && courses.length > 0) { try { const defaultCourse = courses[0]; const newQuizResource = { titulo: newContent.title, descripcion: `Quiz generado con IA: ${generatorPrompt}`, tipo: 'quiz', curso_id: defaultCourse.id, contenido_quiz: newContent.content.questions || [], puntos_recompensa: (newContent.content.questions?.length || 0) * 10, tiempo_estimado: (newContent.content.questions?.length || 0) * 2, orden: 1, activo: true, created_by: currentUser.id, created_at: new Date().toISOString(), }; const { data: insertedData, error: insertError } = await supabase.from('recursos').insert([newQuizResource]).select(); if (!insertError && insertedData) { console.log('✅ Quiz guardado en recursos:', insertedData); await fetchResources(); } } catch (autoCreateError) { console.warn('⚠️ Error auto-creando recurso:', autoCreateError?.message); } }
-      // Guardar en Supabase sin bloquear
-      if (currentUser?.auth_id && supabase) {
-        try {
-          await supabase
-            .from('contenido_generado')
-            .insert([{
-              type: contentType,
-              prompt: generatorPrompt,
-              title: newContent.title,
-              content: parsedContent,
-              created_by: currentUser.auth_id,
-              status: 'generated'
-            }]);
-          console.log('💾 Contenido guardado en BD');
-        } catch (dbError) {
-          console.warn('⚠️ No se guardó en BD:', dbError?.message);
-        }
+      setContentLibrary(prev => [newContent, ...prev]);
+
+      // 💾 Guardar en Supabase (opcional)
+      if (currentUser?.auth_id) {
+        await supabase.from("contenido_generado").insert([{
+          type: contentType,
+          prompt: generatorPrompt,
+          title: newContent.title,
+          content: parsed,
+          created_by: currentUser.auth_id,
+          status: "generated",
+        }]);
       }
 
-      alert('✅ ¡Contenido generado exitosamente con Groq!');
-      setGeneratingContent(false);
+      setGeneratorPrompt("");
+      alert("✅ Contenido generado correctamente");
 
     } catch (error) {
-      console.error('❌ Error generando contenido:', error);
+      console.error(error);
 
-      let userMessage = '❌ Error al generar contenido:\n\n';
+      let msg = "❌ Error desconocido";
 
-      if (error.message.includes('API_KEY')) {
-        userMessage += 'Problema: API Key no configurada\n\n💡 Solución: Verifica que VITE_GROQ_API_KEY esté en .env.local';
-      } else if (error.message.includes('formato')) {
-        userMessage += 'Problema: La IA devolvió un formato inválido\n\n💡 Solución: Intenta con un prompt más específico';
-      } else if (error.message.includes('Network')) {
-        userMessage += 'Problema: Error de conexión\n\n💡 Solución: Verifica tu conexión a internet';
+      if (error.name === "AbortError") {
+        msg = "⏱️ La IA tardó demasiado (timeout)";
+      } else if (error.message.includes("model")) {
+        msg = "⚠️ Modelo de IA no disponible";
+      } else if (error.message.includes("JSON")) {
+        msg = "⚠️ La IA devolvió formato incorrecto";
       } else {
-        userMessage += error.message;
+        msg = error.message;
       }
 
-      userMessage += '\n\n¿Deseas usar contenido predeterminado en su lugar?';
+      setError(msg);
 
-      const useFallback = confirm(userMessage);
+      const usarFallback = window.confirm(`${msg}\n\n¿Usar contenido de ejemplo?`);
 
-      if (useFallback) {
-        try {
-          const selectedType = contentTypes.find(c => c.id === contentType);
-          const mockContent = generateMockContent(contentType, generatorPrompt);
+      if (usarFallback) {
+        const mock = generateMockContent(contentType, generatorPrompt);
 
-          const newContent = {
-            id: Date.now(),
-            type: contentType,
-            prompt: generatorPrompt,
-            title: `${selectedType.name}: ${generatorPrompt.substring(0, 40)}${generatorPrompt.length > 40 ? '...' : ''}`,
-            createdAt: new Date().toLocaleString('es-ES'),
-            content: mockContent,
-            status: 'generated-fallback',
-          };
+        const fallback = {
+          id: Date.now(),
+          type: contentType,
+          prompt: generatorPrompt,
+          title: `Ejemplo: ${generatorPrompt}`,
+          createdAt: new Date().toLocaleString(),
+          content: mock,
+          status: "fallback",
+        };
 
-          setGeneratedContent(newContent);
-          setContentLibrary([newContent, ...contentLibrary]);
-          setGeneratorPrompt('');
-
-          alert('✅ Contenido generado en modo fallback\n\n💡 Nota: Puedes editarlo después para personalizarlo');
-        } catch (fallbackError) {
-          alert('❌ Error incluso en fallback: ' + fallbackError.message);
-        }
+        setGeneratedContent(fallback);
+        setContentLibrary(prev => [fallback, ...prev]);
       }
 
+    } finally {
       setGeneratingContent(false);
     }
   };
@@ -3613,7 +3670,7 @@ Ejercicio ${ex.id} (${ex.difficulty.toUpperCase()}):
         return;
       }
 
-      // ✅ CONVERSIÓN CORRECTA: Buscar curso con conversión de tipos
+      // CONVERSIÓN CORRECTA: Buscar curso con conversión de tipos
       const selectedCourse = courses.find(
         (c) => String(c.id) === String(selectedCourseId)
       );
@@ -4290,7 +4347,7 @@ Genera ${num} preguntas.`;
 
       try {
         const response = await fetch(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDuJcvWLZnCAlKY1gS7wi_5ESHQBSnEJeE',
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4482,7 +4539,88 @@ Genera ${num} preguntas.`;
     return questions;
   };
 
-  const parseQuestionsImproved = (aiText) => { const questions = []; const lines = aiText.split('\n').filter(l => l.trim()); let currentQuestion = null; lines.forEach(line => { line = line.trim(); if (/^P\d+:|^Pregunta \d+:|\d+\./i.test(line)) { if (currentQuestion) questions.push(currentQuestion); currentQuestion = { pregunta: line.replace(/^P\d+:|^Pregunta \d+:|\d+\./, '').trim(), opciones: [], respuesta_correcta: 0 }; } else if (/^[A-D]\)|^[A-D]\./.test(line) && currentQuestion) { currentQuestion.opciones.push(line.replace(/^[A-D]\)|^[A-D]\./, '').trim()); } else if (/^R:|^Respuesta:/i.test(line) && currentQuestion) { const respuesta = line.replace(/^R:|^Respuesta:/i, '').trim().toUpperCase(); const index = ['A', 'B', 'C', 'D'].indexOf(respuesta.charAt(0)); if (index !== -1) currentQuestion.respuesta_correcta = index; } }); if (currentQuestion) questions.push(currentQuestion); return questions; }; const parseQuestionsSimple = (aiText) => { return parseQuestionsImproved(aiText); };
+  const parseQuestionsImproved = (aiText) => {
+    const questions = [];
+    const lines = aiText.split('\n').filter(l => l.trim());
+    let currentQuestion = null;
+    let currentOptions = [];
+    let expectingOptions = false;
+
+    for (let line of lines) {
+      line = line.trim();
+      // Detecta inicio de pregunta: "P1:", "Pregunta 1:", "1." , "1)"
+      const questionMatch = line.match(/^(?:P\d+:|Pregunta\s*\d+:|\d+\.|\d+\))\s*(.+)/i);
+      if (questionMatch) {
+        if (currentQuestion && currentOptions.length > 0) {
+          currentQuestion.opciones = currentOptions;
+          questions.push(currentQuestion);
+        }
+        currentQuestion = {
+          pregunta: questionMatch[1].trim(),
+          opciones: [],
+          respuesta_correcta: 0
+        };
+        currentOptions = [];
+        expectingOptions = true;
+        continue;
+      }
+
+      // Detecta opciones: "A) texto" o "A. texto"
+      const optionMatch = line.match(/^([A-D])[\.\)]\s*(.+)/i);
+      if (optionMatch && currentQuestion) {
+        currentOptions.push(optionMatch[2].trim());
+        continue;
+      }
+
+      // Detecta respuesta: "R: B" o "Respuesta: B"
+      const answerMatch = line.match(/^(?:R:|Respuesta:)\s*([A-D])/i);
+      if (answerMatch && currentQuestion) {
+        const letter = answerMatch[1].toUpperCase();
+        const index = ['A', 'B', 'C', 'D'].indexOf(letter);
+        if (index !== -1) currentQuestion.respuesta_correcta = index;
+      }
+    }
+
+    // Agregar última pregunta
+    if (currentQuestion && currentOptions.length > 0) {
+      currentQuestion.opciones = currentOptions;
+      questions.push(currentQuestion);
+    }
+
+    // Si no encontró estructura, intenta detectar bloques estilo "Pregunta: ... Opciones: ..."
+    if (questions.length === 0) {
+      // Búsqueda alternativa por párrafos
+      const paragraphs = aiText.split(/\n\s*\n/);
+      for (let para of paragraphs) {
+        if (para.includes('?') && (para.includes('A)') || para.includes('A.'))) {
+          const qMatch = para.match(/([^?!]+[?])/);
+          if (qMatch) {
+            const options = [];
+            const optMatches = para.match(/([A-D])[\.\)]\s*([^\n]+)/g);
+            if (optMatches) {
+              optMatches.forEach(opt => {
+                const txt = opt.replace(/^[A-D][\.\)]\s*/, '').trim();
+                options.push(txt);
+              });
+            }
+            if (options.length >= 2) {
+              questions.push({
+                pregunta: qMatch[1].trim(),
+                opciones: options.slice(0, 4),
+                respuesta_correcta: 0
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return questions;
+  };
+
+  const parseQuestionsSimple = (aiText) => {
+    return parseQuestionsImproved(aiText);
+  };
 
   // Función auxiliar para procesar respuesta de IA
   const processAIResponse = (data) => {
@@ -4939,13 +5077,38 @@ Genera ${num} preguntas.`;
     });
   };
 
+
+  // FUNCIÓN: Registrar inicio de recurso
+
+  const registrarInicioRecurso = async (recursoId) => {
+    if (!currentUser || currentUser.rol !== 'estudiante') return;
+
+    try {
+      const { error } = await supabase
+        .from('progreso_estudiantes')
+        .upsert({
+          usuario_id: currentUser.id,
+          recurso_id: recursoId,
+          iniciado_en: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'usuario_id,recurso_id'
+        });
+
+      if (error) console.error('Error:', error);
+      else console.log('✅ Inicio registrado');
+    } catch (err) {
+      console.error('Error:', err);
+    }
+  };
+
   const openPreview = (resource) => {
     console.log('👁️ Abriendo vista previa unificada');
 
-    // Obtener preguntas del recurso o de biblioteca
-    let quizQuestions = resource.contenido_quiz;
+    // REGISTRAR INICIO DEL RECURSO (para calcular tiempo)
+    registrarInicioRecurso(resource.id);
 
-    // NUEVO: Si viene del generador, buscar en contentLibrary
+    let quizQuestions = resource.contenido_quiz;
     if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
       const generatedQuiz = contentLibrary.find(
         item => item.type === 'quiz' && (
@@ -4963,7 +5126,6 @@ Genera ${num} preguntas.`;
       return;
     }
 
-    // Formatear preguntas UNIFICADO
     const preguntasFormateadas = quizQuestions.map((q, idx) => ({
       id: q.id || `preview_${idx}`,
       tipo: q.tipo || q.type || 'multiple',
@@ -4988,6 +5150,10 @@ Genera ${num} preguntas.`;
     setPreviewAnswers({});
     setOptionListenState({});
     setSelectedOption(null);
+
+    // Inicializar los tiempos para medir duración
+    setQuizStartTime(Date.now());
+    setCurrentQuestionStartTime(Date.now());
 
     console.log('✅ Vista previa lista con', preguntasFormateadas.length, 'preguntas');
   };
@@ -5133,9 +5299,8 @@ Genera ${num} preguntas.`;
         return;
       }
 
-      // ✅ Buscar curso correctamente
+      //  Buscar curso correctamente
       const course = courses.find((c) => String(c.id) === String(finalCourseId));
-
       if (!course) {
         console.error("❌ Curso no encontrado. ID buscado:", finalCourseId);
         alert("❌ Curso no encontrado. Verifica que el curso exista.");
@@ -5144,7 +5309,7 @@ Genera ${num} preguntas.`;
 
       console.log("✅ Curso encontrado:", course.titulo);
 
-      // ✅ CORRECCIÓN: Usar 'progreso_estudiantes' (tabla correcta)
+      //  CORRECCIÓN: Usar 'progreso_estudiantes' (tabla correcta)
       const { data: progressData, error: progressError } = await supabase.from(
         "progreso_estudiantes"
       ).select(`
@@ -5161,18 +5326,14 @@ Genera ${num} preguntas.`;
         return;
       }
 
-      // ✅ Filtrar progreso por curso
+      // Filtrar progreso por curso
       const courseProgressData =
         progressData?.filter(
           (p) => String(p.recursos?.curso_id) === String(finalCourseId)
         ) || [];
 
-      console.log(
-        `📊 Total registros de progreso: ${progressData?.length || 0}`
-      );
-      console.log(
-        `📊 Progreso filtrado del curso: ${courseProgressData.length}`
-      );
+      console.log(`📊 Total registros de progreso: ${progressData?.length || 0}`);
+      console.log(`📊 Progreso filtrado del curso: ${courseProgressData.length}`);
 
       // Obtener estudiantes únicos
       const uniqueStudentIds = [
@@ -5180,25 +5341,19 @@ Genera ${num} preguntas.`;
       ];
 
       if (uniqueStudentIds.length === 0) {
-        alert(
-          "⚠️ Este curso no tiene estudiantes con progreso registrado todavía."
-        );
+        alert("⚠️ Este curso no tiene estudiantes con progreso registrado todavía.");
         return;
       }
 
       console.log(`👥 Estudiantes únicos: ${uniqueStudentIds.length}`);
 
       //  Calcular estadísticas generales
-      const completedCount = courseProgressData.filter(
-        (p) => p.completado
-      ).length;
+      const completedCount = courseProgressData.filter((p) => p.completado).length;
       const avgProgress =
         courseProgressData.length > 0
           ? Math.round(
-            courseProgressData.reduce(
-              (sum, p) => sum + (p.progreso || 0),
-              0
-            ) / courseProgressData.length
+            courseProgressData.reduce((sum, p) => sum + (p.progreso || 0), 0) /
+            courseProgressData.length
           )
           : 0;
       const totalTime = Math.round(
@@ -5213,7 +5368,7 @@ Genera ${num} preguntas.`;
 
       console.log("📊 Estadísticas calculadas");
 
-      // ✅ Recolectar datos de estudiantes con algoritmos de IA
+      // Recolectar datos de estudiantes con algoritmos de IA y evolución
       const studentsData = [];
       const studentsToAnalyze = uniqueStudentIds.slice(0, 10);
 
@@ -5227,13 +5382,16 @@ Genera ${num} preguntas.`;
 
         console.log(`🔍 Analizando estudiante: ${student.nombre}`);
 
-        // ✅ Llamar a los algoritmos de IA
+        // Llamar a los algoritmos de IA
         const feedback = await generateAdaptiveFeedback(studentId, finalCourseId);
 
         if (!feedback) {
           console.warn(`⚠️ No se pudo analizar a: ${student.nombre}`);
           continue;
         }
+
+        //  Obtener evolución temporal del estudiante
+        const evolutionData = await fetchStudentEvolution(studentId, finalCourseId);
 
         const grupoNombre = student.grupo_id
           ? groups.find((g) => g.id === student.grupo_id)?.nombre || "Sin grupo"
@@ -5243,6 +5401,7 @@ Genera ${num} preguntas.`;
           student,
           feedback,
           grupo: grupoNombre,
+          evolution: evolutionData, // datos de evolución
         });
       }
 
@@ -5282,6 +5441,82 @@ Genera ${num} preguntas.`;
       console.error("❌ Error generando análisis:", err);
       alert("Error al generar el análisis: " + err.message);
     }
+  };
+  // Obtener evolución temporal de un estudiante (últimos 10 registros)
+
+  const fetchStudentEvolution = async (studentId, courseId) => {
+    try {
+      const { data, error } = await supabase
+        .from('progreso_estudiantes')
+        .select(`
+        progreso,
+        completado,
+        tiempo_dedicado,
+        intentos,
+        updated_at,
+        recursos!inner(tipo, curso_id)
+      `)
+        .eq('usuario_id', studentId)
+        .eq('recursos.curso_id', courseId)
+        .order('updated_at', { ascending: true })
+        .limit(10);
+
+      if (error) throw error;
+
+      return data.map(record => ({
+        fecha: new Date(record.updated_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
+        progreso: record.progreso || 0,
+        completado: record.completado ? 100 : (record.progreso || 0),
+        tiempo: Math.floor((record.tiempo_dedicado || 0) / 60),
+        intentos: record.intentos || 1
+      }));
+    } catch (err) {
+      console.error('Error fetching evolution:', err);
+      return [];
+    }
+  };
+
+  const calculateTrend = (values) => {
+    if (values.length < 2) return 0;
+    const first = values[0];
+    const last = values[values.length - 1];
+    if (first === 0) return last > 0 ? 100 : 0;
+    const change = ((last - first) / first) * 100;
+    return Math.round(change);
+  };
+
+  // Componente gráfico simple
+  const SimpleLineChart = ({ data, xKey, yKey, color, label }) => {
+    if (!data || data.length === 0) return <div className="text-center text-gray-400">Sin datos</div>;
+
+    const maxY = Math.max(...data.map(d => d[yKey]), 1);
+    const points = data.map((d, i) => ({
+      x: (i / (data.length - 1)) * 100,
+      y: 100 - ((d[yKey] / maxY) * 80)
+    }));
+
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+    return (
+      <div className="relative w-full h-full">
+        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {[0, 25, 50, 75, 100].map(y => (
+            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.5" />
+          ))}
+          <path d={`${pathD} L 100 100 L 0 100 Z`} fill={`${color}20`} />
+          <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+          {points.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="2" fill={color} stroke="white" strokeWidth="1" />
+          ))}
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 mt-1">
+          {data.map((d, i) => (
+            <span key={i} className="text-[10px]">{d[xKey]}</span>
+          ))}
+        </div>
+        <div className="absolute -top-5 left-0 text-xs font-medium text-gray-600">{label}</div>
+      </div>
+    );
   };
 
   const generateAllCoursesReport = async () => {
@@ -5964,18 +6199,16 @@ ${courseReportData.stats.avgProgress >= 70
     const question = currentQuiz.preguntas[currentPreviewQuestion];
     if (!question) return null;
 
-    // Normalizar la pregunta (igual que en renderContentPreview)
+    // Normalizar la pregunta
     const normalizedQuestion = {
       pregunta: question.pregunta || question.text || '',
       opciones: question.opciones || question.options || [],
       respuesta_correcta: question.respuesta_correcta ?? question.correct ?? 0,
       puntos: question.puntos || question.points || 10,
       retroalimentacion_correcta: question.retroalimentacion_correcta ||
-        question.feedback_correct ||
-        '¡Excelente! 🎉',
+        question.feedback_correct || '¡Excelente! 🎉',
       retroalimentacion_incorrecta: question.retroalimentacion_incorrecta ||
-        question.feedback_incorrect ||
-        '¡Intenta otra vez! 💪',
+        question.feedback_incorrect || '¡Intenta otra vez! 💪',
       audio_pregunta: question.audio_pregunta !== false,
       audio_retroalimentacion: question.audio_retroalimentacion !== false,
       video_url: question.video_url || '',
@@ -5988,81 +6221,24 @@ ${courseReportData.stats.avgProgress >= 70
     const attempts = attemptCount[currentPreviewQuestion] || 0;
     const maxAttempts = 3;
 
-    // Función para manejar la selección inmediata (IGUAL que en renderContentPreview)
-    const handleImmediateAnswer = (selectedIdx) => {
-      // Si ya acertó o agotó intentos, no hacer nada
-      if (answer?.isCorrect || attempts >= maxAttempts) return;
+    // Función para manejar la selección inmediata (ya debe existir)
+    const handleImmediateAnswer = async (selectedIdx) => { /* ... */ };
 
-      const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
-      const newAttempts = attempts + 1;
-
-      // 1. Repetir la palabra seleccionada
-      speakText(normalizedQuestion.opciones[selectedIdx]);
-
-      // 2. Actualizar contador de intentos
-      setAttemptCount({
-        ...attemptCount,
-        [currentPreviewQuestion]: newAttempts
-      });
-
-      // 3. Guardar respuesta
-      const newAnswer = {
-        selected: selectedIdx,
-        isCorrect: isCorrect,
-        attempts: newAttempts,
-        showCorrect: newAttempts >= maxAttempts && !isCorrect
-      };
-
-      setPreviewAnswers({
-        ...previewAnswers,
-        [currentPreviewQuestion]: newAnswer
-      });
-
-      // 4. Dar retroalimentación inmediata
-      setTimeout(() => {
-        if (isCorrect) {
-          speakText("¡Correcto! " + normalizedQuestion.retroalimentacion_correcta);
-          // Repetir la pregunta y respuesta correcta después de 1.5 segundos
-          setTimeout(() => {
-            speakText(`La pregunta era: ${normalizedQuestion.pregunta}. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-          }, 1500);
-        } else if (newAttempts >= maxAttempts) {
-          speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
-        } else {
-          const remaining = maxAttempts - newAttempts;
-          speakText(`Lo siento, te has equivocado. Te quedan ${remaining} intentos. Intenta de nuevo.`);
-        }
-      }, 1000);
-    };
-
-    // Determinar estado de Karin (IGUAL que en renderContentPreview)
+    // Determinar estado de Karin
     const getKarinState = () => {
       if (answer?.isCorrect) {
-        return {
-          state: "happy",
-          message: "¡Excelente! Respuesta correcta 🎉",
-        };
+        return { state: "happy", message: "¡Excelente! Respuesta correcta 🎉" };
       }
       if (answer && !answer.isCorrect && attempts >= maxAttempts) {
-        return {
-          state: "encourage",
-          message: "No te preocupes, sigamos aprendiendo 💚",
-        };
+        return { state: "encourage", message: "No te preocupes, sigamos aprendiendo 💚" };
       }
       if (attempts > 0 && attempts < maxAttempts) {
         const remaining = maxAttempts - attempts;
-        return {
-          state: "thinking",
-          message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`,
-        };
+        return { state: "thinking", message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪` };
       }
-      return {
-        state: "idle",
-        message: "Escucha la pregunta y elige la respuesta correcta",
-      };
+      return { state: "idle", message: "Escucha la pregunta y elige la respuesta correcta" };
     };
 
-    // Función para repetir pregunta y opciones (IGUAL que en renderContentPreview)
     const repeatQuestionWithOptions = () => {
       let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
       fullText += `Las opciones son: `;
@@ -6076,7 +6252,7 @@ ${courseReportData.stats.avgProgress >= 70
 
     return (
       <div className="bg-[#F7F9FC] rounded-3xl p-6 min-h-[600px] flex flex-col">
-        {/* HEADER: KARIN + PROGRESO - IDÉNTICO */}
+        {/* HEADER: KARIN + PROGRESO */}
         <div className="flex justify-between items-start mb-6">
           <KarinMascot state={karin.state} message={karin.message} />
           <div className="bg-white rounded-full px-5 py-2 shadow-sm border text-sm font-bold">
@@ -6084,7 +6260,7 @@ ${courseReportData.stats.avgProgress >= 70
           </div>
         </div>
 
-        {/* BARRA DE PROGRESO - IDÉNTICA */}
+        {/* BARRA DE PROGRESO */}
         <div className="flex gap-2 mb-8">
           {currentQuiz.preguntas.map((_, idx) => (
             <div
@@ -6099,7 +6275,7 @@ ${courseReportData.stats.avgProgress >= 70
           ))}
         </div>
 
-        {/* CONTADOR DE INTENTOS - IDÉNTICO */}
+        {/* CONTADOR DE INTENTOS */}
         {attempts > 0 && (
           <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
             <p className="text-lg font-bold text-yellow-800">
@@ -6119,7 +6295,7 @@ ${courseReportData.stats.avgProgress >= 70
           </div>
         )}
 
-        {/* PREGUNTA - IDÉNTICA */}
+        {/* PREGUNTA */}
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
           <div className="flex items-center gap-4 justify-center">
             {normalizedQuestion.audio_pregunta && (
@@ -6131,16 +6307,12 @@ ${courseReportData.stats.avgProgress >= 70
               </button>
             )}
             {normalizedQuestion.imagen_url && (
-              <div className="text-7xl flex-shrink-0">
-                {normalizedQuestion.imagen_url}
-              </div>
+              <div className="text-7xl flex-shrink-0">{normalizedQuestion.imagen_url}</div>
             )}
             <p className="text-3xl font-bold text-gray-800 text-center">
               {normalizedQuestion.pregunta}
             </p>
           </div>
-
-          {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - AZUL (IDÉNTICO) */}
           <div className="mt-6 text-center">
             <button
               onClick={() => repeatQuestionWithOptions()}
@@ -6152,7 +6324,7 @@ ${courseReportData.stats.avgProgress >= 70
           </div>
         </div>
 
-        {/* OPCIONES CON BOTÓN DE REPETIR - IDÉNTICO */}
+        {/* OPCIONES */}
         <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto w-full">
           {normalizedQuestion.opciones.map((opcion, idx) => {
             const isSelected = answer?.selected === idx;
@@ -6175,7 +6347,6 @@ ${courseReportData.stats.avgProgress >= 70
                         : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
                   }`}
               >
-                {/* BOTÓN REPETIR PALABRA (IZQUIERDA) - AZUL */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -6187,18 +6358,14 @@ ${courseReportData.stats.avgProgress >= 70
                   <Volume2 className="w-6 h-6" />
                 </button>
 
-                {/* CONTENIDO DE LA OPCIÓN */}
                 <div
                   className="flex-1 flex items-center gap-4 cursor-pointer"
                   onClick={() => handleImmediateAnswer(idx)}
                 >
-                  <span className="text-5xl flex-shrink-0 drop-shadow-sm">
-                    {emojiOpcion}
-                  </span>
+                  <span className="text-5xl flex-shrink-0 drop-shadow-sm">{emojiOpcion}</span>
                   <span className="flex-1">{opcion}</span>
                 </div>
 
-                {/* BOTÓN REPETIR PALABRA (DERECHA) - AZUL */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -6210,36 +6377,25 @@ ${courseReportData.stats.avgProgress >= 70
                   <Volume2 className="w-6 h-6" />
                 </button>
 
-                {/* INDICADORES DE RESPUESTA */}
-                {showAsCorrect && (
-                  <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                    ✅
-                  </span>
-                )}
-                {isSelected && answer?.isCorrect && (
-                  <span className="text-3xl animate-bounce flex-shrink-0 ml-2">
-                    🎉
-                  </span>
-                )}
-                {isSelected && !answer?.isCorrect && (
-                  <span className="text-3xl flex-shrink-0 ml-2">
-                    ❌
-                  </span>
-                )}
+                {showAsCorrect && <span className="text-3xl animate-bounce flex-shrink-0 ml-2">✅</span>}
+                {isSelected && answer?.isCorrect && <span className="text-3xl animate-bounce flex-shrink-0 ml-2">🎉</span>}
+                {isSelected && !answer?.isCorrect && <span className="text-3xl flex-shrink-0 ml-2">❌</span>}
               </div>
             );
           })}
         </div>
 
-        {/* RETROALIMENTACIÓN - IDÉNTICA */}
+        {/* RETROALIMENTACIÓN Y BOTÓN FINALIZAR */}
         {answer && (
           <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
-            <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect
-              ? "bg-green-100 border-green-400 animate-pulse"
-              : attempts >= maxAttempts
-                ? "bg-orange-100 border-orange-400"
-                : "bg-red-100 border-red-400"
-              }`}>
+            <div
+              className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect
+                ? "bg-green-100 border-green-400 animate-pulse"
+                : attempts >= maxAttempts
+                  ? "bg-orange-100 border-orange-400"
+                  : "bg-red-100 border-red-400"
+                }`}
+            >
               <p className="text-5xl font-black mb-3">
                 {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
               </p>
@@ -6259,75 +6415,77 @@ ${courseReportData.stats.avgProgress >= 70
               </p>
             </div>
 
-            {/* BOTÓN SIGUIENTE - AZUL (IDÉNTICO) */}
+            {/* BOTÓN FINALIZAR QUIZ (completo) */}
             <button
-              onClick={() => {
-                if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                  setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                  // Resetear estados para la siguiente pregunta
-                  setPreviewAnswers({
-                    ...previewAnswers,
-                    [currentPreviewQuestion + 1]: undefined
-                  });
-                  setAttemptCount({
-                    ...attemptCount,
-                    [currentPreviewQuestion + 1]: 0
-                  });
-                } else {
-                  // FIN DEL QUIZ
-                  const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
-                  const totalQuestions = currentQuiz.preguntas.length;
-                  const score = Math.round((correct / totalQuestions) * 100);
+              onClick={async () => {
+                // Determinar el ID del usuario (solo estudiantes)
+                const userId = currentUser?.id;  // Guarda con el ID del admin
+                const totalPreguntas = currentQuiz.preguntas.length;
+                const correctas = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
+                const progresoFinal = Math.round((correctas / totalPreguntas) * 100);
 
-                  let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                  message += `Total de preguntas: ${totalQuestions}\n`;
-                  message += `Correctas: ${correct}\n`;
-                  message += `Puntuación: ${score}%\n\n`;
+                // Solo guardar si es un estudiante y hay recurso seleccionado
+                if (userId && selectedResource?.id) {
+                  try {
+                    const { data: existing } = await supabase
+                      .from('progreso_estudiantes')
+                      .select('id')
+                      .eq('usuario_id', userId)
+                      .eq('recurso_id', selectedResource.id)
+                      .maybeSingle();
 
-                  if (score >= 80) {
-                    message += "¡Excelente trabajo! Eres un experto 🏆";
-                  } else if (score >= 60) {
-                    message += "Buen trabajo, sigue practicando 💪";
-                  } else {
-                    message += "Sigue practicando, aprenderás más cada día 📚";
+                    if (existing) {
+                      await supabase
+                        .from('progreso_estudiantes')
+                        .update({
+                          completado: true,
+                          progreso: progresoFinal,
+                          updated_at: new Date()
+                        })
+                        .eq('id', existing.id);
+                    } else {
+                      await supabase
+                        .from('progreso_estudiantes')
+                        .insert({
+                          usuario_id: userId,
+                          recurso_id: selectedResource.id,
+                          progreso: progresoFinal,
+                          completado: true,
+                          iniciado_en: new Date()
+                        });
+                    }
+                    // Refrescar métricas del dashboard
+                    await calculateAdvancedAnalytics();
+                    console.log("✅ Progreso final guardado correctamente");
+                  } catch (err) {
+                    console.error("❌ Error guardando progreso final:", err);
                   }
-
-                  alert(message);
-                  closePreview();
+                } else {
+                  console.warn("No se guardó el progreso porque el usuario no es estudiante o no hay recurso");
                 }
+
+                // Mostrar resultado al usuario
+                alert(`🎉 ¡QUIZ COMPLETADO!\n\n✅ Correctas: ${correctas}/${totalPreguntas}\n📊 Puntuación: ${progresoFinal}%`);
+
+                // Cerrar la vista previa
+                closePreview();
               }}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
             >
-              {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
-                <>
-                  <Trophy className="w-6 h-6" />
-                  Finalizar Quiz
-                </>
-              ) : (
-                <>
-                  <ChevronRight className="w-6 h-6" />
-                  Siguiente Pregunta
-                </>
-              )}
+              <Trophy className="w-6 h-6" />
+              Finalizar Quiz
             </button>
           </div>
         )}
 
-        {/* NAVEGACIÓN - IDÉNTICA */}
+        {/* NAVEGACIÓN (Anterior / Saltar) */}
         <div className="flex justify-between mt-10 gap-4">
           <button
             disabled={currentPreviewQuestion === 0}
             onClick={() => {
               setCurrentPreviewQuestion(currentPreviewQuestion - 1);
-              // Resetear estados para la pregunta anterior
-              setPreviewAnswers({
-                ...previewAnswers,
-                [currentPreviewQuestion - 1]: undefined
-              });
-              setAttemptCount({
-                ...attemptCount,
-                [currentPreviewQuestion - 1]: 0
-              });
+              setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion - 1]: undefined });
+              setAttemptCount({ ...attemptCount, [currentPreviewQuestion - 1]: 0 });
             }}
             className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
           >
@@ -6339,65 +6497,24 @@ ${courseReportData.stats.avgProgress >= 70
               onClick={() => {
                 if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
                   setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                  // Resetear estados para la siguiente pregunta
-                  setPreviewAnswers({
-                    ...previewAnswers,
-                    [currentPreviewQuestion + 1]: undefined
-                  });
-                  setAttemptCount({
-                    ...attemptCount,
-                    [currentPreviewQuestion + 1]: 0
-                  });
+                  setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion + 1]: undefined });
+                  setAttemptCount({ ...attemptCount, [currentPreviewQuestion + 1]: 0 });
                 } else {
-                  // FIN DEL QUIZ
-                  const correct = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
-                  const totalQuestions = currentQuiz.preguntas.length;
-                  const score = Math.round((correct / totalQuestions) * 100);
-
-                  let message = `🎉 ¡QUIZ COMPLETADO!\n\n`;
-                  message += `Total de preguntas: ${totalQuestions}\n`;
-                  message += `Correctas: ${correct}\n`;
-                  message += `Puntuación: ${score}%\n\n`;
-
-                  if (score >= 80) {
-                    message += "¡Excelente trabajo! Eres un experto 🏆";
-                  } else if (score >= 60) {
-                    message += "Buen trabajo, sigue practicando 💪";
-                  } else {
-                    message += "Sigue practicando, aprenderás más cada día 📚";
-                  }
-
-                  alert(message);
-                  closePreview();
+                  // Si ya está en la última pregunta, no se necesita acción extra
+                  // El botón finalizar ya está arriba
                 }
               }}
-              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
             >
-              {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? (
-                <>
-                  <Trophy className="w-6 h-6" />
-                  Finalizar Quiz
-                </>
-              ) : (
-                <>
-                  Siguiente →
-                </>
-              )}
+              Siguiente →
             </button>
           ) : (
             <button
               disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
               onClick={() => {
                 setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                // Resetear estados para la siguiente pregunta
-                setPreviewAnswers({
-                  ...previewAnswers,
-                  [currentPreviewQuestion + 1]: undefined
-                });
-                setAttemptCount({
-                  ...attemptCount,
-                  [currentPreviewQuestion + 1]: 0
-                });
+                setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion + 1]: undefined });
+                setAttemptCount({ ...attemptCount, [currentPreviewQuestion + 1]: 0 });
               }}
               className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
             >
@@ -6479,6 +6596,7 @@ ${courseReportData.stats.avgProgress >= 70
     return recommendations;
   };
 
+  // ASISTENTE IA - FUNCIÓN PRINCIPAL
   const handleAIChat = async (userMessage) => {
     if (!userMessage.trim()) return;
 
@@ -6493,77 +6611,64 @@ ${courseReportData.stats.avgProgress >= 70
     setChatInput("");
     setChatLoading(true);
 
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+
+    if (!apiKey) {
+      const errorMsg = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: "❌ Error: API key de Groq no configurada. Verifica tu .env",
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, errorMsg]);
+      setChatLoading(false);
+      return;
+    }
+
     try {
-      const systemContext = `Eres un asistente educativo experto para DidactikApp, una plataforma de educación básica elemental.
-
-INFORMACIÓN DEL SISTEMA:
-- Total usuarios: ${users.length}
-- Estudiantes activos: ${users.filter((u) => u.rol === "estudiante").length}
-- Docentes: ${users.filter((u) => u.rol === "docente").length}
-- Cursos disponibles: ${courses.length}
-- Recursos educativos: ${resources.length}
-- Niveles de aprendizaje: ${levels.length}
-- Engagement actual: ${analytics.engagementRate}%
-- Tasa de completitud: ${analytics.completionRate}%
-
-CURSOS PRINCIPALES:
-${courses
-          .slice(0, 5)
-          .map((c) => `- ${c.titulo} (${c.nivel_nombre})`)
-          .join("\n")}
-
-RECURSOS POR TIPO:
-${Object.entries(
-            resources.reduce((acc, r) => {
-              acc[r.tipo] = (acc[r.tipo] || 0) + 1;
-              return acc;
-            }, {})
-          )
-          .map(([tipo, count]) => `- ${tipo}: ${count}`)
-          .join("\n")}
-
-Responde de manera clara, concisa y educativa. Si te preguntan sobre estadísticas, usa los datos anteriores. Si te piden recomendaciones, da sugerencias específicas y accionables.`;
-
-      // Usa el endpoint v1beta y el modelo "gemini-1.5-flash-latest"
       const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyDtyQgSqzFMV_M6w6iOvjrKlNe5NdK4gb8",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
           body: JSON.stringify({
-            contents: [
+            model: "llama-3.1-8b-instant",
+            messages: [
               {
-                parts: [
-                  {
-                    text: `${systemContext}\n\nUSUARIO: ${userMessage}\n\nASISTENTE:`,
-                  },
-                ],
+                role: "system",
+                content: `Eres un asistente educativo experto en DidactikApp. Tu objetivo es ayudar a docentes de educación básica a optimizar su monitoreo académico.
+
+              Contexto actual de la plataforma:
+              - Usuarios: ${users.length}
+              - Cursos activos: ${courses.length}
+              - Recursos didácticos: ${resources.length}
+              - Tasa de engagement: ${analytics.engagementRate}%`,
+              },
+              {
+                role: "user",
+                content: userMessage,
               },
             ],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            },
+            temperature: 0.7,
+            max_tokens: 800,
           }),
         }
       );
 
       if (!response.ok) {
-        let errorText = `Error API: ${response.status}`;
-        try {
-          const errJson = await response.json();
-          if (errJson?.error?.message)
-            errorText += ` - ${errJson.error.message}`;
-        } catch (_) { }
-        throw new Error(errorText);
+        const errorData = await response.json();
+        const errorMessage = errorData.error?.message || response.statusText;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+
       const aiResponse =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Sin respuesta del modelo.";
+        data.choices?.[0]?.message?.content ||
+        "Lo siento, no pude procesar una respuesta en este momento.";
 
       const aiMessage = {
         id: Date.now() + 1,
@@ -6573,16 +6678,18 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       };
 
       setChatMessages((prev) => [...prev, aiMessage]);
-      setChatLoading(false);
     } catch (error) {
-      console.error("Error en chat IA:", error);
-      const errorMessage = {
+      console.error("Error en DidactikApp AI:", error);
+
+      const errorMsg = {
         id: Date.now() + 1,
         role: "assistant",
-        content: `❌ Lo siento, hubo un error al procesar tu mensaje. ${error.message}`,
+        content: `⚠️ Error de conexión: ${error.message}. Verifica Groq o tu API key.`,
         timestamp: new Date(),
       };
-      setChatMessages((prev) => [...prev, errorMessage]);
+
+      setChatMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setChatLoading(false);
     }
   };
@@ -6607,7 +6714,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     return colors[rol] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
-  // RENDERIZADOR INTERACTIVO DE CONTENIDO
   // RENDERIZADOR INTERACTIVO DE CONTENIDO
   const renderInteractiveContent = () => {
     if (!viewingContent || !editingContent) return null;
@@ -6653,11 +6759,11 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
             {/* QUIZ INTERACTIVO Y EDITABLE */}
             {viewingContent.type === 'quiz' && (
               <div className="space-y-6">
-                {/* ===== HEADER CON BOTÓN EDITAR TODO ===== */}
+                {/* Header con botón guardar todo */}
                 <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
                   <div>
                     <h3 className="text-xl font-bold text-gray-800">📝 Editor de Quiz</h3>
-                    <p className="text-sm text-gray-600">Haz clic en cualquier pregunta para editarla</p>
+                    <p className="text-sm text-gray-600">Haz clic en "Editar" en cualquier pregunta para modificarla</p>
                   </div>
                   <button
                     onClick={() => {
@@ -6694,7 +6800,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   </button>
                 </div>
 
-                {/* STATS */}
+                {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
                   <div className="text-center">
                     <p className="text-4xl font-bold text-blue-600">
@@ -6717,346 +6823,307 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   </div>
                 </div>
 
-                {/* ===== PREGUNTAS EDITABLES ===== */}
+                {/* Lista de preguntas */}
                 <div className="space-y-4">
                   {editingContent.content.questions?.map((question, qIdx) => (
-                    <div
-                      key={qIdx}
-                      className={`bg-white rounded-xl p-6 border-2 shadow-md transition-all ${editingQuizQuestion === qIdx
-                        ? 'border-blue-500 ring-4 ring-blue-200'
-                        : 'border-blue-200 hover:border-blue-300'
-                        }`}
-                    >
-                      {/* ===== MODO EDICIÓN ===== */}
-                      {editingQuizQuestion === qIdx ? (
-                        <div className="space-y-4">
-                          {/* TÍTULO */}
-                          <div className="bg-blue-100 rounded-lg p-3 border-l-4 border-blue-500">
-                            <p className="font-bold text-blue-800">
-                              ✏️ Editando Pregunta {qIdx + 1}
-                            </p>
-                          </div>
-
-                          {/* PREGUNTA */}
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              📝 Texto de la Pregunta
-                            </label>
-                            <textarea
-                              value={question.text || question.pregunta || ''}
-                              onChange={(e) => {
-                                const updated = { ...editingContent };
-                                if (!updated.content.questions[qIdx]) {
-                                  updated.content.questions[qIdx] = {};
-                                }
-                                updated.content.questions[qIdx].text = e.target.value;
-                                updated.content.questions[qIdx].pregunta = e.target.value;
-                                setEditingContent(updated);
-                              }}
-                              className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                              rows="2"
-                              placeholder="Escribe tu pregunta aquí..."
-                            />
-                          </div>
-
-                          {/* IMAGEN/EMOJI DE LA PREGUNTA */}
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">
-                              🎨 Imagen/Emoji de la Pregunta (Opcional)
-                            </label>
-                            <div className="flex gap-2">
-                              <div className="flex-1 bg-gray-50 border-2 border-gray-300 rounded-lg p-3 flex items-center justify-center">
-                                <span className="text-6xl">
-                                  {question.imagen_url || question.image_url || '❓'}
-                                </span>
-                              </div>
-                              {/* BOTÓN CAMBIAR - CAMBIADO DE MORADO A AZUL */}
-                              <button
-                                onClick={() => {
-                                  setShowEmojiPicker(true);
-                                  setEmojiPickerFor(`question-${qIdx}`);
-                                }}
-                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
-                              >
-                                Cambiar
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* OPCIONES */}
-                          <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-3">
-                              📋 Opciones de Respuesta
-                            </label>
-                            <div className="space-y-3">
-                              {(question.options || question.opciones || ['', '', '', '']).map((opt, oIdx) => (
-                                <div key={oIdx} className="flex gap-2 items-center">
-                                  {/* EMOJI DE LA OPCIÓN */}
-                                  <button
-                                    onClick={() => {
-                                      setShowEmojiPicker(true);
-                                      setEmojiPickerFor(`option-${qIdx}-${oIdx}`);
-                                    }}
-                                    className="w-16 h-16 bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 rounded-lg flex items-center justify-center text-3xl transition-all"
-                                    title="Cambiar emoji"
-                                  >
-                                    {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
-                                  </button>
-
-                                  {/* TEXTO DE LA OPCIÓN */}
-                                  <input
-                                    type="text"
-                                    value={opt}
-                                    onChange={(e) => {
-                                      const updated = { ...editingContent };
-                                      if (updated.content.questions[qIdx].options) {
-                                        updated.content.questions[qIdx].options[oIdx] = e.target.value;
-                                      }
-                                      if (updated.content.questions[qIdx].opciones) {
-                                        updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
-                                      }
-                                      setEditingContent(updated);
-                                    }}
-                                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
-                                  />
-
-                                  {/* BOTÓN CORRECTA */}
-                                  <button
-                                    onClick={() => {
-                                      const updated = { ...editingContent };
-                                      updated.content.questions[qIdx].correct = oIdx;
-                                      updated.content.questions[qIdx].respuesta_correcta = oIdx;
-                                      setEditingContent(updated);
-                                    }}
-                                    className={`w-12 h-12 rounded-lg font-black text-lg transition-all ${(question.correct ?? question.respuesta_correcta) === oIdx
-                                      ? 'bg-green-500 text-white ring-4 ring-green-300'
-                                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                      }`}
-                                    title={
-                                      (question.correct ?? question.respuesta_correcta) === oIdx
-                                        ? 'Respuesta correcta'
-                                        : 'Marcar como correcta'
-                                    }
-                                  >
-                                    {(question.correct ?? question.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* CONFIGURACIÓN ADICIONAL */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">
-                                ⭐ Puntos
-                              </label>
-                              <input
-                                type="number"
-                                value={question.puntos || question.points || 10}
-                                onChange={(e) => {
-                                  const updated = { ...editingContent };
-                                  updated.content.questions[qIdx].puntos = parseInt(e.target.value);
-                                  updated.content.questions[qIdx].points = parseInt(e.target.value);
-                                  setEditingContent(updated);
-                                }}
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
-                                min="1"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">
-                                ⏱️ Tiempo (seg)
-                              </label>
-                              <input
-                                type="number"
-                                value={question.tiempo_limite || question.timeLimit || 0}
-                                onChange={(e) => {
-                                  const updated = { ...editingContent };
-                                  updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
-                                  updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
-                                  setEditingContent(updated);
-                                }}
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
-                                min="0"
-                                placeholder="0 = sin límite"
-                              />
-                            </div>
-                          </div>
-
-                          {/* RETROALIMENTACIÓN */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">
-                                ✅ Retroalimentación Correcta
-                              </label>
-                              <input
-                                type="text"
-                                value={question.retroalimentacion_correcta || question.feedback_correct || '¡Excelente! 🎉'}
-                                onChange={(e) => {
-                                  const updated = { ...editingContent };
-                                  updated.content.questions[qIdx].retroalimentacion_correcta = e.target.value;
-                                  updated.content.questions[qIdx].feedback_correct = e.target.value;
-                                  setEditingContent(updated);
-                                }}
-                                className="w-full px-4 py-2 border-2 border-green-300 rounded-lg"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">
-                                ❌ Retroalimentación Incorrecta
-                              </label>
-                              <input
-                                type="text"
-                                value={question.retroalimentacion_incorrecta || question.feedback_incorrect || '¡Intenta otra vez! 💪'}
-                                onChange={(e) => {
-                                  const updated = { ...editingContent };
-                                  updated.content.questions[qIdx].retroalimentacion_incorrecta = e.target.value;
-                                  updated.content.questions[qIdx].feedback_incorrect = e.target.value;
-                                  setEditingContent(updated);
-                                }}
-                                className="w-full px-4 py-2 border-2 border-red-300 rounded-lg"
-                              />
-                            </div>
-                          </div>
-
-                          {/* BOTONES DE ACCIÓN */}
-                          <div className="flex gap-2 pt-4 border-t-2 border-gray-200">
-                            <button
-                              onClick={() => {
-                                setEditingQuizQuestion(null);
-                                // Auto-guardar
-                                saveEditedContent();
-                              }}
-                              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2"
-                            >
-                              <Save className="w-5 h-5" />
-                              Guardar Cambios
-                            </button>
-                            <button
-                              onClick={() => setEditingQuizQuestion(null)}
-                              className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-bold"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
+                    <div key={qIdx} className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-md hover:shadow-lg transition-all">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                          {qIdx + 1}
                         </div>
-                      ) : (
-                        /* ===== MODO VISTA ===== */
-                        <>
-                          <div className="flex items-start gap-4 mb-4">
-                            <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                              {qIdx + 1}
-                            </div>
-                            {(question.imagen_url || question.image_url) && (
-                              <div className="text-5xl">{question.imagen_url || question.image_url}</div>
+                        {(question.imagen_url || question.image_url) && (
+                          <div className="text-5xl">{question.imagen_url || question.image_url}</div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-gray-800">
+                            {question.pregunta || question.text}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            ⭐ {question.puntos || 10} puntos
+                            {(question.tiempo_limite || question.timeLimit) > 0 && (
+                              <> • ⏱️ {question.tiempo_limite || question.timeLimit}s</>
                             )}
-                            <div className="flex-1">
-                              <h3 className="font-bold text-lg text-gray-800">
-                                {question.pregunta || question.text}
-                              </h3>
-                              <p className="text-xs text-gray-500 mt-1">
-                                ⭐ {question.puntos || 10} puntos
-                                {(question.tiempo_limite || question.timeLimit) > 0 && (
-                                  <> • ⏱️ {question.tiempo_limite || question.timeLimit}s</>
-                                )}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setEditingQuizQuestion(qIdx)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                              Editar
-                            </button>
-                          </div>
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            // Abrir modal de edición con una copia de la pregunta
+                            setEditingQuestionModal({
+                              quizIndex: qIdx,
+                              question: JSON.parse(JSON.stringify(question)),
+                              originalIndex: qIdx
+                            });
+                          }}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          Editar
+                        </button>
+                      </div>
 
-                          <div className="space-y-2 mb-4">
-                            {(question.opciones || question.options)?.map((option, oIdx) => (
-                              <div
-                                key={oIdx}
-                                className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 ${(question.respuesta_correcta ?? question.correct) === oIdx
-                                  ? "bg-green-100 border-2 border-green-500 text-green-800"
-                                  : "bg-gray-100 border-2 border-gray-200"
-                                  }`}
-                              >
-                                <span className="text-2xl">
-                                  {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
-                                </span>
-                                <span className="flex-1">
-                                  {String.fromCharCode(65 + oIdx)}) {option}
-                                </span>
-                                {(question.respuesta_correcta ?? question.correct) === oIdx && (
-                                  <span className="text-2xl">✓</span>
-                                )}
-                              </div>
-                            ))}
+                      <div className="space-y-2 mt-4">
+                        {(question.opciones || question.options)?.map((option, oIdx) => (
+                          <div
+                            key={oIdx}
+                            className={`px-4 py-3 rounded-lg font-medium flex items-center gap-3 ${(question.respuesta_correcta ?? question.correct) === oIdx
+                              ? "bg-green-100 border-2 border-green-500 text-green-800"
+                              : "bg-gray-100 border-2 border-gray-200"
+                              }`}
+                          >
+                            <span className="text-2xl">
+                              {(question.imagen_opciones || question.image_options || [])[oIdx] || '🎨'}
+                            </span>
+                            <span className="flex-1">
+                              {String.fromCharCode(65 + oIdx)}) {option}
+                            </span>
+                            {(question.respuesta_correcta ?? question.correct) === oIdx && (
+                              <span className="text-2xl">✓</span>
+                            )}
                           </div>
+                        ))}
+                      </div>
 
-                          {(question.explanation || question.retroalimentacion_correcta) && (
-                            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                              <p className="text-sm text-gray-700">
-                                <strong>💡 Explicación:</strong> {question.explanation || question.retroalimentacion_correcta}
-                              </p>
-                            </div>
-                          )}
-                        </>
+                      {(question.explanation || question.retroalimentacion_correcta) && (
+                        <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 mt-4">
+                          <p className="text-sm text-gray-700">
+                            <strong>💡 Explicación:</strong> {question.explanation || question.retroalimentacion_correcta}
+                          </p>
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
 
-                {/* ===== SELECTOR DE EMOJIS MODAL ===== */}
-                {showEmojiPicker && (
-                  <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
-                      {/* HEADER - CAMBIADO DE MORADO A AZUL */}
-                      <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 rounded-t-2xl">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-xl font-bold">🎨 Selector de Emojis</h3>
-                          <button
-                            onClick={() => {
-                              setShowEmojiPicker(false);
-                              setEmojiPickerFor(null);
-                            }}
-                            className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
+                {/* Modal de edición de pregunta */}
+                {editingQuestionModal && (
+                  <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                      {/* Header del modal */}
+                      <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 rounded-t-2xl flex justify-between items-center">
+                        <h3 className="text-xl font-bold">✏️ Editar Pregunta {editingQuestionModal.quizIndex + 1}</h3>
+                        <button
+                          onClick={() => setEditingQuestionModal(null)}
+                          className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
                       </div>
 
-                      <div className="p-6 grid grid-cols-8 gap-2">
-                        {emojis.map((emoji, idx) => (
+                      {/* Formulario de edición */}
+                      <div className="p-6 space-y-4">
+                        {/* Texto de la pregunta */}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">📝 Texto de la pregunta</label>
+                          <textarea
+                            value={editingQuestionModal.question.pregunta || editingQuestionModal.question.text || ''}
+                            onChange={(e) => setEditingQuestionModal({
+                              ...editingQuestionModal,
+                              question: { ...editingQuestionModal.question, pregunta: e.target.value, text: e.target.value }
+                            })}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            rows="3"
+                          />
+                        </div>
+
+                        {/* Imagen/Emoji de la pregunta */}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">🎨 Emoji/Imagen de la pregunta</label>
+                          <div className="flex gap-2 items-center">
+                            <div className="w-20 h-20 bg-gray-100 rounded-xl flex items-center justify-center text-5xl border-2 border-gray-300">
+                              {editingQuestionModal.question.imagen_url || editingQuestionModal.question.image_url || '❓'}
+                            </div>
+                            <select
+                              value={editingQuestionModal.question.imagen_url || editingQuestionModal.question.image_url || ''}
+                              onChange={(e) => setEditingQuestionModal({
+                                ...editingQuestionModal,
+                                question: { ...editingQuestionModal.question, imagen_url: e.target.value, image_url: e.target.value }
+                              })}
+                              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-2xl"
+                            >
+                              <option value="">❓ Ninguno</option>
+                              {emojis.slice(0, 50).map(emoji => (
+                                <option key={emoji} value={emoji}>{emoji}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Opciones de respuesta */}
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">📋 Opciones de respuesta</label>
+                          <div className="space-y-3">
+                            {(editingQuestionModal.question.opciones || editingQuestionModal.question.options || ['', '', '', '']).map((opt, oIdx) => (
+                              <div key={oIdx} className="flex gap-2 items-center">
+                                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-2xl border-2 border-gray-300">
+                                  {(editingQuestionModal.question.imagen_opciones || editingQuestionModal.question.image_options || [])[oIdx] || '🎨'}
+                                </div>
+                                <select
+                                  value={(editingQuestionModal.question.imagen_opciones || editingQuestionModal.question.image_options || [])[oIdx] || ''}
+                                  onChange={(e) => {
+                                    const newImagenes = [...(editingQuestionModal.question.imagen_opciones || editingQuestionModal.question.image_options || ['', '', '', ''])];
+                                    newImagenes[oIdx] = e.target.value;
+                                    setEditingQuestionModal({
+                                      ...editingQuestionModal,
+                                      question: {
+                                        ...editingQuestionModal.question,
+                                        imagen_opciones: newImagenes,
+                                        image_options: newImagenes
+                                      }
+                                    });
+                                  }}
+                                  className="w-20 text-2xl border-2 border-gray-300 rounded-lg"
+                                >
+                                  <option value="">🎨</option>
+                                  {emojis.slice(0, 30).map(emoji => (
+                                    <option key={emoji} value={emoji}>{emoji}</option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="text"
+                                  value={opt}
+                                  onChange={(e) => {
+                                    const newOpciones = [...(editingQuestionModal.question.opciones || editingQuestionModal.question.options || ['', '', '', ''])];
+                                    newOpciones[oIdx] = e.target.value;
+                                    setEditingQuestionModal({
+                                      ...editingQuestionModal,
+                                      question: {
+                                        ...editingQuestionModal.question,
+                                        opciones: newOpciones,
+                                        options: newOpciones
+                                      }
+                                    });
+                                  }}
+                                  className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg"
+                                  placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
+                                />
+                                <button
+                                  onClick={() => setEditingQuestionModal({
+                                    ...editingQuestionModal,
+                                    question: {
+                                      ...editingQuestionModal.question,
+                                      respuesta_correcta: oIdx,
+                                      correct: oIdx
+                                    }
+                                  })}
+                                  className={`w-12 h-12 rounded-lg font-bold ${(editingQuestionModal.question.respuesta_correcta ?? editingQuestionModal.question.correct) === oIdx
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-200 text-gray-700'
+                                    }`}
+                                >
+                                  {(editingQuestionModal.question.respuesta_correcta ?? editingQuestionModal.question.correct) === oIdx ? '✓' : oIdx + 1}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Puntos y tiempo */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">⭐ Puntos</label>
+                            <input
+                              type="number"
+                              value={editingQuestionModal.question.puntos || editingQuestionModal.question.points || 10}
+                              onChange={(e) => setEditingQuestionModal({
+                                ...editingQuestionModal,
+                                question: { ...editingQuestionModal.question, puntos: parseInt(e.target.value), points: parseInt(e.target.value) }
+                              })}
+                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg"
+                              min="1"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">⏱️ Tiempo límite (segundos)</label>
+                            <input
+                              type="number"
+                              value={editingQuestionModal.question.tiempo_limite || editingQuestionModal.question.timeLimit || 0}
+                              onChange={(e) => setEditingQuestionModal({
+                                ...editingQuestionModal,
+                                question: { ...editingQuestionModal.question, tiempo_limite: parseInt(e.target.value), timeLimit: parseInt(e.target.value) }
+                              })}
+                              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg"
+                              min="0"
+                              placeholder="0 = sin límite"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Retroalimentación */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">✅ Retroalimentación correcta</label>
+                            <input
+                              type="text"
+                              value={editingQuestionModal.question.retroalimentacion_correcta || editingQuestionModal.question.feedback_correct || '¡Excelente! 🎉'}
+                              onChange={(e) => setEditingQuestionModal({
+                                ...editingQuestionModal,
+                                question: { ...editingQuestionModal.question, retroalimentacion_correcta: e.target.value, feedback_correct: e.target.value }
+                              })}
+                              className="w-full px-3 py-2 border-2 border-green-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">❌ Retroalimentación incorrecta</label>
+                            <input
+                              type="text"
+                              value={editingQuestionModal.question.retroalimentacion_incorrecta || editingQuestionModal.question.feedback_incorrect || '¡Intenta otra vez! 💪'}
+                              onChange={(e) => setEditingQuestionModal({
+                                ...editingQuestionModal,
+                                question: { ...editingQuestionModal.question, retroalimentacion_incorrecta: e.target.value, feedback_incorrect: e.target.value }
+                              })}
+                              className="w-full px-3 py-2 border-2 border-red-300 rounded-lg"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Audio automático */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="audio_pregunta_modal"
+                            checked={editingQuestionModal.question.audio_pregunta !== false}
+                            onChange={(e) => setEditingQuestionModal({
+                              ...editingQuestionModal,
+                              question: { ...editingQuestionModal.question, audio_pregunta: e.target.checked }
+                            })}
+                            className="w-4 h-4"
+                          />
+                          <label htmlFor="audio_pregunta_modal" className="text-sm font-semibold text-gray-700">
+                            🔊 Reproducir audio automáticamente
+                          </label>
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex gap-3 pt-4 border-t-2 border-gray-200">
                           <button
-                            key={idx}
                             onClick={() => {
+                              // Guardar cambios en editingContent
                               const updated = { ...editingContent };
-                              if (emojiPickerFor?.startsWith('question-')) {
-                                const qIdx = parseInt(emojiPickerFor.split('-')[1]);
-                                updated.content.questions[qIdx].imagen_url = emoji;
-                                updated.content.questions[qIdx].image_url = emoji;
-                              } else if (emojiPickerFor?.startsWith('option-')) {
-                                const [_, qIdx, oIdx] = emojiPickerFor.split('-').map(Number);
-                                if (!updated.content.questions[qIdx].imagen_opciones) {
-                                  updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
-                                }
-                                if (!updated.content.questions[qIdx].image_options) {
-                                  updated.content.questions[qIdx].image_options = ['', '', '', ''];
-                                }
-                                updated.content.questions[qIdx].imagen_opciones[oIdx] = emoji;
-                                updated.content.questions[qIdx].image_options[oIdx] = emoji;
+                              if (!updated.content.questions[editingQuestionModal.quizIndex]) {
+                                updated.content.questions[editingQuestionModal.quizIndex] = {};
                               }
+                              // Copiar todos los campos de la pregunta editada
+                              updated.content.questions[editingQuestionModal.quizIndex] = {
+                                ...updated.content.questions[editingQuestionModal.quizIndex],
+                                ...editingQuestionModal.question
+                              };
                               setEditingContent(updated);
-                              setShowEmojiPicker(false);
-                              setEmojiPickerFor(null);
+                              setEditingQuestionModal(null);
+                              // Opcional: auto-guardar en Supabase
+                              saveEditedContent();
                             }}
-                            className="w-16 h-16 rounded-lg text-4xl hover:bg-gray-100 transition-all transform hover:scale-110 flex items-center justify-center"
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
                           >
-                            {emoji}
+                            <Save className="w-5 h-5" />
+                            Guardar Cambios
                           </button>
-                        ))}
+                          <button
+                            onClick={() => setEditingQuestionModal(null)}
+                            className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -7260,30 +7327,36 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
   const getFilteredUsers = () => {
     return users.filter((user) => {
-      if (filterRole && user.rol !== filterRole) return false;
+      // Filtro por rol - CORREGIDO
+      if (filterRole !== "todos" && filterRole !== "") {
+        if (user.rol !== filterRole) return false;
+      }
 
-      if (filterGroup) {
+      // Filtro por grupo - CORREGIDO
+      if (filterGroup !== "todos" && filterGroup !== "") {
         if (filterGroup === "sin_grupo") {
-          if (
-            user.grupo_id ||
-            (user.grupos_adicionales && user.grupos_adicionales.length > 0)
-          ) {
+          if (user.grupo_id || (user.grupos_adicionales && user.grupos_adicionales.length > 0)) {
             return false;
           }
         } else {
-          const userGroups = [
-            user.grupo_id,
-            ...(user.grupos_adicionales || []),
-          ].filter(Boolean);
-
+          const userGroups = [user.grupo_id, ...(user.grupos_adicionales || [])].filter(Boolean);
           if (!userGroups.includes(parseInt(filterGroup))) {
             return false;
           }
         }
       }
 
-      if (filterStatus === "active" && !user.activo) return false;
-      if (filterStatus === "inactive" && user.activo) return false;
+      // Filtro por estado - CORREGIDO
+      if (filterStatus !== "todos" && filterStatus !== "") {
+        if (filterStatus === "active" && !user.activo) return false;
+        if (filterStatus === "inactive" && user.activo) return false;
+      }
+
+      // Búsqueda por nombre
+      if (searchUserText && !user.nombre?.toLowerCase().includes(searchUserText.toLowerCase())) {
+        return false;
+      }
+
       return true;
     });
   };
@@ -7501,161 +7574,88 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
 
         {/* Chat Flotante IA - Bola Flotante */}
+        {/*BOTÓN FLOTANTE*/}
         {!showAIChat && (
           <button
             onClick={() => setShowAIChat(true)}
-            className="fixed bottom-6 right-6 z-40 group"
+            className="fixed bottom-6 right-6 z-50 group"
           >
-            <div className="relative w-16 h-16 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-110 cursor-pointer flex items-center justify-center"
-              style={{
-                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.4), 0 0 20px rgba(168, 85, 247, 0.3)',
-              }}
-            >
-              {/* PULSO DE LUZ */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 to-pink-400 opacity-20 animate-pulse"></div>
-
-              {/* ICONO PRINCIPAL */}
-              <div className="relative z-10 flex items-center justify-center animate-bounce">
-                <MessageCircle className="w-8 h-8 text-white" strokeWidth={1.5} />
-              </div>
-
-              {/* BADGE DE NOTIFICACIÓN */}
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white animate-pulse">
-                ✨
-              </div>
-
-              {/* EFECTO ANILLO */}
-              <div className="absolute inset-0 rounded-full border-2 border-white opacity-0 group-hover:opacity-30 animate-ping"></div>
+            <div className="relative w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 cursor-pointer flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-white opacity-20 animate-ping"></div>
+              <MessageCircle className="w-7 h-7 text-white" strokeWidth={1.5} />
             </div>
-
-            {/* TOOLTIP */}
-            <div className="absolute bottom-full right-0 mb-4 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-2xl border border-gray-700">
-              💬 Asistente IA
-              <div className="absolute top-full right-4 w-2 h-2 bg-gray-900 transform rotate-45 border-r border-t border-gray-700"></div>
+            <div className="absolute bottom-full right-0 mb-2 bg-gray-900 text-white text-xs font-medium px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+              Asistente IA
             </div>
           </button>
         )}
 
         {/* VENTANA DE CHAT FLOTANTE */}
         {showAIChat && (
-          <div className="fixed bottom-6 right-6 z-50 bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200 transition-all duration-300 flex flex-col"
-            style={{
-              width: '420px',
-              height: '650px',
-            }}
-          >
-            {/* HEADER PREMIUM */}
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white p-5 rounded-t-3xl select-none">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3 flex-1">
-                  {/* AVATAR */}
-                  <div className="w-11 h-11 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xl backdrop-blur-sm border border-white border-opacity-40 flex-shrink-0">
-                    🤖
-                  </div>
+          <div className="fixed bottom-6 right-6 z-50 w-80 h-[520px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 animate-fadeInUp">
 
-                  {/* TEXTO */}
-                  <div className="min-w-0">
-                    <h2 className="text-lg font-black leading-none">Asistente IA</h2>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <p className="text-xs text-blue-100 font-semibold">
-                        {chatLoading ? 'Procesando...' : 'Online'}
-                      </p>
-                    </div>
+            {/* Cabecera con botón cerrar */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-lg backdrop-blur-sm">
+                  🤖
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-base">Asistente IA</h3>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] text-indigo-100">Conectado</span>
                   </div>
                 </div>
-
-                {/* BOTÓN CERRAR */}
-                <button
-                  onClick={() => setShowAIChat(false)}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-xl transition-all backdrop-blur-sm flex-shrink-0"
-                  title="Cerrar"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-
-              <p className="text-xs text-blue-100 font-medium">
-                ✨ Haz preguntas sobre tu sistema educativo
-              </p>
+              <button
+                onClick={() => {
+                  window.speechSynthesis.cancel();
+                  setShowAIChat(false);
+                  setChatMessages([]);
+                  setChatInput("");
+                }}
+                className="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg transition-all"
+                aria-label="Cerrar chat"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
             </div>
 
-            {/* ÁREA DE MENSAJES */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white via-blue-50 to-white">
+            {/* Área de mensajes */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
               {chatMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center text-5xl mb-4 shadow-lg">
+                <div className="flex flex-col items-center justify-center h-full text-center px-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-2xl mb-2">
                     💬
                   </div>
-                  <h3 className="font-black text-gray-800 mb-2 text-lg">¡Hola! Soy tu Asistente IA</h3>
-                  <p className="text-gray-600 text-sm mb-6">
-                    Puedo ayudarte con estadísticas, recomendaciones y dudas sobre tu sistema
-                  </p>
-
-                  {/* SUGERENCIAS RÁPIDAS */}
-                  <div className="grid grid-cols-2 gap-2 w-full">
-                    <button
-                      onClick={() => handleAIChat("¿Cuál es el estado actual del sistema?")}
-                      className="bg-gradient-to-br from-blue-400 to-blue-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
-                    >
-                      📊 Estado
-                    </button>
-                    <button
-                      onClick={() => handleAIChat("Dame recomendaciones para mejorar el Compromiso")}
-                      className="bg-gradient-to-br from-yellow-400 to-yellow-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
-                    >
-                      💡 Recomendaciones
-                    </button>
-                    <button
-                      onClick={() => handleAIChat("¿Qué recursos son los más populares?")}
-                      className="bg-gradient-to-br from-green-400 to-green-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
-                    >
-                      📈 Estadísticas
-                    </button>
-                    <button
-                      onClick={() => handleAIChat("¿Cómo crear un quiz interactivo?")}
-                      className="bg-gradient-to-br from-purple-400 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all transform hover:scale-105 shadow-md hover:shadow-lg"
-                    >
-                      ❓ Ayuda
-                    </button>
+                  <h4 className="font-bold text-gray-800 text-sm">¡Hola! Soy tu asistente</h4>
+                  <p className="text-xs text-gray-500 mt-1">Pregúntame sobre estadísticas, recomendaciones o cómo usar la plataforma.</p>
+                  <div className="grid grid-cols-2 gap-1 w-full mt-4">
+                    <button onClick={() => handleAIChat("¿Cuál es el estado general del sistema?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📊 Estado</button>
+                    <button onClick={() => handleAIChat("Dame recomendaciones para mejorar el compromiso")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">💡 Recomendaciones</button>
+                    <button onClick={() => handleAIChat("¿Qué cursos son los más populares?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📈 Popularidad</button>
+                    <button onClick={() => handleAIChat("¿Cómo puedo generar un quiz con IA?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">❓ Ayuda</button>
                   </div>
                 </div>
               ) : (
                 <>
                   {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user"
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-none shadow-lg"
-                          : "bg-white text-gray-800 border-2 border-gray-100 rounded-bl-none shadow-md"
-                          }`}
-                      >
+                    <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs ${msg.role === "user" ? "bg-indigo-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm"}`}>
                         {msg.content}
-                        <p
-                          className={`text-xs mt-2 ${msg.role === "user"
-                            ? "text-blue-100"
-                            : "text-gray-500"
-                            }`}
-                        >
-                          {msg.timestamp.toLocaleTimeString("es-ES", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
+                        <div className={`text-[9px] mt-1 ${msg.role === "user" ? "text-indigo-200" : "text-gray-400"}`}>
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
                     </div>
                   ))}
-
-                  {/* INDICADOR DE ESCRITURA */}
                   {chatLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-white border-2 border-gray-100 rounded-2xl rounded-bl-none px-4 py-3 flex gap-2 shadow-md">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                      <div className="bg-white border border-gray-200 rounded-xl rounded-bl-none px-3 py-1.5 flex gap-1">
+                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
                       </div>
                     </div>
                   )}
@@ -7663,64 +7663,33 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               )}
             </div>
 
-            {/* INPUT AREA */}
-            <div className="border-t border-gray-200 p-4 bg-white rounded-b-3xl space-y-3">
-              {/* SUGERENCIAS RÁPIDAS - CUANDO HAY MENSAJES */}
-              {chatMessages.length > 0 && !chatLoading && (
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  <button
-                    onClick={() => handleAIChat("📊 Más información")}
-                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
-                  >
-                    📊 Más info
-                  </button>
-                  <button
-                    onClick={() => handleAIChat("💡 Sugerencias")}
-                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
-                  >
-                    💡 Sugerencias
-                  </button>
-                  <button
-                    onClick={() => handleAIChat("⚠️ Alertas")}
-                    className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm"
-                  >
-                    ⚠️ Alertas
-                  </button>
-                </div>
-              )}
-
-              {/* INPUT */}
-              <div className="flex gap-2 items-end">
+            {/* Input y acciones */}
+            <div className="border-t border-gray-200 p-2 bg-white">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && !chatLoading) {
-                      handleAIChat(chatInput);
-                    }
-                  }}
+                  onKeyPress={(e) => e.key === "Enter" && !chatLoading && handleAIChat(chatInput)}
                   placeholder="Escribe tu pregunta..."
                   disabled={chatLoading}
-                  className="flex-1 px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all placeholder-gray-500 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:opacity-50 text-xs"
                 />
                 <button
                   onClick={() => handleAIChat(chatInput)}
                   disabled={chatLoading || !chatInput.trim()}
-                  className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-2xl font-black transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white p-1.5 rounded-lg transition-all"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
-
-              {/* INFO FOOTER */}
-              <p className="text-xs text-center text-gray-500 font-medium">
-                ✨ Presiona Enter para enviar
-              </p>
+              <div className="flex justify-between mt-1.5 text-[9px] text-gray-400">
+                <span>✨ Asistente IA</span>
+                <button onClick={() => { setChatMessages([]); setChatInput(""); }} className="hover:text-gray-600">Limpiar</button>
+              </div>
             </div>
           </div>
         )}
-
         {showContentPreview && renderContentPreview()}
 
         {/* Análisis con Algoritmos */}
@@ -7934,12 +7903,14 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
   };
 
   const renderDetailedAnalyticsImproved = () => {
+    if (!showDetailedAnalytics) return null;
+
     if (loadingAI) {
       return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-12 text-center">
-            <RefreshCw className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-600 font-semibold">Generando análisis con IA...</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-12 text-center shadow-2xl">
+            <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-3" />
+            <p className="text-gray-700 font-semibold">Generando análisis con IA...</p>
           </div>
         </div>
       );
@@ -7947,13 +7918,13 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
     if (!aiMetrics) {
       return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 text-center max-w-md">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 text-center max-w-md shadow-xl">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-3" />
             <p className="text-gray-700 font-semibold">No hay datos disponibles</p>
             <button
               onClick={() => setShowDetailedAnalytics(false)}
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg"
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-medium transition"
             >
               Cerrar
             </button>
@@ -7988,86 +7959,66 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
     ];
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+      <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-3xl max-w-7xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8">
 
-          {/* HEADER */}
-          <div className="sticky top-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white p-8 z-10 rounded-t-2xl">
+          {/* HEADER PROFESIONAL */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 rounded-t-3xl">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-black mb-1 flex items-center gap-3">
-                  📊 Panel de Análisis Avanzado
-                  <span className="text-lg bg-white bg-opacity-20 px-3 py-1 rounded-full">
-                    {aiMetrics.timestamp.toLocaleDateString('es-ES')}
-                  </span>
+                <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
+                  <BarChart3 className="w-6 h-6" />
+                  Panel de Análisis Avanzado
                 </h1>
-                <p className="text-purple-100">
+                <p className="text-slate-300 text-sm">
                   Métricas en tiempo real con visualizaciones interactivas
                 </p>
               </div>
-              <button
-                onClick={() => setShowDetailedAnalytics(false)}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                  {new Date().toLocaleDateString('es-ES')}
+                </span>
+                <button
+                  onClick={() => setShowDetailedAnalytics(false)}
+                  className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="p-8 space-y-8">
+          <div className="p-6 space-y-8 bg-gray-50">
 
-            {/* SALUD DEL SISTEMA - Grande y destacado */}
-            <section className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white shadow-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-blue-100 uppercase tracking-wide mb-2">
-                    Estado General del Sistema
-                  </p>
-                  <div className="flex items-end gap-4">
-                    <h2 className="text-6xl font-black">
-                      {aiMetrics.systemHealth?.score || 0}<span className="text-3xl">%</span>
-                    </h2>
-                    <div className="mb-2">
-                      <p className="text-2xl font-bold">
-                        {aiMetrics.systemHealth?.status === 'healthy'
-                          ? '✅ Excelente'
-                          : aiMetrics.systemHealth?.status === 'warning'
-                            ? '⚠️ Advertencia'
-                            : '🚨 Crítico'}
-                      </p>
-                      <p className="text-sm text-blue-100">Salud del sistema</p>
-                    </div>
+            {/* SALUD DEL SISTEMA - Moderna */}
+            <section className="bg-gradient-to-r from-blue-700 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <p className="text-sm font-medium text-blue-200 uppercase tracking-wide">Estado General</p>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-5xl font-black">{aiMetrics.systemHealth?.score || 0}</span>
+                    <span className="text-xl">%</span>
                   </div>
+                  <p className="text-blue-200 text-sm mt-1">
+                    {aiMetrics.systemHealth?.status === 'healthy' ? '✅ Saludable' :
+                      aiMetrics.systemHealth?.status === 'warning' ? '⚠️ Atención' : '🚨 Crítico'}
+                  </p>
                 </div>
-
-                {/* Medidor circular */}
-                <div className="relative w-40 h-40">
+                <div className="relative w-28 h-28">
                   <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="56" cy="56" r="48" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
                     <circle
-                      cx="80"
-                      cy="80"
-                      r="70"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="12"
-                    />
-                    <circle
-                      cx="80"
-                      cy="80"
-                      r="70"
-                      fill="none"
+                      cx="56" cy="56" r="48" fill="none"
                       stroke="white"
-                      strokeWidth="12"
-                      strokeDasharray={`${(aiMetrics.systemHealth?.score || 0) * 4.4} 440`}
+                      strokeWidth="8"
+                      strokeDasharray={`${(aiMetrics.systemHealth?.score || 0) * 3.02} 302`}
                       strokeLinecap="round"
                       className="transition-all duration-1000"
                     />
                   </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl">
-                      {aiMetrics.systemHealth?.score >= 70 ? '😊' :
-                        aiMetrics.systemHealth?.score >= 50 ? '😐' : '😟'}
-                    </span>
+                  <div className="absolute inset-0 flex items-center justify-center text-3xl">
+                    {aiMetrics.systemHealth?.score >= 70 ? '😊' :
+                      aiMetrics.systemHealth?.score >= 50 ? '😐' : '😟'}
                   </div>
                 </div>
               </div>
@@ -8075,35 +8026,28 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
             {/* GRÁFICAS PRINCIPALES */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <div className="w-1 h-8 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full"></div>
-                Análisis Visual de Datos
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+                Visualización de Datos
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Gráfica de Dona - Distribución de Estudiantes */}
                 <ExcelDonutChart
                   title="👥 Distribución de Estudiantes"
                   data={studentDistributionData}
                   colors={['#10b981', '#ef4444']}
                 />
-
-                {/* Gráfica de Columnas - Performance */}
                 <ExcelColumnChart
                   title="📊 Métricas de Rendimiento"
                   data={performanceData}
                   colors={['#3b82f6', '#8b5cf6', '#ec4899']}
                 />
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Gráfica de Barras - Contenido */}
                 <ExcelHorizontalBarChart
                   title="📚 Distribución de Contenido"
                   data={contentDistributionData}
                   colors={['#f59e0b', '#10b981', '#6366f1']}
                 />
-
-                {/* Gráfica de Línea - Tendencia */}
                 <ExcelLineChart
                   title="📈 Tendencia de Engagement"
                   data={timeSeriesData}
@@ -8112,82 +8056,30 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
               </div>
             </section>
 
-            {/* MÉTRICAS DETALLADAS EN TARJETAS */}
+            {/* MÉTRICAS DETALLADAS */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <div className="w-1 h-8 bg-gradient-to-b from-green-600 to-blue-600 rounded-full"></div>
-                Métricas Detalladas
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-emerald-600 rounded-full"></div>
+                Métricas Clave
               </h2>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {[
-                  {
-                    label: 'Total Estudiantes',
-                    value: aiMetrics.students?.total,
-                    icon: '👥',
-                    color: 'from-blue-500 to-blue-600',
-                    detail: `${aiMetrics.students?.active} activos`
-                  },
-                  {
-                    label: 'Engagement',
-                    value: `${aiMetrics.engagement?.rate}%`,
-                    icon: '🎯',
-                    color: 'from-green-500 to-green-600',
-                    detail: `${aiMetrics.engagement?.activeCount} esta semana`
-                  },
-                  {
-                    label: 'Progreso Avg',
-                    value: `${aiMetrics.progress?.average}%`,
-                    icon: '📈',
-                    color: 'from-purple-500 to-purple-600',
-                    detail: 'Promedio general'
-                  },
-                  {
-                    label: 'Completitud',
-                    value: `${aiMetrics.progress?.completionRate}%`,
-                    icon: '✅',
-                    color: 'from-orange-500 to-orange-600',
-                    detail: 'Actividades finalizadas'
-                  },
-                  {
-                    label: 'Cursos',
-                    value: aiMetrics.content?.courses,
-                    icon: '📚',
-                    color: 'from-pink-500 to-pink-600',
-                    detail: 'Cursos activos'
-                  },
-                  {
-                    label: 'Recursos',
-                    value: aiMetrics.content?.resources,
-                    icon: '📝',
-                    color: 'from-indigo-500 to-indigo-600',
-                    detail: 'Material disponible'
-                  },
-                  {
-                    label: 'Logros',
-                    value: aiMetrics.content?.achievements,
-                    icon: '🏆',
-                    color: 'from-yellow-500 to-yellow-600',
-                    detail: 'Logros desbloqueables'
-                  },
-                  {
-                    label: 'Tiempo Total',
-                    value: `${aiMetrics.progress?.totalTimeSpent}m`,
-                    icon: '⏱️',
-                    color: 'from-red-500 to-red-600',
-                    detail: 'Tiempo dedicado'
-                  },
+                  { label: 'Total Estudiantes', value: aiMetrics.students?.total, icon: '👥', color: 'from-blue-500 to-blue-600' },
+                  { label: 'Engagement', value: `${aiMetrics.engagement?.rate}%`, icon: '🎯', color: 'from-emerald-500 to-emerald-600' },
+                  { label: 'Progreso Promedio', value: `${aiMetrics.progress?.average}%`, icon: '📈', color: 'from-violet-500 to-violet-600' },
+                  { label: 'Completitud', value: `${aiMetrics.progress?.completionRate}%`, icon: '✅', color: 'from-amber-500 to-amber-600' },
+                  { label: 'Cursos', value: aiMetrics.content?.courses, icon: '📚', color: 'from-rose-500 to-rose-600' },
+                  { label: 'Recursos', value: aiMetrics.content?.resources, icon: '📝', color: 'from-indigo-500 to-indigo-600' },
+                  { label: 'Logros', value: aiMetrics.content?.achievements, icon: '🏆', color: 'from-yellow-500 to-yellow-600' },
+                  { label: 'Tiempo Total', value: `${aiMetrics.progress?.totalTimeSpent}m`, icon: '⏱️', color: 'from-slate-500 to-slate-600' },
                 ].map((stat, idx) => (
                   <div
                     key={idx}
-                    className={`bg-gradient-to-br ${stat.color} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+                    className={`bg-gradient-to-br ${stat.color} rounded-xl p-4 text-white shadow-md hover:shadow-lg transition-all hover:scale-105`}
                   >
-                    <div className="text-3xl mb-2">{stat.icon}</div>
-                    <p className="text-xs font-semibold text-white text-opacity-90 uppercase">
-                      {stat.label}
-                    </p>
-                    <p className="text-3xl font-black mt-1">{stat.value}</p>
-                    <p className="text-xs text-white text-opacity-75 mt-1">{stat.detail}</p>
+                    <div className="text-2xl mb-1">{stat.icon}</div>
+                    <p className="text-xs font-semibold uppercase opacity-90">{stat.label}</p>
+                    <p className="text-2xl font-bold mt-1">{stat.value}</p>
                   </div>
                 ))}
               </div>
@@ -8195,17 +8087,17 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
             {/* INSIGHTS */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                <div className="w-1 h-8 bg-gradient-to-b from-yellow-600 to-orange-600 rounded-full"></div>
-                💡 Insights Generados por IA
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-amber-600 rounded-full"></div>
+                💡 Insights generados por IA
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {aiInsights?.map((insight, idx) => (
                   <div
                     key={idx}
-                    className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4 hover:shadow-md transition-all"
+                    className="bg-white border-l-4 border-blue-500 rounded-xl p-4 shadow-sm hover:shadow-md transition"
                   >
-                    <p className="text-sm text-gray-800 font-medium flex items-start gap-2">
+                    <p className="text-gray-700 text-sm flex gap-2">
                       <span className="text-blue-600 font-bold">•</span>
                       {insight}
                     </p>
@@ -8216,34 +8108,32 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
             {/* RECOMENDACIONES */}
             <section>
-              <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                <div className="w-1 h-8 bg-gradient-to-b from-red-600 to-pink-600 rounded-full"></div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <div className="w-1 h-6 bg-red-600 rounded-full"></div>
                 🎯 Recomendaciones de Acción
               </h2>
               <div className="space-y-3">
                 {aiRecommendations?.map((rec, idx) => {
                   const priorityColors = {
-                    high: 'from-red-50 to-red-100 border-red-300',
-                    medium: 'from-yellow-50 to-yellow-100 border-yellow-300',
-                    low: 'from-green-50 to-green-100 border-green-300',
+                    high: 'bg-red-50 border-red-200',
+                    medium: 'bg-yellow-50 border-yellow-200',
+                    low: 'bg-green-50 border-green-200',
                   };
-
                   const priorityIcons = {
                     high: '🔴',
                     medium: '🟡',
                     low: '🟢',
                   };
-
                   return (
                     <div
                       key={idx}
-                      className={`bg-gradient-to-r ${priorityColors[rec.priority]} border-2 rounded-xl p-5 hover:shadow-lg transition-all`}
+                      className={`${priorityColors[rec.priority]} border rounded-xl p-4 shadow-sm hover:shadow-md transition`}
                     >
-                      <div className="flex items-start gap-4">
-                        <span className="text-3xl">{priorityIcons[rec.priority]}</span>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-800 text-lg mb-1">{rec.title}</h3>
-                          <p className="text-sm text-gray-700">{rec.description}</p>
+                      <div className="flex gap-3">
+                        <span className="text-xl">{priorityIcons[rec.priority]}</span>
+                        <div>
+                          <h3 className="font-bold text-gray-800">{rec.title}</h3>
+                          <p className="text-sm text-gray-600 mt-0.5">{rec.description}</p>
                         </div>
                       </div>
                     </div>
@@ -8254,18 +8144,18 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
           </div>
 
           {/* FOOTER */}
-          <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 flex gap-4 justify-end rounded-b-2xl">
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end gap-3 rounded-b-3xl">
             <button
               onClick={() => setShowDetailedAnalytics(false)}
-              className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-all"
+              className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-medium transition"
             >
               Cerrar
             </button>
             <button
               onClick={generateAIAnalyticsImproved}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition flex items-center gap-2 shadow-sm"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4" />
               Actualizar Análisis
             </button>
           </div>
@@ -8273,7 +8163,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       </div>
     );
   };
-
   // VISTA MEJORADA: GESTIÓN DE LOGROS
 
   const renderAchievementsManagement = () => {
@@ -8502,605 +8391,381 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
   };
 
   const renderContentGenerator = () => {
-    return (
-      <div className="fixed inset-0 bg-indigo-900/30 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-indigo-900/20">
+    if (!contentTypes || contentTypes.length === 0) return null;
 
-          {/* ================= HEADER ================= */}
-          <div className="sticky top-0 bg-gradient-to-br from-indigo-900 to-indigo-800 text-white p-6 rounded-t-2xl z-20">
+    return (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200 animate-fadeIn">
+
+          {/* HEADER - Azul moderno */}
+          <div className="sticky top-0 bg-gradient-to-r from-blue-700 to-cyan-700 text-white p-6 rounded-t-2xl z-20 shadow-md">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-3xl font-bold mb-1">
-                  Generador de Contenido Educativo
+                <h2 className="text-3xl font-bold flex items-center gap-2">
+                  <Sparkles className="w-7 h-7 text-blue-200" />
+                  Generador de Contenido con IA
                 </h2>
-                <p className="text-indigo-200">
-                  Crea actividades con IA generativa
+                <p className="text-blue-100 text-sm mt-1">
+                  Crea quizzes, juegos, ejercicios y más con inteligencia artificial
                 </p>
               </div>
               <button
                 onClick={() => setShowContentGenerator(false)}
-                className="bg-white/15 hover:bg-white/25 p-2 rounded-lg transition"
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-all"
               >
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6" />
               </button>
             </div>
           </div>
 
-          {/* ================= TABS ================= */}
-          <div className="flex gap-3 p-6 border-b border-indigo-200 bg-white">
+          {/* TABS */}
+          <div className="flex gap-2 p-4 border-b border-gray-200 bg-gray-50">
             {[
-              { id: "generator", label: "Generador" },
-              { id: "library", label: "Biblioteca" },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setContentGeneratorTab(tab.id)}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all ${contentGeneratorTab === tab.id
-                  ? "bg-indigo-900 text-white"
-                  : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { id: "generator", label: "✨ Generador", icon: Sparkles },
+              { id: "library", label: "📚 Biblioteca", icon: Library },
+            ].map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setContentGeneratorTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold transition-all ${contentGeneratorTab === tab.id
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
+                    }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/*  BODY  */}
-          <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-50">
-
-            {/*  GENERADOR  */}
+          {/* BODY */}
+          <div className="p-6 bg-gray-50">
+            {/* GENERADOR */}
             {contentGeneratorTab === "generator" && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                {/* TIPOS */}
-                <div>
-                  <h3 className="text-xl font-bold text-indigo-900 mb-4">
+                {/* Tipos de contenido */}
+                <div className="lg:col-span-1">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Grid className="w-5 h-5 text-blue-600" />
                     Tipos de Contenido
                   </h3>
-
                   <div className="space-y-3">
                     {contentTypes.map(type => (
                       <button
                         key={type.id}
                         onClick={() => setContentType(type.id)}
                         className={`w-full text-left p-4 rounded-xl border transition-all ${contentType === type.id
-                          ? "bg-indigo-900 text-white border-indigo-900"
-                          : "bg-white border-indigo-200 hover:bg-indigo-50"
+                          ? "border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
                           }`}
                       >
-                        <h4 className="font-semibold">{type.name}</h4>
-                        <p className="text-xs opacity-80">
-                          {type.description}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-3xl">{type.icon}</span>
+                          <div>
+                            <h4 className="font-semibold text-gray-800">{type.name}</h4>
+                            <p className="text-xs text-gray-500 mt-0.5">{type.description}</p>
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* FORM */}
+                {/* Formulario de generación */}
                 <div className="lg:col-span-2">
-                  <h3 className="text-xl font-bold text-indigo-900 mb-4">
-                    Crear Contenido
-                  </h3>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="bg-gray-50 p-5 border-b border-gray-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl">{contentTypes.find(c => c.id === contentType)?.icon}</span>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-800">
+                            {contentTypes.find(c => c.id === contentType)?.name}
+                          </h3>
+                          <p className="text-gray-500 text-sm">
+                            {contentTypes.find(c => c.id === contentType)?.prompt}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="bg-indigo-100 border-l-4 border-indigo-600 rounded-lg p-4 mb-6">
-                    <p className="text-sm text-indigo-900">
-                      {contentTypes.find(c => c.id === contentType)?.prompt}
-                    </p>
+                    <div className="p-6 space-y-5">
+                      <textarea
+                        value={generatorPrompt}
+                        onChange={(e) => setGeneratorPrompt(e.target.value)}
+                        placeholder={`Ejemplo: ${contentTypes.find(c => c.id === contentType)?.examples?.join(', ') || 'fracciones, animales, números'}`}
+                        className="w-full h-36 px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none text-gray-800"
+                      />
+
+                      <button
+                        onClick={generateContentWithAI}
+                        disabled={generatingContent}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                      >
+                        {generatingContent ? (
+                          <>
+                            <RefreshCw className="w-5 h-5 animate-spin" />
+                            Generando...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-5 h-5" />
+                            Generar con IA
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                  <textarea
-                    value={generatorPrompt}
-                    onChange={(e) => setGeneratorPrompt(e.target.value)}
-                    placeholder="Ejemplo: Crea un quiz sobre fracciones para primaria..."
-                    className="w-full h-40 px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 resize-none"
-                  />
-
-                  <button
-                    onClick={generateContentWithAI}
-                    disabled={generatingContent}
-                    className="mt-4 w-full bg-indigo-900 hover:bg-indigo-800 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    {generatingContent ? (
-                      <>
-                        <Loader className="w-5 h-5 animate-spin" />
-                        Generando...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        Generar con IA
-                      </>
-                    )}
-                  </button>
+                  {/* Sugerencia */}
+                  <div className="mt-5 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <p className="text-sm text-blue-800 flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-blue-500" />
+                      <strong>💡 Sugerencia:</strong> Sé específico. Por ejemplo: "Crea un quiz de 5 preguntas sobre los animales de la granja para niños de 6 años".
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/*  BIBLIOTECA  */}
+            {/* BIBLIOTECA */}
             {contentGeneratorTab === "library" && (
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-2xl font-bold text-indigo-900">
-                      📚 Biblioteca de Contenido Generado
+                    <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                      <Library className="w-6 h-6 text-blue-600" />
+                      Contenido Generado
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Haz clic en "✏️ Editar" para modificar cualquier contenido
+                    <p className="text-gray-500 text-sm mt-1">
+                      Todos tus quizzes, juegos y ejercicios creados con IA
                     </p>
                   </div>
-
-                  {/* BOTÓN GUARDAR TODO (solo visible si hay cambios) */}
                   {editingContent && (
                     <button
                       onClick={saveEditedContent}
                       disabled={savingChanges}
-                      className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-sm"
                     >
                       {savingChanges ? (
-                        <>
-                          <RefreshCw className="w-5 h-5 animate-spin" />
-                          Guardando...
-                        </>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
                       ) : (
-                        <>
-                          <Save className="w-5 h-5" />
-                          Guardar Todos los Cambios
-                        </>
+                        <Save className="w-4 h-4" />
                       )}
+                      Guardar Cambios
                     </button>
                   )}
                 </div>
 
-                {contentLibrary.length === 0 && (
-                  <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-indigo-300">
-                    <Sparkles className="w-16 h-16 text-indigo-400 mx-auto mb-3 opacity-50" />
-                    <p className="text-lg font-bold text-gray-700">📭 Aún no hay contenido generado</p>
-                    <p className="text-sm text-gray-500 mt-2">¡Genera tu primer contenido usando el Generador!</p>
+                {contentLibrary.length === 0 ? (
+                  <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+                    <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-xl font-semibold text-gray-600">📭 Aún no hay contenido</p>
+                    <p className="text-gray-400 mt-2">Usa el generador para crear tu primer contenido educativo</p>
                   </div>
-                )}
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {contentLibrary.map(item => {
+                      const isEditing = editingContent?.id === item.id;
+                      const currentData = isEditing ? editingContent : item;
+                      const typeInfo = contentTypes.find(c => c.id === item.type);
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {contentLibrary.map(item => {
-                    const isEditing = editingContent?.id === item.id;
-                    const currentData = isEditing ? editingContent : item;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 ${isEditing
-                          ? 'border-yellow-400 ring-4 ring-yellow-200'
-                          : 'border-blue-500'
-                          }`}
-                      >
-                        {/* HEADER */}
-                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-5 text-white relative overflow-hidden">
-                          <div className="absolute inset-0 opacity-10">
-                            <div className="absolute inset-0" style={{
-                              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
-                              backgroundSize: '20px 20px'
-                            }}></div>
-                          </div>
-
-                          <div className="relative flex justify-between items-start z-10">
-                            <div className="flex-1">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={currentData.title}
-                                  onChange={(e) => setEditingContent({
-                                    ...currentData,
-                                    title: e.target.value
-                                  })}
-                                  className="w-full bg-white bg-opacity-20 border-2 border-white border-opacity-40 rounded-lg px-3 py-2 text-white font-bold placeholder-white placeholder-opacity-60"
-                                  placeholder="Título del contenido"
-                                />
-                              ) : (
-                                <>
-                                  <p className="text-xs font-bold opacity-90 uppercase tracking-wider">
-                                    {contentTypes.find(c => c.id === item.type)?.name}
-                                  </p>
-                                  <h3 className="font-black text-lg mt-2 line-clamp-2">
-                                    {item.title}
-                                  </h3>
-                                </>
-                              )}
+                      return (
+                        <div
+                          key={item.id}
+                          className={`group rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200 border ${isEditing ? "border-amber-400 ring-2 ring-amber-200" : "border-gray-200"
+                            }`}
+                        >
+                          {/* Header gris oscuro */}
+                          <div className="bg-gray-800 p-4 text-white">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={currentData.title}
+                                    onChange={(e) => setEditingContent({ ...currentData, title: e.target.value })}
+                                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                  />
+                                ) : (
+                                  <>
+                                    <span className="text-xs font-medium uppercase tracking-wide bg-gray-700 px-2 py-0.5 rounded-full">
+                                      {typeInfo?.name || item.type}
+                                    </span>
+                                    <h3 className="font-bold text-base mt-2 line-clamp-2">{item.title}</h3>
+                                  </>
+                                )}
+                              </div>
+                              <span className="text-2xl ml-2">{typeInfo?.icon}</span>
                             </div>
-                            <span className="text-4xl ml-2 flex-shrink-0">
-                              {contentTypes.find(c => c.id === item.type)?.icon}
-                            </span>
                           </div>
-                        </div>
 
-                        {/* BODY */}
-                        <div className="p-5 space-y-4 bg-white">
-                          {/* PROMPT */}
-                          <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
+                          {/* Body */}
+                          <div className="p-4 space-y-3">
                             {isEditing ? (
                               <textarea
                                 value={currentData.prompt}
-                                onChange={(e) => setEditingContent({
-                                  ...currentData,
-                                  prompt: e.target.value
-                                })}
-                                className="w-full bg-white border-2 border-blue-300 rounded px-3 py-2 text-sm resize-none"
-                                rows="2"
-                                placeholder="Descripción del contenido"
+                                onChange={(e) => setEditingContent({ ...currentData, prompt: e.target.value })}
+                                className="w-full bg-gray-50 border border-gray-300 rounded-md p-2 text-sm resize-none focus:ring-1 focus:ring-blue-500"
+                                rows={2}
                               />
                             ) : (
-                              <p className="text-sm text-gray-700 line-clamp-3 font-medium">
+                              <div className="bg-gray-50 rounded-md p-2 text-sm text-gray-700 line-clamp-2 border-l-3 border-blue-400">
                                 💡 {item.prompt}
-                              </p>
+                              </div>
                             )}
-                          </div>
 
-                          {/* ===== EDICIÓN ESPECÍFICA POR TIPO ===== */}
-
-                          {/* QUIZ EDITABLE */}
-                          {item.type === 'quiz' && isEditing && (
-                            <div className="space-y-3 max-h-96 overflow-y-auto border-2 border-blue-200 rounded-lg p-3">
-                              <p className="font-bold text-sm text-gray-800 sticky top-0 bg-white pb-2">
-                                📝 Preguntas ({currentData.content.questions?.length || 0})
-                              </p>
-
-                              {currentData.content.questions?.map((q, qIdx) => (
-                                <div key={qIdx} className="bg-gray-50 rounded-lg p-3 border border-gray-300 space-y-2">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                      {qIdx + 1}
-                                    </span>
-
-                                    {/* EMOJI DE LA PREGUNTA */}
-                                    <select
-                                      value={q.imagen_url || q.image_url || ''}
-                                      onChange={(e) => {
-                                        const updated = { ...currentData };
-                                        updated.content.questions[qIdx].imagen_url = e.target.value;
-                                        updated.content.questions[qIdx].image_url = e.target.value;
-                                        setEditingContent(updated);
-                                      }}
-                                      className="w-12 text-xl bg-white border border-gray-300 rounded"
-                                    >
-                                      <option value="">❓</option>
-                                      {emojis.slice(0, 20).map(emoji => (
-                                        <option key={emoji} value={emoji}>{emoji}</option>
+                            {/* Edición específica para quizzes - área ampliada */}
+                            {isEditing && item.type === 'quiz' && (
+                              <div className="max-h-80 overflow-y-auto border rounded-md p-3 space-y-3 bg-gray-50">
+                                <p className="font-bold text-sm text-gray-700">📝 Editar preguntas del Quiz</p>
+                                {currentData.content.questions?.map((q, idx) => (
+                                  <div key={idx} className="bg-white p-4 rounded-lg border space-y-3 shadow-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-blue-600">Pregunta {idx + 1}</span>
+                                      <input
+                                        type="text"
+                                        value={q.text || q.pregunta || ''}
+                                        onChange={(e) => {
+                                          const updated = { ...currentData };
+                                          updated.content.questions[idx].text = e.target.value;
+                                          updated.content.questions[idx].pregunta = e.target.value;
+                                          setEditingContent(updated);
+                                        }}
+                                        className="flex-1 border rounded px-3 py-2 text-base"
+                                        placeholder="Texto de la pregunta"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      {(q.options || q.opciones || []).map((opt, oIdx) => (
+                                        <div key={oIdx} className="flex gap-2 items-center">
+                                          <div className="w-10 text-center text-2xl">
+                                            {(q.imagen_opciones || q.image_options || [])[oIdx] || '🎨'}
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={opt}
+                                            onChange={(e) => {
+                                              const updated = { ...currentData };
+                                              updated.content.questions[idx].options[oIdx] = e.target.value;
+                                              updated.content.questions[idx].opciones[oIdx] = e.target.value;
+                                              setEditingContent(updated);
+                                            }}
+                                            className="flex-1 border rounded px-3 py-2 text-base"
+                                            placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
+                                          />
+                                          <button
+                                            onClick={() => {
+                                              const updated = { ...currentData };
+                                              updated.content.questions[idx].correct = oIdx;
+                                              updated.content.questions[idx].respuesta_correcta = oIdx;
+                                              setEditingContent(updated);
+                                            }}
+                                            className={`w-10 h-10 rounded text-base font-bold ${(q.correct ?? q.respuesta_correcta) === oIdx ? 'bg-blue-500 text-white' : 'bg-gray-200'
+                                              }`}
+                                          >
+                                            {(q.correct ?? q.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
+                                          </button>
+                                        </div>
                                       ))}
-                                    </select>
-                                  </div>
-
-                                  {/* TEXTO PREGUNTA */}
-                                  <input
-                                    type="text"
-                                    value={q.text || q.pregunta || ''}
-                                    onChange={(e) => {
-                                      const updated = { ...currentData };
-                                      updated.content.questions[qIdx].text = e.target.value;
-                                      updated.content.questions[qIdx].pregunta = e.target.value;
-                                      setEditingContent(updated);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-semibold"
-                                    placeholder="Pregunta"
-                                  />
-
-                                  {/* OPCIONES */}
-                                  <div className="space-y-1">
-                                    {(q.options || q.opciones || []).map((opt, oIdx) => (
-                                      <div key={oIdx} className="flex gap-2 items-center">
-                                        {/* EMOJI OPCIÓN */}
-                                        <select
-                                          value={(q.imagen_opciones || q.image_options || [])[oIdx] || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...currentData };
-                                            if (!updated.content.questions[qIdx].imagen_opciones) {
-                                              updated.content.questions[qIdx].imagen_opciones = ['', '', '', ''];
-                                            }
-                                            if (!updated.content.questions[qIdx].image_options) {
-                                              updated.content.questions[qIdx].image_options = ['', '', '', ''];
-                                            }
-                                            updated.content.questions[qIdx].imagen_opciones[oIdx] = e.target.value;
-                                            updated.content.questions[qIdx].image_options[oIdx] = e.target.value;
-                                            setEditingContent(updated);
-                                          }}
-                                          className="w-10 text-lg bg-white border border-gray-300 rounded"
-                                        >
-                                          <option value="">🎨</option>
-                                          {emojis.slice(0, 15).map(emoji => (
-                                            <option key={emoji} value={emoji}>{emoji}</option>
-                                          ))}
-                                        </select>
-
-                                        {/* TEXTO OPCIÓN */}
-                                        <input
-                                          type="text"
-                                          value={opt}
-                                          onChange={(e) => {
-                                            const updated = { ...currentData };
-                                            if (updated.content.questions[qIdx].options) {
-                                              updated.content.questions[qIdx].options[oIdx] = e.target.value;
-                                            }
-                                            if (updated.content.questions[qIdx].opciones) {
-                                              updated.content.questions[qIdx].opciones[oIdx] = e.target.value;
-                                            }
-                                            setEditingContent(updated);
-                                          }}
-                                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
-                                          placeholder={`Opción ${String.fromCharCode(65 + oIdx)}`}
-                                        />
-
-                                        {/* CORRECTA */}
-                                        <button
-                                          onClick={() => {
-                                            const updated = { ...currentData };
-                                            updated.content.questions[qIdx].correct = oIdx;
-                                            updated.content.questions[qIdx].respuesta_correcta = oIdx;
-                                            setEditingContent(updated);
-                                          }}
-                                          className={`w-8 h-8 rounded font-bold text-xs ${(q.correct ?? q.respuesta_correcta) === oIdx
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-gray-200 text-gray-600'
-                                            }`}
-                                        >
-                                          {(q.correct ?? q.respuesta_correcta) === oIdx ? '✓' : oIdx + 1}
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {/* PUNTOS Y TIEMPO */}
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <label className="text-xs font-bold text-gray-600">⭐ Puntos</label>
-                                      <input
-                                        type="number"
-                                        value={q.puntos || q.points || 10}
-                                        onChange={(e) => {
-                                          const updated = { ...currentData };
-                                          updated.content.questions[qIdx].puntos = parseInt(e.target.value);
-                                          updated.content.questions[qIdx].points = parseInt(e.target.value);
-                                          setEditingContent(updated);
-                                        }}
-                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                        min="1"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-xs font-bold text-gray-600">⏱️ Tiempo(s)</label>
-                                      <input
-                                        type="number"
-                                        value={q.tiempo_limite || q.timeLimit || 0}
-                                        onChange={(e) => {
-                                          const updated = { ...currentData };
-                                          updated.content.questions[qIdx].tiempo_limite = parseInt(e.target.value);
-                                          updated.content.questions[qIdx].timeLimit = parseInt(e.target.value);
-                                          setEditingContent(updated);
-                                        }}
-                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                        min="0"
-                                      />
                                     </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* JUEGO EDITABLE */}
-                          {item.type === 'game' && isEditing && (
-                            <div className="space-y-3 border-2 border-purple-200 rounded-lg p-3">
-                              <div>
-                                <label className="text-xs font-bold text-gray-600">🎮 Nombre del Juego</label>
-                                <input
-                                  type="text"
-                                  value={currentData.content.name || ''}
-                                  onChange={(e) => setEditingContent({
-                                    ...currentData,
-                                    content: { ...currentData.content, name: e.target.value }
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                                />
+                                ))}
                               </div>
-                              <div>
-                                <label className="text-xs font-bold text-gray-600">📝 Descripción</label>
-                                <textarea
-                                  value={currentData.content.description || ''}
-                                  onChange={(e) => setEditingContent({
-                                    ...currentData,
-                                    content: { ...currentData.content, description: e.target.value }
-                                  })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none"
-                                  rows="2"
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-xs font-bold text-gray-600">🎯 Niveles</label>
-                                  <input
-                                    type="number"
-                                    value={currentData.content.levels || 3}
-                                    onChange={(e) => setEditingContent({
-                                      ...currentData,
-                                      content: { ...currentData.content, levels: parseInt(e.target.value) }
-                                    })}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    min="1"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-bold text-gray-600">❤️ Vidas</label>
-                                  <input
-                                    type="number"
-                                    value={currentData.content.lives || 3}
-                                    onChange={(e) => setEditingContent({
-                                      ...currentData,
-                                      content: { ...currentData.content, lives: parseInt(e.target.value) }
-                                    })}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                    min="1"
-                                  />
-                                </div>
-                              </div>
+                            )}
+
+                            {/* Fecha y tipo */}
+                            <div className="flex justify-between items-center text-xs text-gray-400 pt-1 border-t">
+                              <span>📅 {item.createdAt}</span>
+                              <span className="capitalize font-medium text-gray-500">{item.type}</span>
                             </div>
-                          )}
 
-                          {/* EJERCICIOS EDITABLES */}
-                          {item.type === 'exercise' && isEditing && (
-                            <div className="space-y-2 max-h-96 overflow-y-auto border-2 border-green-200 rounded-lg p-3">
-                              <p className="font-bold text-sm text-gray-800">
-                                📝 Ejercicios ({currentData.content.exercises?.length || 0})
-                              </p>
-                              {currentData.content.exercises?.map((ex, idx) => (
-                                <div key={idx} className="bg-gray-50 rounded p-2 border border-gray-300 space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                      {idx + 1}
-                                    </span>
-                                    <select
-                                      value={ex.difficulty || 'medio'}
-                                      onChange={(e) => {
-                                        const updated = { ...currentData };
-                                        updated.content.exercises[idx].difficulty = e.target.value;
-                                        setEditingContent(updated);
-                                      }}
-                                      className="text-xs border border-gray-300 rounded px-2 py-1"
-                                    >
-                                      <option value="facil">😊 Fácil</option>
-                                      <option value="medio">😐 Medio</option>
-                                      <option value="dificil">🤔 Difícil</option>
-                                    </select>
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={ex.instruction || ''}
-                                    onChange={(e) => {
-                                      const updated = { ...currentData };
-                                      updated.content.exercises[idx].instruction = e.target.value;
-                                      setEditingContent(updated);
-                                    }}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                    placeholder="Instrucción"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={ex.example || ''}
-                                    onChange={(e) => {
-                                      const updated = { ...currentData };
-                                      updated.content.exercises[idx].example = e.target.value;
-                                      setEditingContent(updated);
-                                    }}
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                                    placeholder="Ejemplo"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* FECHA Y TIPO */}
-                          <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200">
-                            <span className="text-gray-500 font-semibold">📅 {item.createdAt}</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${item.type === 'quiz' ? 'bg-blue-500' :
-                              item.type === 'game' ? 'bg-purple-500' :
-                                item.type === 'exercise' ? 'bg-green-500' :
-                                  item.type === 'story' ? 'bg-orange-500' : 'bg-red-500'
-                              }`}>
-                              {item.type.toUpperCase()}
-                            </span>
-                          </div>
-
-                          {/* BOTONES */}
-                          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-200">
-                            {isEditing ? (
-                              <>
+                            {/* Botones */}
+                            <div className="grid grid-cols-3 gap-2 pt-2">
+                              {item.type === 'quiz' && !isEditing && (
                                 <button
                                   onClick={() => {
+                                    setEditingGeneratedQuiz({
+                                      ...item,
+                                      preguntas: item.content?.questions || [],
+                                      title: item.title
+                                    });
+                                    setShowContentPreview(true);
+                                  }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> Ver
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (isEditing) {
                                     saveEditedContent();
                                     setEditingContent(null);
-                                  }}
-                                  className="col-span-2 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                                >
-                                  <Save className="w-4 h-4" />
-                                  Guardar
-                                </button>
-                                <button
-                                  onClick={() => setEditingContent(null)}
-                                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-lg text-xs font-bold"
-                                >
-                                  Cancelar
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                {item.type === 'quiz' && (
+                                  } else {
+                                    setEditingContent(JSON.parse(JSON.stringify(item)));
+                                  }
+                                }}
+                                className={`py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition ${isEditing
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                  : 'bg-amber-500 hover:bg-amber-600 text-white'
+                                  }`}
+                              >
+                                {isEditing ? <Save className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
+                                {isEditing ? 'Guardar' : 'Editar'}
+                              </button>
+                              {!isEditing && (
+                                <>
+                                  <button
+                                    onClick={() => downloadContentFile(item)}
+                                    className="bg-gray-500 hover:bg-gray-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
+                                  >
+                                    <Download className="w-3.5 h-3.5" /> Descargar
+                                  </button>
                                   <button
                                     onClick={() => {
-                                      setEditingGeneratedQuiz({
-                                        ...item,
-                                        preguntas: item.preguntas || item.content?.questions || [],
-                                        title: item.title
-                                      });
-                                      setShowContentPreview(true);
-                                      setQuizPreviewIndex(0);
-                                      setQuizPreviewAnswers({});
+                                      if (confirm(`¿Eliminar "${item.title}"?`)) deleteGeneratedContent(item.id);
                                     }}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                                    title="Vista previa"
+                                    className="bg-red-500 hover:bg-red-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
                                   >
-                                    <Eye className="w-4 h-4" />
-                                    Ver
+                                    <Trash2 className="w-3.5 h-3.5" /> Eliminar
                                   </button>
-                                )}
-
-                                <button
-                                  onClick={() => {
-                                    const deepCopy = JSON.parse(JSON.stringify(item));
-                                    setEditingContent(deepCopy);
-                                  }}
-                                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                                  title="Editar"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                  Editar
-                                </button>
-
-                                <button
-                                  onClick={() => downloadContentFile(item)}
-                                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                                >
-                                  <Download className="w-4 h-4" />
-                                  Descargar
-                                </button>
-                              </>
+                                </>
+                              )}
+                            </div>
+                            {isEditing && (
+                              <button
+                                onClick={() => setEditingContent(null)}
+                                className="w-full mt-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-1.5 rounded-md text-xs font-medium transition"
+                              >
+                                Cancelar edición
+                              </button>
                             )}
                           </div>
-
-                          {/* BOTÓN ELIMINAR */}
-                          {!isEditing && (
-                            <button
-                              onClick={() => {
-                                if (confirm(`¿Eliminar "${item.title}"?`)) {
-                                  deleteGeneratedContent(item.id);
-                                }
-                              }}
-                              className="w-full bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border border-red-200"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Eliminar
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-200 p-4 bg-gray-50 flex justify-end rounded-b-2xl">
+            <button
+              onClick={() => setShowContentGenerator(false)}
+              className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
     );
   };
-
-
 
   if (error && error.includes("permisos")) {
     return (
@@ -9684,67 +9349,93 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 <Filter className="w-5 h-5 text-gray-600" />
                 <h3 className="font-semibold text-gray-800">Filtros</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Búsqueda por nombre */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rol
+                    🔍 Buscar por nombre
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchUserText}
+                      onChange={(e) => setSearchUserText(e.target.value)}
+                      placeholder="Ej: Juan Pérez"
+                      className="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Filtro por Rol */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    👤 Rol
                   </label>
                   <select
                     value={filterRole}
                     onChange={(e) => setFilterRole(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Todos los roles</option>
-                    {availableRoles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
+                    <option value="todos">📋 Todos los roles</option>
+                    <option value="admin">👑 Admin</option>
+                    <option value="docente">👨‍🏫 Docente</option>
+                    <option value="estudiante">🎓 Estudiante</option>
+                    <option value="visitante">👤 Visitante</option>
                   </select>
                 </div>
+
+                {/* Filtro por Grupo */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Grupo
+                    🏫 Grupo
                   </label>
                   <select
                     value={filterGroup}
                     onChange={(e) => setFilterGroup(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Todos los grupos</option>
+                    <option value="todos">📋 Todos los grupos</option>
                     {groups.map((group) => (
                       <option key={group.id} value={group.id}>
                         {group.nombre}
                       </option>
                     ))}
-                    <option value="sin_grupo">Sin grupo</option>
+                    <option value="sin_grupo">📭 Sin grupo</option>
                   </select>
                 </div>
+
+                {/* Filtro por Estado */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado
+                    🔘 Estado
                   </label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Todos</option>
-                    <option value="active">Activos</option>
-                    <option value="inactive">Inactivos</option>
+                    <option value="todos">📋 Todos</option>
+                    <option value="active">🟢 Activos</option>
+                    <option value="inactive">🔴 Inactivos</option>
                   </select>
                 </div>
               </div>
-              {(filterRole || filterGroup || filterStatus) && (
+
+              {/* Botón limpiar filtros */}
+              {(filterRole !== "todos" || filterGroup !== "todos" || filterStatus !== "todos" || searchUserText) && (
                 <button
                   onClick={() => {
-                    setFilterRole("");
-                    setFilterGroup("");
-                    setFilterStatus("");
+                    setFilterRole("todos");
+                    setFilterGroup("todos");
+                    setFilterStatus("todos");
+                    setSearchUserText("");
                   }}
-                  className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                 >
-                  Limpiar filtros
+                  <X className="w-3 h-3" />
+                  Limpiar todos los filtros
                 </button>
               )}
             </div>
@@ -10066,31 +9757,27 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                           </td>
                           <td className="px-6 py-4">
                             {(() => {
-                              const status = getUserStatus(user.ultimo_acceso);
+                              const status = formatLastConnection(user.ultimo_acceso);
                               return (
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={`w-3 h-3 rounded-full ${status.color === "green"
-                                      ? "bg-green-500 animate-pulse shadow-lg shadow-green-300"
-                                      : status.color === "blue"
-                                        ? "bg-blue-500"
-                                        : status.color === "gray"
-                                          ? "bg-gray-400"
-                                          : "bg-red-500"
-                                      }`}
-                                  />
-                                  <span
-                                    className={`text-xs font-medium ${status.color === "green"
-                                      ? "text-green-800"
-                                      : status.color === "blue"
-                                        ? "text-blue-800"
-                                        : status.color === "gray"
-                                          ? "text-gray-600"
-                                          : "text-red-800"
-                                      }`}
-                                  >
-                                    {status.label}
-                                  </span>
+                                <div className="group relative">
+                                  <div className={`flex items-center gap-2 ${status.bgColor} px-3 py-1.5 rounded-full inline-flex`}>
+                                    <span className="text-base">{status.icon}</span>
+                                    <span className={`text-xs font-semibold ${status.color}`}>
+                                      {status.text}
+                                    </span>
+                                  </div>
+                                  {/* Tooltip con información detallada */}
+                                  <div className="absolute z-50 invisible group-hover:visible bg-gray-900 text-white text-xs rounded-lg p-2 mt-1 whitespace-nowrap shadow-xl">
+                                    <div className="flex items-center gap-2">
+                                      <span>{status.icon}</span>
+                                      <span>{status.detail || status.text}</span>
+                                    </div>
+                                    {user.ultimo_acceso && (
+                                      <div className="text-gray-300 text-[10px] mt-1">
+                                        📅 {new Date(user.ultimo_acceso).toLocaleString()}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })()}
@@ -11178,7 +10865,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 </div>
               </div>
 
-              {/* FILTROS ULTRA COMPACTOS EN UNA LÍNEA */}
+              {/* FILTROS */}
               <div className="sticky top-24 z-9 bg-white border-b border-gray-200 p-3 flex gap-2 items-end flex-wrap">
                 <div className="flex-1 min-w-32">
                   <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Grupo</label>
@@ -11247,7 +10934,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 </div>
               </div>
 
-              {/* CONTENIDO PRINCIPAL - MAXIMIZADO */}
+              {/* CONTENIDO PRINCIPAL */}
               <div className="overflow-y-auto max-h-[calc(90vh-280px)] p-4 space-y-3 bg-gradient-to-b from-white to-gray-50">
 
                 {(() => {
@@ -11270,7 +10957,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                   }
 
                   return filteredStudents.map((data, idx) => {
-                    const { student, feedback, grupo } = data;
+                    const { student, feedback, grupo, evolution } = data;
                     const isExpanded = expandedStudent === idx;
 
                     const getStatusColor = (status) => {
@@ -11284,7 +10971,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                     return (
                       <div key={idx} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-200">
 
-                        {/* HEADER ESTUDIANTE COMPACTO */}
+                        {/* HEADER ESTUDIANTE */}
                         <button
                           onClick={() => setExpandedStudent(isExpanded ? null : idx)}
                           className={`w-full ${colors.header} text-white p-3 hover:shadow-md transition-all flex items-center justify-between`}
@@ -11307,11 +10994,11 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                           </div>
                         </button>
 
-                        {/* CONTENIDO EXPANDIDO - COMPACTO */}
+                        {/* CONTENIDO EXPANDIDO */}
                         {isExpanded && (
                           <div className="p-4 space-y-4 bg-gray-50">
 
-                            {/* 3 COLUMNAS - ALGORITMOS COMPACTOS */}
+                            {/* 3 COLUMNAS: LEA, ADA, AFS */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
                               {/* LEA */}
@@ -11320,8 +11007,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                   <p className="text-sm font-black text-blue-600">📚 LEA</p>
                                   <span className="text-lg">{feedback.learningEffectiveness?.isLearning ? "✅" : "❌"}</span>
                                 </div>
-
-                                {/* Barra de confianza */}
                                 <div className="mb-2">
                                   <div className="flex justify-between mb-1 text-xs">
                                     <span className="text-gray-700 font-bold">Confianza</span>
@@ -11336,25 +11021,24 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                     ></div>
                                   </div>
                                 </div>
-
-                                {/* Métricas rápidas */}
                                 <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
                                   <div className="flex justify-between">
                                     <span className="text-gray-700">Intentos</span>
-                                    <span className="font-black text-gray-900">
-                                      {feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(1)}
-                                    </span>
+                                    <span className="font-black">{feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(1)}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-700">Tiempo/Pregunta</span>
-                                    <span className="font-black text-gray-900">
-                                      {feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0)}s
-                                    </span>
+                                    <span className="font-black">{feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0)}s</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-700">Retención</span>
-                                    <span className="font-black text-gray-900">
-                                      {feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1)}%
+                                    <span className="font-black">{feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1)}%</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Mejora</span>
+                                    <span className={`font-black ${feedback.learningEffectiveness?.indicators?.improvementTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {feedback.learningEffectiveness?.indicators?.improvementTrend >= 0 ? '↑' : '↓'}
+                                      {Math.abs(feedback.learningEffectiveness?.indicators?.improvementTrend || 0)}%
                                     </span>
                                   </div>
                                 </div>
@@ -11366,51 +11050,33 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                   <p className="text-sm font-black text-blue-600">👁️ ADA</p>
                                   <span className="text-lg">🎯</span>
                                 </div>
-
-                                {/* Barra de atención */}
                                 <div className="mb-2">
                                   <div className="flex justify-between mb-1 text-xs">
                                     <span className="text-gray-700 font-bold">Atención</span>
-                                    <span className="text-blue-600 font-black">
-                                      {feedback.attentionLevel?.score || 0}/100
-                                    </span>
+                                    <span className="text-blue-600 font-black">{feedback.attentionLevel?.score || 0}/100</span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full transition-all bg-gradient-to-r ${(feedback.attentionLevel?.score || 0) >= 70
-                                        ? "from-green-500 to-green-600"
-                                        : (feedback.attentionLevel?.score || 0) >= 50
-                                          ? "from-yellow-500 to-yellow-600"
-                                          : "from-red-500 to-red-600"
-                                        }`}
+                                      className={`h-full rounded-full transition-all bg-gradient-to-r ${(feedback.attentionLevel?.score || 0) >= 70 ? "from-green-500 to-green-600" : (feedback.attentionLevel?.score || 0) >= 50 ? "from-yellow-500 to-yellow-600" : "from-red-500 to-red-600"}`}
                                       style={{ width: `${feedback.attentionLevel?.score || 0}%` }}
                                     ></div>
                                   </div>
                                 </div>
-
-                                {/* Status */}
-                                <div className={`text-center py-1 rounded text-xs font-bold mb-2 ${(feedback.attentionLevel?.score || 0) >= 70
-                                  ? "bg-green-100 text-green-800"
-                                  : (feedback.attentionLevel?.score || 0) >= 50
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-red-100 text-red-800"
-                                  }`}>
+                                <div className={`text-center py-1 rounded text-xs font-bold mb-2 ${(feedback.attentionLevel?.score || 0) >= 70 ? "bg-green-100 text-green-800" : (feedback.attentionLevel?.score || 0) >= 50 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}>
                                   {feedback.attentionLevel?.level}
                                 </div>
-
-                                {/* Métricas */}
                                 <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
                                   <div className="flex justify-between">
-                                    <span className="text-gray-700">Inactivo</span>
-                                    <span className="font-black text-gray-900">
-                                      {feedback.attentionLevel?.indicators?.inactivityPeriods || 0}
-                                    </span>
+                                    <span className="text-gray-700">Inactividad</span>
+                                    <span className="font-black">{feedback.attentionLevel?.indicators?.inactivityPeriods || 0}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-700">Foco</span>
-                                    <span className="font-black text-gray-900">
-                                      {feedback.attentionLevel?.indicators?.focusIndex?.toFixed(1) || 0}%
-                                    </span>
+                                    <span className="font-black">{feedback.attentionLevel?.indicators?.focusIndex?.toFixed(1) || 0}%</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">Consistencia</span>
+                                    <span className="font-black">{feedback.attentionLevel?.indicators?.consistencyScore?.toFixed(1)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -11421,32 +11087,73 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                   <p className="text-sm font-black text-blue-600">💬 AFS</p>
                                   <span className="text-lg">📋</span>
                                 </div>
-
-                                {/* Resumen visual compacto */}
                                 <div className="bg-blue-50 rounded-lg p-2 space-y-1 text-xs border border-blue-100">
                                   <div className="flex items-center justify-between">
                                     <span className="text-gray-700">Fortalezas</span>
-                                    <span className="font-black bg-green-200 text-green-800 px-2 py-0.5 rounded text-xs">
-                                      {feedback.strengths?.length || 0}
-                                    </span>
+                                    <span className="font-black bg-green-200 text-green-800 px-2 py-0.5 rounded">{feedback.strengths?.length || 0}</span>
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <span className="text-gray-700">Por Mejorar</span>
-                                    <span className="font-black bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded text-xs">
-                                      {feedback.weaknesses?.length || 0}
-                                    </span>
+                                    <span className="font-black bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">{feedback.weaknesses?.length || 0}</span>
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <span className="text-gray-700">Acciones</span>
-                                    <span className="font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs">
-                                      {feedback.actionPlan?.length || 0}
-                                    </span>
+                                    <span className="font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded">{feedback.actionPlan?.length || 0}</span>
                                   </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* FORTALEZAS Y DEBILIDADES EN DOS COLUMNAS */}
+                            {/* NUEVA SECCIÓN: EVOLUCIÓN DEL APRENDIZAJE */}
+                            {evolution && evolution.length > 1 && (
+                              <div className="mt-4 bg-white rounded-xl p-4 border-2 border-blue-200 shadow-sm">
+                                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                                  Evolución del Aprendizaje (últimas actividades)
+                                </h4>
+                                <div className="h-48 mb-4">
+                                  <SimpleLineChart
+                                    data={evolution}
+                                    xKey="fecha"
+                                    yKey="progreso"
+                                    color="#3b82f6"
+                                    label="Progreso %"
+                                  />
+                                </div>
+                                {/* Estadísticas de evolución */}
+                                <div className="grid grid-cols-3 gap-3 text-center">
+                                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
+                                    <p className="text-xs font-bold text-green-700 uppercase">Tendencia</p>
+                                    <p className={`text-2xl font-black ${calculateTrend(evolution.map(e => e.progreso)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {calculateTrend(evolution.map(e => e.progreso)) >= 0 ? '↑' : '↓'}
+                                      {Math.abs(calculateTrend(evolution.map(e => e.progreso)))}%
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">vs primera actividad</p>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
+                                    <p className="text-xs font-bold text-blue-700 uppercase">Promedio</p>
+                                    <p className="text-2xl font-black text-blue-700">
+                                      {Math.round(evolution.reduce((a, b) => a + b.progreso, 0) / evolution.length)}%
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">general</p>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
+                                    <p className="text-xs font-bold text-purple-700 uppercase">Mejora Absoluta</p>
+                                    <p className="text-2xl font-black text-purple-700">
+                                      {evolution.length > 1 ? (evolution[evolution.length - 1].progreso - evolution[0].progreso) : 0}%
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">último - primero</p>
+                                  </div>
+                                </div>
+                                {/* Detalle adicional */}
+                                <div className="mt-3 text-xs text-gray-500 text-center border-t border-gray-100 pt-3">
+                                  <span className="inline-flex items-center gap-1 mx-2">⏱️ Tiempo promedio: {Math.round(evolution.reduce((a, b) => a + b.tiempo, 0) / evolution.length)} min</span>
+                                  <span className="inline-flex items-center gap-1 mx-2">🔄 Intentos promedio: {(evolution.reduce((a, b) => a + b.intentos, 0) / evolution.length).toFixed(1)}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* FORTALEZAS Y DEBILIDADES */}
                             {(feedback.strengths?.length > 0 || feedback.weaknesses?.length > 0) && (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {feedback.strengths?.length > 0 && (
@@ -11462,7 +11169,6 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                                     </ul>
                                   </div>
                                 )}
-
                                 {feedback.weaknesses?.length > 0 && (
                                   <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
                                     <h4 className="font-black text-orange-800 mb-2 text-xs">→ Por Mejorar</h4>
@@ -11503,7 +11209,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
                 })()}
               </div>
 
-              {/* FOOTER ULTRA COMPACTO */}
+              {/* FOOTER */}
               <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3 flex gap-2 justify-end">
                 <button
                   onClick={() => {
@@ -12413,6 +12119,13 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
       {/* VISOR/EDITOR DE CONTENIDO */}
       {showContentViewer && renderInteractiveContent()}
 
+      {/* Toast de notificaciones */}
+      {toastMessage && (
+        <div className={`fixed bottom-4 right-4 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-semibold transition-all animate-fadeIn ${toastMessage.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          }`}>
+          {toastMessage.message}
+        </div>
+      )}
 
       {/* ESTILOS PARA ANIMACIONES */}
       <style jsx>{`
@@ -12439,7 +12152,7 @@ Responde de manera clara, concisa y educativa. Si te preguntan sobre estadístic
 
       <footer className="bg-white border-t border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-600">
-          <div>© 2025 Didactikapp - Básica Elemental</div>
+          <div>© 2026 Didactikapp - Básica Elemental</div>
           <div className="flex items-center gap-4">
             <span>Usuarios: {users.length}</span>
             <span>Cursos: {courses.length}</span>
