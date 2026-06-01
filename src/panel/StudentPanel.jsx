@@ -30,8 +30,7 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
       loadAvailableRoles();
 
       const savedViewRole = localStorage.getItem('didaktik_view_role');
-      const currentPath = window.location.pathname;
-
+      const currentPath = window.location.hash;
       let correctRole = null;
 
       if (currentPath.includes('/student')) correctRole = 'estudiante';
@@ -55,7 +54,7 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
   }, [user]);
 
   useEffect(() => {
-    const currentPath = window.location.pathname;
+    const currentPath = window.location.hash;
     const savedViewRole = localStorage.getItem('didaktik_view_role');
 
     if (savedViewRole && savedViewRole !== currentViewRole) {
@@ -132,9 +131,12 @@ const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
       setCurrentViewRole(newRole);
       setShowRoleMenu(false);
 
+      // ✅ Definir targetPath correctamente
       const targetPath = getRolePath(newRole);
+
       setTimeout(() => {
-        window.location.replace(targetPath);
+        window.location.hash = targetPath;
+        window.location.reload();
       }, 100);
 
     } catch (error) {
@@ -1143,7 +1145,8 @@ export default function StudentPanel() {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        navigate('/login');
+        window.location.hash = '/login';
+        window.location.reload();
         return;
       }
 
@@ -1167,7 +1170,7 @@ export default function StudentPanel() {
         return;
       }
 
-      const currentPath = window.location.pathname;
+      const currentPath = window.location.hash;
       let forceRole = null;
 
       if (currentPath.includes('/student')) forceRole = 'estudiante';
@@ -1388,7 +1391,8 @@ export default function StudentPanel() {
   const handleLogout = async () => {
     localStorage.removeItem('didaktik_view_role');
     await supabase.auth.signOut();
-    navigate('/');
+    window.location.hash = '/';
+    window.location.reload();
   };
 
   const handleChatSend = () => {
