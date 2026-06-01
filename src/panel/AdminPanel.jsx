@@ -288,23 +288,25 @@ const ProgressCircle = ({ title, value, max, color, size = 80 }) => {
 };
 
 // Componente de Métricas en Tiempo Real
-const MetricCard = ({ title, value, change, icon: Icon, color }) => (
+// Componente de Métricas en Tiempo Real (CORREGIDO)
+const MetricCard = ({ title, value, change, icon: Icon, color, suffix = "" }) => (
   <div className="bg-white border-2 border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start mb-2">
       <div>
         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
           {title}
         </p>
-        <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+        <p className="text-2xl font-bold text-gray-900 mt-1">
+          {value}{suffix}
+        </p>
       </div>
       <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}20` }}>
         <Icon className="w-5 h-5" style={{ color }} />
       </div>
     </div>
-    {change !== undefined && (
+    {change !== undefined && change !== null && (
       <div
-        className={`flex items-center gap-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"
-          }`}
+        className={`flex items-center gap-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}
       >
         {change >= 0 ? (
           <TrendingUp className="w-3 h-3" />
@@ -2102,61 +2104,149 @@ export default function EnhancedAdminPanel() {
     }
   };
 
-  // FUNCIÓN 3: Calcular Analytics (CORREGIDA)
-
+  // FUNCIÓN 3: Calcular Analytics 
   const calculateAdvancedAnalytics = async () => {
     try {
-      console.log("🚀 Calculando analytics...");
+      console.log("🚀 Iniciando cálculo de analytics...");
 
-      // ✅ Obtener datos frescos de Supabase
-      const { data: estudiantes, error: studentsError } = await supabase
+      //1. Obtener estudiantes
+      const { data: students, error: studentsError } = await supabase
         .from("usuarios")
-        .select("id, rol, activo, ultimo_acceso")
+        .select("id, nombre, activo, ultimo_acceso, created_at")
         .eq("rol", "estudiante");
 
       if (studentsError) throw studentsError;
 
-      const totalEstudiantes = estudiantes?.length || 0;
-      const estudiantesActivos = estudiantes?.filter(e => e.activo === true).length || 0;
+      const totalStudents = students?.length || 0;
+      const activeStudents = students?.filter(s => s.activo === true)?.length || 0;
 
-      // ✅ Calcular engagement correctamente
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      console.log(`✅ Total estudiantes: ${totalStudents}`);
 
-      const engagementReal = estudiantes?.filter(e => {
-        if (!e.ultimo_acceso) return false;
-        return new Date(e.ultimo_acceso) > sevenDaysAgo;
-      }).length || 0;
+      // 2. Calcular ENGAGEMENT (por días de inactividad)
+      const hoy = new Date();
+      let sumaCompromiso = 0;
 
-      const tasaEngagement = totalEstudiantes === 0 ? 0 : Math.round((engagementReal / totalEstudiantes) * 100);
+      students?.forEach(student => {
+        let compromiso = 0;
 
-      // ✅ Calcular tiempo promedio
-      let avgTimePerResource = 0;
-      const { data: timeData } = await supabase
+        if (student.ultimo_acceso) {
+          const diasInactivo = Math.floor((hoy - new Date(student.ultimo_acceso)) / (1000 * 60 * 60 * 24));
+
+          if (diasInactivo <= 2) compromiso = 100;
+          else if (diasInactivo <= 7) compromiso = 75;
+          else if (diasInactivo <= 14) compromiso = 50;
+          else if (diasInactivo <= 30) compromiso = 25;
+          else compromiso = 0;
+        }
+
+        sumaCompromiso += compromiso;
+      });
+
+      const engagementRate = totalStudents > 0 ? Math.round(sumaCompromiso / totalStudents) : 0;
+
+      console.log(`✅ Tasa de compromiso: ${engagementRate}%`);
+
+      // ✅ 3. Calcular recursos completados
+      const { data: progressData, error: progressError } = await supabase
         .from("progreso_estudiantes")
-        .select("tiempo_dedicado")
-        .gt("tiempo_dedicado", 0);
+        .select("completado, progreso, tiempo_dedicado");
 
-      if (timeData && timeData.length > 0) {
-        const totalSeconds = timeData.reduce((sum, t) => sum + (t.tiempo_dedicado || 0), 0);
-        avgTimePerResource = Math.round(totalSeconds / timeData.length / 60);
+      if (progressError) throw progressError;
+
+      const completedResources = progressData?.filter(p => p.completado === true)?.length || 0;
+      const totalActivities = progressData?.length || 0;
+
+      // ✅ 4. Tiempo promedio
+      const validTimeData = progressData?.filter(p => p.tiempo_dedicado && p.tiempo_dedicado > 0) || [];
+      const avgTime = validTimeData.length > 0
+        ? Math.round(validTimeData.reduce((sum, p) => sum + p.tiempo_dedicado, 0) / validTimeData.length / 60)
+        : 0;
+
+      // ✅ 5. Completitud
+      const completionRate = totalActivities > 0
+        ? Math.round((completedResources / totalActivities) * 100)
+        : 0;
+
+      // ✅ 6. TOP CURSOS MÁS ACTIVOS
+      let topCourses = [];
+
+      try {
+        const { data: topData, error: topError } = await supabase
+          .from("progreso_estudiantes")
+          .select(`
+          recursos!inner(
+            curso_id,
+            cursos!inner(
+              id,
+              titulo,
+              color
+            )
+          )
+        `);
+
+        if (!topError && topData && topData.length > 0) {
+          const courseCount = {};
+
+          topData.forEach(progress => {
+            const cursoId = progress.recursos?.curso_id;
+            const cursoTitulo = progress.recursos?.cursos?.titulo;
+            const cursoColor = progress.recursos?.cursos?.color;
+
+            if (cursoId) {
+              if (!courseCount[cursoId]) {
+                courseCount[cursoId] = {
+                  count: 0,
+                  title: cursoTitulo || `Curso ${cursoId}`,
+                  color: cursoColor || "#3B82F6"
+                };
+              }
+              courseCount[cursoId].count++;
+            }
+          });
+
+          topCourses = Object.entries(courseCount)
+            .sort(([, a], [, b]) => b.count - a.count)
+            .slice(0, 5)
+            .map(([courseId, data]) => ({
+              courseId,
+              count: data.count,
+              title: data.title,
+              color: data.color
+            }));
+        }
+      } catch (err) {
+        console.warn("⚠️ Error calculando top cursos:", err);
       }
 
-      console.log(`📊 RESULTADOS REALES:`);
-      console.log(`   - Estudiantes totales: ${totalEstudiantes}`);
-      console.log(`   - Con actividad última semana: ${engagementReal}`);
-      console.log(`   - Tasa de compromiso real: ${tasaEngagement}%`);
-      console.log(`   - Tiempo promedio: ${avgTimePerResource} min`);
+      // ✅ 7. Calcular crecimiento de usuarios
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
 
+      const newUsersLastMonth = students?.filter(s =>
+        s.created_at && new Date(s.created_at) > monthAgo
+      )?.length || 0;
+
+      const previousMonthUsers = totalStudents - newUsersLastMonth;
+      const userGrowth = previousMonthUsers > 0 && totalStudents > 0
+        ? Math.round((newUsersLastMonth / totalStudents) * 100)
+        : 0;
+
+      // ✅ 8. GUARDAR ANALYTICS
       setAnalytics({
-        totalUsers: totalEstudiantes,
-        activeStudents: estudiantesActivos,
-        completedResources: 0,
-        avgTimePerResource: avgTimePerResource,
-        topCourses: [],
-        userGrowth: 0,
-        engagementRate: tasaEngagement,
-        completionRate: 0,
+        totalUsers: totalStudents,
+        activeStudents: activeStudents,
+        completedResources: completedResources,
+        avgTimePerResource: avgTime,
+        topCourses: topCourses,
+        userGrowth: userGrowth,
+        engagementRate: engagementRate,
+        completionRate: completionRate,
+      });
+
+      console.log("✅ Analytics actualizado:", {
+        totalStudents,
+        engagementRate: `${engagementRate}%`,
+        topCourses: topCourses.length
       });
 
     } catch (err) {
@@ -2591,248 +2681,256 @@ export default function EnhancedAdminPanel() {
     }
   };
 
-
   // ALGORITMOS DE ANÁLISIS DE APRENDIZAJE
 
   // Algoritmo 1: Detección de Aprendizaje Real (LEA)
-  const analyzeLearningEffectiveness = async (studentId, courseId = null) => {
+  const analyzeLearningEffectiveness = async (studentId, fechaInicio, fechaFin) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("progreso_estudiantes")
-        .select(
-          `
-        *,
-        recursos!inner(titulo, tipo, curso_id)
-      `
-        )
+        .select(`
+        id,
+        completado,
+        tiempo_dedicado,
+        intentos,
+        progreso,
+        updated_at,
+        recursos!inner(titulo, tipo, tiempo_estimado)
+      `)
         .eq("usuario_id", studentId)
         .order("updated_at", { ascending: true });
 
+      if (fechaInicio && fechaFin) {
+        query = query
+          .gte("updated_at", `${fechaInicio} 00:00:00`)
+          .lte("updated_at", `${fechaFin} 23:59:59`);
+      }
+
+      const { data: registros, error } = await query;
+
       if (error) throw error;
 
-      const filteredData = courseId
-        ? data.filter((p) => p.recursos.curso_id === courseId)
-        : data;
-
-      const analysis = {
-        isLearning: true,
-        confidence: 0,
-        indicators: {
-          averageAttempts: 0,
-          averageTimePerQuestion: 0,
-          repetitionRate: 0,
-          retentionRate: 0,
-          improvementTrend: 0,
-        },
-        alerts: [],
-      };
-
-      if (filteredData.length === 0) {
+      if (!registros || registros.length === 0) {
         return {
-          ...analysis,
+          tieneDatos: false,
           isLearning: false,
-          alerts: ["Sin datos suficientes"],
+          confidence: 0,
+          mensaje: "Sin actividad en el período seleccionado",
+          indicators: {
+            totalActividades: 0,
+            completadas: 0,
+            retentionRate: 0,
+            averageAttempts: 0,
+            averageTimePerQuestion: 0,
+            improvementTrend: 0
+          },
+          alerts: ["No hay actividad en las fechas seleccionadas"]
         };
       }
 
-      // 1. Tasa de Intentos
-      const attempts = filteredData.map((p) => p.intentos || 1);
-      analysis.indicators.averageAttempts =
-        attempts.reduce((a, b) => a + b, 0) / attempts.length;
+      const totalActividades = registros.length;
+      const completadas = registros.filter(r => r.completado === true).length;
+      const retentionRate = Math.round((completadas / totalActividades) * 100);
 
-      if (analysis.indicators.averageAttempts > 3) {
-        analysis.alerts.push(
-          "⚠️ Requiere muchos intentos - posible dificultad de comprensión"
-        );
-        analysis.confidence -= 20;
+      const intentosValores = registros.map(r => r.intentos || 1);
+      const averageAttempts = Number((intentosValores.reduce((a, b) => a + b, 0) / intentosValores.length).toFixed(1));
+
+      const tiemposValidos = registros.map(r => r.tiempo_dedicado || 0).filter(t => t > 0 && t < 7200);
+      const averageTimePerQuestion = tiemposValidos.length > 0
+        ? Math.round(tiemposValidos.reduce((a, b) => a + b, 0) / tiemposValidos.length)
+        : 0;
+
+      let improvementTrend = 0;
+      if (registros.length >= 2) {
+        const sorted = [...registros].sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
+        const primerProgreso = sorted[0]?.progreso || 0;
+        const ultimoProgreso = sorted[sorted.length - 1]?.progreso || 0;
+        improvementTrend = Math.round(ultimoProgreso - primerProgreso);
       }
 
-      // 2. Tiempo de Respuesta
-      const times = filteredData
-        .map((p) => p.tiempo_dedicado || 0)
-        .filter((t) => t > 0);
-      if (times.length > 0) {
-        analysis.indicators.averageTimePerQuestion =
-          times.reduce((a, b) => a + b, 0) / times.length;
+      let confidence = 50;
 
-        if (analysis.indicators.averageTimePerQuestion < 5) {
-          analysis.alerts.push(
-            "⚡ Respuestas muy rápidas - posible adivinación"
-          );
-          analysis.confidence -= 15;
-        } else if (analysis.indicators.averageTimePerQuestion > 300) {
-          analysis.alerts.push("🐌 Tiempo excesivo - posible distracción");
-          analysis.confidence -= 10;
+      if (retentionRate >= 80) confidence += 20;
+      else if (retentionRate >= 60) confidence += 10;
+      else if (retentionRate >= 40) confidence += 5;
+      else if (retentionRate < 30) confidence -= 15;
+
+      if (averageAttempts <= 1.3) confidence += 20;
+      else if (averageAttempts <= 1.8) confidence += 10;
+      else if (averageAttempts <= 2.5) confidence += 5;
+      else if (averageAttempts >= 4) confidence -= 20;
+      else if (averageAttempts >= 3) confidence -= 10;
+
+      if (averageTimePerQuestion >= 30 && averageTimePerQuestion <= 120) confidence += 15;
+      else if (averageTimePerQuestion > 180) confidence -= 10;
+      else if (averageTimePerQuestion > 300) confidence -= 20;
+
+      if (improvementTrend > 15) confidence += 15;
+      else if (improvementTrend > 5) confidence += 10;
+      else if (improvementTrend < -15) confidence -= 15;
+      else if (improvementTrend < -5) confidence -= 10;
+
+      confidence = Math.max(0, Math.min(100, Math.round(confidence)));
+      const isLearning = confidence >= 50;
+
+      const alerts = [];
+      if (averageAttempts >= 4) alerts.push(`Demasiados intentos (${averageAttempts} promedio) - Necesita refuerzo`);
+      if (retentionRate < 40) alerts.push(`Baja retención (${retentionRate}% completado) - Repasar conceptos`);
+      if (averageTimePerQuestion > 300) alerts.push(`Tiempo excesivo (${Math.round(averageTimePerQuestion / 60)} min) - Posible distracción`);
+      if (improvementTrend < -15) alerts.push(`Rendimiento decreciente (${improvementTrend}%) - Intervención necesaria`);
+      if (totalActividades < 3) alerts.push(`Pocas actividades (${totalActividades}) - Datos limitados`);
+
+      const evolucionDiaria = [];
+      const progresoPorFecha = new Map();
+
+      registros.forEach(r => {
+        const fecha = new Date(r.updated_at).toISOString().split('T')[0];
+        if (!progresoPorFecha.has(fecha)) {
+          progresoPorFecha.set(fecha, { progresos: [], completados: 0 });
         }
+        const entry = progresoPorFecha.get(fecha);
+        entry.progresos.push(r.progreso || 0);
+        if (r.completado) entry.completados++;
+      });
+
+      for (const [fecha, data] of progresoPorFecha.entries()) {
+        evolucionDiaria.push({
+          fecha,
+          progreso: Math.round(data.progresos.reduce((a, b) => a + b, 0) / data.progresos.length),
+          completados: data.completados
+        });
       }
+      evolucionDiaria.sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-      // 3. Tasa de Repetición
-      const repeated = filteredData.filter((p) => (p.intentos || 1) > 1).length;
-      analysis.indicators.repetitionRate =
-        (repeated / filteredData.length) * 100;
+      return {
+        tieneDatos: true,
+        isLearning,
+        confidence,
+        indicators: {
+          totalActividades,
+          completadas,
+          retentionRate,
+          averageAttempts,
+          averageTimePerQuestion,
+          averageTimePerQuestionMin: Math.round(averageTimePerQuestion / 60),
+          improvementTrend
+        },
+        evolucionDiaria,
+        alerts
+      };
 
-      if (analysis.indicators.repetitionRate > 50) {
-        analysis.alerts.push("🔄 Alta tasa de repetición - refuerzo necesario");
-        analysis.confidence -= 15;
-      }
-
-      // 4. Tendencia de Mejora
-      if (filteredData.length >= 10) {
-        const first5 = filteredData.slice(0, 5);
-        const last5 = filteredData.slice(-5);
-
-        const firstAvg =
-          first5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-        const lastAvg =
-          last5.reduce((sum, p) => sum + (p.progreso || 0), 0) / 5;
-
-        analysis.indicators.improvementTrend = lastAvg - firstAvg;
-
-        if (analysis.indicators.improvementTrend < 0) {
-          analysis.alerts.push("📉 Rendimiento decreciente - necesita apoyo");
-          analysis.confidence -= 20;
-          analysis.isLearning = false;
-        } else if (analysis.indicators.improvementTrend > 15) {
-          analysis.alerts.push("✅ Excelente progreso - aprendizaje efectivo");
-          analysis.confidence += 30;
-        }
-      }
-
-      // 5. Tasa de Retención
-      const completed = filteredData.filter((p) => p.completado).length;
-      analysis.indicators.retentionRate =
-        (completed / filteredData.length) * 100;
-
-      if (analysis.indicators.retentionRate < 30) {
-        analysis.alerts.push("⚠️ Baja retención - revisar metodología");
-        analysis.confidence -= 15;
-      }
-
-      // Calcular confianza final
-      analysis.confidence = Math.max(
-        0,
-        Math.min(100, 60 + analysis.confidence)
-      );
-      analysis.isLearning = analysis.confidence >= 50;
-
-      return analysis;
     } catch (err) {
-      console.error("Error analizando efectividad:", err);
+      console.error("Error LEA:", err);
       return null;
     }
   };
-
   // Algoritmo 2: Detección de Atención (ADA)
-  const analyzeAttentionLevel = async (studentId, courseId = null) => {
+  const analyzeAttentionLevel = async (studentId, fechaInicio, fechaFin) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("progreso_estudiantes")
-        .select(
-          `
-        *,
-        recursos!inner(curso_id)
-      `
-        )
+        .select(`
+        id,
+        progreso,
+        completado,
+        tiempo_dedicado,
+        intentos,
+        updated_at,
+        recursos!inner(titulo, tiempo_estimado)
+      `)
         .eq("usuario_id", studentId)
-        .order("updated_at", { ascending: false })
-        .limit(20);
+        .order("updated_at", { ascending: true });
+
+      if (fechaInicio && fechaFin) {
+        query = query
+          .gte("updated_at", `${fechaInicio} 00:00:00`)
+          .lte("updated_at", `${fechaFin} 23:59:59`);
+      }
+
+      const { data: registros, error } = await query;
 
       if (error) throw error;
 
-      const filteredData = courseId
-        ? data.filter((p) => p.recursos.curso_id === courseId)
-        : data;
-
-      const attention = {
-        level: "Buena",
-        score: 75,
-        indicators: {
-          inactivityPeriods: 0,
-          consistencyScore: 0,
-          focusIndex: 0,
-        },
-        recommendations: [],
-      };
-
-      if (filteredData.length < 3) {
-        return { ...attention, level: "Insuficientes datos", score: 0 };
+      if (!registros || registros.length === 0) {
+        return {
+          tieneDatos: false,
+          level: "Sin datos",
+          score: 0,
+          indicators: {
+            consistencyScore: 0,
+            focusIndex: 0,
+            inactivityPeriods: 0
+          },
+          recommendations: ["No hay actividad en el período seleccionado"]
+        };
       }
 
-      // 1. Períodos de inactividad
-      const updates = filteredData
-        .map((p) => new Date(p.updated_at))
-        .sort((a, b) => a - b);
-      let longGaps = 0;
+      const progresos = registros.map(r => r.progreso || 0);
+      const media = progresos.reduce((a, b) => a + b, 0) / progresos.length;
+      const varianza = progresos.reduce((sum, val) => sum + Math.pow(val - media, 2), 0) / progresos.length;
+      const desviacionEstandar = Math.sqrt(varianza);
+      const consistencyScore = Math.min(100, Math.max(0, 100 - desviacionEstandar));
 
-      for (let i = 1; i < updates.length; i++) {
-        const diffMinutes = (updates[i] - updates[i - 1]) / (1000 * 60);
-        if (diffMinutes > 30) longGaps++;
-      }
+      let focusIndex = 50;
+      const ratios = [];
 
-      attention.indicators.inactivityPeriods = longGaps;
-
-      if (longGaps > 3) {
-        attention.score -= 20;
-        attention.recommendations.push(
-          "🕐 Establecer horarios regulares de estudio"
-        );
-      }
-
-      // 2. Consistencia de rendimiento
-      const progressValues = filteredData.map((p) => p.progreso || 0);
-      const stdDev = calculateStdDev(progressValues);
-
-      attention.indicators.consistencyScore = stdDev;
-
-      if (stdDev > 30) {
-        attention.score -= 15;
-        attention.recommendations.push(
-          "📊 Rendimiento inconsistente - revisar ambiente de estudio"
-        );
-      }
-
-      // 3. Índice de Foco
-      const focusTimes = filteredData.filter(
-        (p) => p.tiempo_dedicado && p.tiempo_dedicado > 0
-      );
-      if (focusTimes.length > 0) {
-        const avgTime =
-          focusTimes.reduce((sum, p) => sum + p.tiempo_dedicado, 0) /
-          focusTimes.length;
-        attention.indicators.focusIndex = Math.min(100, (avgTime / 300) * 100);
-
-        if (attention.indicators.focusIndex < 30) {
-          attention.score -= 20;
-          attention.recommendations.push(
-            "⚡ Aumentar tiempo de dedicación por actividad"
-          );
+      for (const r of registros) {
+        const estimado = r.recursos?.tiempo_estimado || 3;
+        const real = (r.tiempo_dedicado || 0) / 60;
+        if (real > 0) {
+          ratios.push(real / estimado);
         }
       }
 
-      // Determinar nivel
-      if (attention.score >= 70) {
-        attention.level = "Excelente";
-      } else if (attention.score >= 50) {
-        attention.level = "Buena";
-      } else if (attention.score >= 30) {
-        attention.level = "Regular";
-        attention.recommendations.push(
-          "⚠️ Necesita mejorar concentración en clase"
-        );
-      } else {
-        attention.level = "Baja";
-        attention.recommendations.push(
-          "🚨 ALERTA: Baja atención - intervención necesaria"
-        );
+      if (ratios.length > 0) {
+        const avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+        if (avgRatio <= 1.2) focusIndex = 90;
+        else if (avgRatio <= 1.5) focusIndex = 70;
+        else if (avgRatio <= 2) focusIndex = 50;
+        else focusIndex = 30;
       }
 
-      return attention;
+      const fechasUnicas = [...new Set(registros.map(r => new Date(r.updated_at).toISOString().split('T')[0]))].sort();
+      let inactivityPeriods = 0;
+
+      for (let i = 1; i < fechasUnicas.length; i++) {
+        const diff = (new Date(fechasUnicas[i]) - new Date(fechasUnicas[i - 1])) / (1000 * 60 * 60 * 24);
+        if (diff > 1) inactivityPeriods++;
+      }
+
+      let score = (consistencyScore * 0.4) + (focusIndex * 0.4);
+      score -= Math.min(30, inactivityPeriods * 10);
+      score = Math.max(0, Math.min(100, Math.round(score)));
+
+      let level = "Baja";
+      if (score >= 80) level = "Excelente";
+      else if (score >= 60) level = "Buena";
+      else if (score >= 40) level = "Regular";
+
+      const recommendations = [];
+      if (consistencyScore < 50) recommendations.push("Rendimiento inconsistente - Establecer rutina de estudio");
+      if (focusIndex < 50) recommendations.push("Tiempo excesivo por actividad - Reducir distracciones");
+      if (inactivityPeriods > 2) recommendations.push("Períodos largos sin actividad - Enviar recordatorios");
+      if (score < 40) recommendations.push("ALERTA: Baja atención - Intervención pedagógica necesaria");
+
+      return {
+        tieneDatos: true,
+        level,
+        score,
+        indicators: {
+          consistencyScore: Math.round(consistencyScore),
+          focusIndex: Math.round(focusIndex),
+          inactivityPeriods,
+          desviacionEstandar: Math.round(desviacionEstandar * 10) / 10
+        },
+        recommendations
+      };
+
     } catch (err) {
-      console.error("Error analizando atención:", err);
+      console.error("Error ADA:", err);
       return null;
     }
   };
-
   // Función auxiliar: Desviación estándar
   const calculateStdDev = (values) => {
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -2842,92 +2940,203 @@ export default function EnhancedAdminPanel() {
   };
 
   // Algoritmo 3: Retroalimentación Adaptativa (AFS)
-  const generateAdaptiveFeedback = async (studentId, courseId) => {
+  const generateAdaptiveFeedback = async (studentId, fechaInicio, fechaFin) => {
     try {
-      const learningAnalysis = await analyzeLearningEffectiveness(
-        studentId,
-        courseId
-      );
-      const attentionAnalysis = await analyzeAttentionLevel(
-        studentId,
-        courseId
-      );
+      const [learningAnalysis, attentionAnalysis] = await Promise.all([
+        analyzeLearningEffectiveness(studentId, fechaInicio, fechaFin),
+        analyzeAttentionLevel(studentId, fechaInicio, fechaFin)
+      ]);
 
-      const feedback = {
+      const { data: studentData } = await supabase
+        .from("usuarios")
+        .select("id, nombre, email, grupo_id")
+        .eq("id", studentId)
+        .single();
+
+      const strengths = [];
+      const weaknesses = [];
+      const recommendations = [];
+      const actionPlan = [];
+
+      let overallStatus = "";
+      let statusColor = "";
+
+      console.log(`📊 Analizando: ${studentData?.nombre}`);
+      console.log(`   - learningAnalysis.isLearning: ${learningAnalysis?.isLearning}`);
+      console.log(`   - attentionAnalysis.score: ${attentionAnalysis?.score}`);
+      console.log(`   - tieneDatos: ${learningAnalysis?.tieneDatos}`);
+
+      // ============================================
+      // CASO 1: Sin datos en el período
+      // ============================================
+      if (learningAnalysis?.tieneDatos === false || learningAnalysis?.indicators?.totalActividades === 0) {
+        overallStatus = "Sin actividad en el período";
+        statusColor = "gray";
+        strengths.push("Estudiante registrado en el sistema");
+        recommendations.push("Selecciona un período con actividad o espera a que complete actividades");
+        actionPlan.push("Realizar primera actividad del curso");
+      }
+      // ============================================
+      // CASO 2: VERDE - Aprendizaje Efectivo (Excelente)
+      // ============================================
+      else if (learningAnalysis?.isLearning === true && attentionAnalysis?.score >= 60) {
+        overallStatus = "✅ Aprendizaje Efectivo";
+        statusColor = "green";
+        strengths.push(`Demuestra comprensión real del contenido (${learningAnalysis.confidence}% confianza)`);
+        strengths.push(`Mantiene buena atención (${attentionAnalysis.score}%)`);
+
+        if (learningAnalysis.indicators.improvementTrend > 0) {
+          strengths.push(`Mejora continua (+${learningAnalysis.indicators.improvementTrend}% de progreso)`);
+        }
+        if (learningAnalysis.indicators.retentionRate >= 80) {
+          strengths.push(`Excelente retención (${learningAnalysis.indicators.retentionRate}%)`);
+        }
+        if (learningAnalysis.indicators.averageAttempts <= 1.5) {
+          strengths.push(`Comprende rápidamente (${learningAnalysis.indicators.averageAttempts} intentos promedio)`);
+        }
+
+        actionPlan.push("🎯 Proponer desafíos avanzados para mantener motivación");
+        actionPlan.push("🏆 Reconocer logros públicamente");
+        actionPlan.push("📚 Material complementario para profundizar");
+      }
+      // ============================================
+      // CASO 3: AMARILLO - Intermedio (Atención baja pero aprendizaje bien)
+      // ============================================
+      else if (learningAnalysis?.isLearning === true && attentionAnalysis?.score < 60 && attentionAnalysis?.score >= 40) {
+        overallStatus = "⚠️ Problemas de Atención";
+        statusColor = "yellow";
+        strengths.push(`Comprensión aceptable (${learningAnalysis.confidence}% confianza)`);
+        weaknesses.push(`Falta de concentración sostenida (${attentionAnalysis.score}% atención)`);
+
+        recommendations.push(...attentionAnalysis.recommendations);
+        recommendations.push("📋 Actividades cortas para mantener concentración (máximo 15 minutos)");
+        recommendations.push("🎮 Incluir elementos lúdicos y gamificación");
+
+        actionPlan.push("⏰ Pausas activas cada 15 minutos");
+        actionPlan.push("👀 Ubicar al estudiante en primeras filas");
+        actionPlan.push("📊 Monitoreo semanal de atención");
+      }
+      // ============================================
+      // CASO 4: AMARILLO - Dificultades de Aprendizaje (Aprendizaje bajo pero atención bien)
+      // ============================================
+      else if (learningAnalysis?.isLearning === false && attentionAnalysis?.score >= 60) {
+        overallStatus = "⚠️ Dificultades de Aprendizaje";
+        statusColor = "yellow";
+        weaknesses.push(`Necesita refuerzo en conceptos básicos (${learningAnalysis?.confidence || 0}% confianza)`);
+        strengths.push(`Mantiene buena atención (${attentionAnalysis.score}%) - buena base para mejorar`);
+
+        if (learningAnalysis?.indicators.retentionRate < 50) {
+          weaknesses.push(`Baja retención (${learningAnalysis.indicators.retentionRate}%) - necesita repaso frecuente`);
+        }
+        if (learningAnalysis?.indicators.averageAttempts >= 4) {
+          weaknesses.push(`Requiere muchos intentos (${learningAnalysis.indicators.averageAttempts}) - dificultad alta`);
+        }
+
+        recommendations.push("📚 Material complementario y ejercicios adicionales");
+        recommendations.push("👥 Trabajo colaborativo con compañeros de nivel similar");
+        recommendations.push("🎯 Metas semanales alcanzables");
+
+        actionPlan.push("📝 Seguimiento semanal personalizado");
+        actionPlan.push("🎨 Actividades multisensoriales para reforzar conceptos");
+        actionPlan.push("⭐ Refuerzo positivo por pequeños logros");
+      }
+      // ============================================
+      // CASO 5: ROJO - Requiere Intervención Urgente
+      // ============================================
+      else if (learningAnalysis?.isLearning === false && attentionAnalysis?.score < 60) {
+        overallStatus = "🚨 Requiere Intervención Urgente";
+        statusColor = "red";
+        weaknesses.push(`Dificultad significativa en el aprendizaje (${learningAnalysis?.confidence || 0}% confianza)`);
+        weaknesses.push(`Problemas de atención severos (${attentionAnalysis?.score || 0}%)`);
+
+        if (learningAnalysis?.indicators.retentionRate < 40) {
+          weaknesses.push(`Baja retención (${learningAnalysis.indicators.retentionRate}%) - riesgo de rezago`);
+        }
+        if (learningAnalysis?.indicators.averageAttempts >= 4) {
+          weaknesses.push(`Requiere muchos intentos (${learningAnalysis.indicators.averageAttempts}) - nivel de dificultad inadecuado`);
+        }
+        if (learningAnalysis?.indicators.improvementTrend < -10) {
+          weaknesses.push(`Rendimiento decreciente (${learningAnalysis.indicators.improvementTrend}%) - intervención inmediata`);
+        }
+        if (learningAnalysis?.alerts && learningAnalysis.alerts.length > 0) {
+          learningAnalysis.alerts.forEach(alert => weaknesses.push(alert));
+        }
+
+        recommendations.push("🎯 Intervención pedagógica individualizada");
+        recommendations.push("📋 Reducir carga de trabajo y priorizar conceptos clave");
+        recommendations.push("👥 Asignar compañero tutor para apoyo");
+
+        actionPlan.push("📞 PRIORITARIO: Reunión con familia y equipo psicopedagógico");
+        actionPlan.push("📋 Evaluación diagnóstica completa para identificar causas");
+        actionPlan.push("👨‍🏫 Asignar mentor de apoyo dentro del aula");
+        actionPlan.push("🎮 Actividades de refuerzo lúdicas y motivacionales");
+      }
+      // ============================================
+      // CASO 6: AMARILLO - Recién comenzando (pocos datos)
+      // ============================================
+      else if (learningAnalysis?.indicators?.totalActividades < 3) {
+        overallStatus = "📊 Recién comenzando";
+        statusColor = "yellow";
+        strengths.push(`Ha completado ${learningAnalysis.indicators.totalActividades} actividad(es)`);
+        weaknesses.push("Pocos datos para un análisis completo");
+        recommendations.push("Completar más actividades para obtener un análisis preciso");
+        actionPlan.push("Realizar al menos 3 actividades para evaluar el progreso");
+      }
+      // ============================================
+      // CASO 7: Por defecto - AMARILLO (no debería llegar aquí)
+      // ============================================
+      else {
+        overallStatus = "📊 Evaluación en Proceso";
+        statusColor = "yellow";
+        strengths.push("Estudiante activo en el sistema");
+        recommendations.push("Completar más actividades para un análisis detallado");
+        actionPlan.push("Continuar con el plan de estudios y monitorear progreso");
+
+        console.log(`⚠️ Caso no clasificado para: ${studentData?.nombre}`);
+        console.log(`   learningAnalysis:`, learningAnalysis);
+        console.log(`   attentionAnalysis:`, attentionAnalysis);
+      }
+
+      // Limitar arrays a 5 elementos
+      const finalStrengths = strengths.slice(0, 5);
+      const finalWeaknesses = weaknesses.slice(0, 5);
+      const finalRecommendations = recommendations.slice(0, 5);
+      const finalActionPlan = actionPlan.slice(0, 5);
+
+      console.log(`🎨 ${studentData?.nombre}: ${overallStatus} -> ${statusColor}`);
+
+      return {
         studentId,
-        courseId,
-        timestamp: new Date().toISOString(),
-        overallStatus: "En Progreso",
+        studentName: studentData?.nombre,
+        periodo: fechaInicio && fechaFin ? `${fechaInicio} al ${fechaFin}` : "Todo el período",
+        overallStatus,
+        statusColor, // 'green', 'yellow', 'red', o 'gray'
         learningEffectiveness: learningAnalysis,
         attentionLevel: attentionAnalysis,
-        strengths: [],
-        weaknesses: [],
-        recommendations: [],
-        actionPlan: [],
+        strengths: finalStrengths,
+        weaknesses: finalWeaknesses,
+        recommendations: finalRecommendations,
+        actionPlan: finalActionPlan,
+        timestamp: new Date().toISOString()
       };
 
-      // Determinar estado general
-      if (learningAnalysis?.isLearning && attentionAnalysis?.score >= 70) {
-        feedback.overallStatus = "✅ Aprendizaje Efectivo";
-        feedback.strengths.push("Demuestra comprensión real del contenido");
-        feedback.strengths.push("Mantiene buena atención en clase");
-      } else if (
-        !learningAnalysis?.isLearning ||
-        attentionAnalysis?.score < 30
-      ) {
-        feedback.overallStatus = "🚨 Requiere Intervención";
-        feedback.actionPlan.push(
-          "🎯 PRIORITARIO: Reunión con docente y padres"
-        );
-      } else {
-        feedback.overallStatus = "⚠️ Necesita Apoyo";
-      }
-
-      // Identificar fortalezas
-      if (learningAnalysis) {
-        if (learningAnalysis.indicators.improvementTrend > 10) {
-          feedback.strengths.push("Muestra mejora continua en su aprendizaje");
-        }
-        if (learningAnalysis.indicators.retentionRate > 70) {
-          feedback.strengths.push("Buena retención de conocimientos");
-        }
-        if (learningAnalysis.indicators.averageAttempts > 3) {
-          feedback.weaknesses.push("Dificultad para comprender a la primera");
-          feedback.recommendations.push(
-            "📚 Reforzar conceptos básicos antes de avanzar"
-          );
-        }
-      }
-
-      if (attentionAnalysis) {
-        if (attentionAnalysis.score < 50) {
-          feedback.weaknesses.push("Problemas de atención y concentración");
-          feedback.recommendations.push(...attentionAnalysis.recommendations);
-        }
-      }
-
-      // Plan de acción
-      if (feedback.weaknesses.length > 0) {
-        feedback.actionPlan.push("📝 Evaluación diagnóstica adicional");
-        feedback.actionPlan.push("👥 Trabajo en grupos pequeños");
-        feedback.actionPlan.push("🎮 Actividades interactivas personalizadas");
-      }
-
-      if (feedback.strengths.length > 0) {
-        feedback.actionPlan.push("⭐ Reconocer logros públicamente");
-        feedback.actionPlan.push(
-          "🎯 Desafíos avanzados para mantener motivación"
-        );
-      }
-
-      return feedback;
     } catch (err) {
-      console.error("Error generando retroalimentación:", err);
-      return null;
+      console.error("Error AFS:", err);
+      return {
+        studentId,
+        studentName: "Error",
+        periodo: "Error en análisis",
+        overallStatus: "⚠️ Error en el análisis",
+        statusColor: "yellow",
+        strengths: [],
+        weaknesses: [`Error: ${err.message}`],
+        recommendations: ["Reintentar el análisis más tarde"],
+        actionPlan: ["Verificar conexión a la base de datos"],
+        learningEffectiveness: null,
+        attentionLevel: null
+      };
     }
   };
-
-
   // Función para generar contenido con IA usando Gemini
   const generateContentWithAI = async () => {
     if (!generatorPrompt.trim()) {
@@ -5103,33 +5312,30 @@ Genera ${num} preguntas.`;
   };
 
   const openPreview = (resource) => {
-    console.log('👁️ Abriendo vista previa unificada');
+    console.log('👁️ Abriendo vista previa del quiz:', resource);
 
-    // REGISTRAR INICIO DEL RECURSO (para calcular tiempo)
-    registrarInicioRecurso(resource.id);
-
-    let quizQuestions = resource.contenido_quiz;
-    if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
-      const generatedQuiz = contentLibrary.find(
-        item => item.type === 'quiz' && (
-          item.title === resource.titulo ||
-          item.id === resource.id
-        )
-      );
-      if (generatedQuiz?.content?.questions) {
-        quizQuestions = generatedQuiz.content.questions;
-      }
-    }
-
-    if (!quizQuestions || quizQuestions.length === 0) {
-      alert("⚠️ Este quiz no tiene preguntas aún");
+    if (!resource) {
+      console.error('❌ No hay recurso seleccionado');
+      alert('No se pudo abrir el quiz: recurso no encontrado');
       return;
     }
 
+    // Verificar si el recurso tiene preguntas
+    let quizQuestions = resource.contenido_quiz;
+
+    if (!quizQuestions || !Array.isArray(quizQuestions) || quizQuestions.length === 0) {
+      console.error('❌ El quiz no tiene preguntas:', resource);
+      alert('⚠️ Este quiz no tiene preguntas aún. Agrega preguntas primero.');
+      return;
+    }
+
+    console.log(`✅ Quiz tiene ${quizQuestions.length} preguntas`);
+
+    // Formatear las preguntas para la vista previa
     const preguntasFormateadas = quizQuestions.map((q, idx) => ({
-      id: q.id || `preview_${idx}`,
-      tipo: q.tipo || q.type || 'multiple',
-      pregunta: q.pregunta || q.text || q.question || '',
+      id: q.id || idx,
+      tipo: q.tipo || 'multiple',
+      pregunta: q.pregunta || q.text || '',
       opciones: q.opciones || q.options || [],
       respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
       puntos: q.puntos ?? q.points ?? 10,
@@ -5143,19 +5349,16 @@ Genera ${num} preguntas.`;
       tiempo_limite: q.tiempo_limite ?? q.timeLimit ?? 45,
     }));
 
+    // Guardar en el estado
     setSelectedResource(resource);
     setCurrentQuiz({ preguntas: preguntasFormateadas });
     setPreviewQuiz(true);
     setCurrentPreviewQuestion(0);
     setPreviewAnswers({});
-    setOptionListenState({});
+    setAttemptCount({});
     setSelectedOption(null);
 
-    // Inicializar los tiempos para medir duración
-    setQuizStartTime(Date.now());
-    setCurrentQuestionStartTime(Date.now());
-
-    console.log('✅ Vista previa lista con', preguntasFormateadas.length, 'preguntas');
+    console.log('✅ Vista previa abierta con', preguntasFormateadas.length, 'preguntas');
   };
 
   // FUNCIÓN 4: CERRAR VISTA PREVIA
@@ -5299,7 +5502,7 @@ Genera ${num} preguntas.`;
         return;
       }
 
-      //  Buscar curso correctamente
+      // Buscar curso correctamente
       const course = courses.find((c) => String(c.id) === String(finalCourseId));
       if (!course) {
         console.error("❌ Curso no encontrado. ID buscado:", finalCourseId);
@@ -5309,7 +5512,7 @@ Genera ${num} preguntas.`;
 
       console.log("✅ Curso encontrado:", course.titulo);
 
-      //  CORRECCIÓN: Usar 'progreso_estudiantes' (tabla correcta)
+      // Obtener progreso de estudiantes para este curso
       const { data: progressData, error: progressError } = await supabase.from(
         "progreso_estudiantes"
       ).select(`
@@ -5347,7 +5550,7 @@ Genera ${num} preguntas.`;
 
       console.log(`👥 Estudiantes únicos: ${uniqueStudentIds.length}`);
 
-      //  Calcular estadísticas generales
+      // Calcular estadísticas generales
       const completedCount = courseProgressData.filter((p) => p.completado).length;
       const avgProgress =
         courseProgressData.length > 0
@@ -5368,9 +5571,9 @@ Genera ${num} preguntas.`;
 
       console.log("📊 Estadísticas calculadas");
 
-      // Recolectar datos de estudiantes con algoritmos de IA y evolución
+      // Recolectar datos de estudiantes con algoritmos de IA
       const studentsData = [];
-      const studentsToAnalyze = uniqueStudentIds.slice(0, 10);
+      const studentsToAnalyze = uniqueStudentIds;
 
       for (const studentId of studentsToAnalyze) {
         const student = users.find((u) => u.id === studentId);
@@ -5382,7 +5585,7 @@ Genera ${num} preguntas.`;
 
         console.log(`🔍 Analizando estudiante: ${student.nombre}`);
 
-        // Llamar a los algoritmos de IA
+        // ✅ USAR finalCourseId (NO null) para análisis específico del curso
         const feedback = await generateAdaptiveFeedback(studentId, finalCourseId);
 
         if (!feedback) {
@@ -5390,7 +5593,7 @@ Genera ${num} preguntas.`;
           continue;
         }
 
-        //  Obtener evolución temporal del estudiante
+        // Obtener evolución temporal del estudiante (solo para este curso)
         const evolutionData = await fetchStudentEvolution(studentId, finalCourseId);
 
         const grupoNombre = student.grupo_id
@@ -5401,17 +5604,18 @@ Genera ${num} preguntas.`;
           student,
           feedback,
           grupo: grupoNombre,
-          evolution: evolutionData, // datos de evolución
+          evolution: evolutionData,
         });
       }
 
       console.log(`✅ ${studentsData.length} estudiantes analizados`);
 
-      //  Crear objeto del reporte
+      // Crear objeto del reporte
       const reportObj = {
         course: {
           titulo: course.titulo,
           nivel: course.nivel_nombre || "Sin nivel",
+          color: course.color,
           fecha: new Date().toLocaleDateString("es-ES", {
             weekday: "long",
             year: "numeric",
@@ -5431,90 +5635,222 @@ Genera ${num} preguntas.`;
 
       console.log("✅ Análisis generado correctamente");
 
-      //  Mostrar modal con los datos
+      // Mostrar modal con los datos
       setCourseReportData(reportObj);
       setShowCourseReportModal(true);
 
       // Limpiar la selección
       setSelectedCourseForReport(null);
+
     } catch (err) {
       console.error("❌ Error generando análisis:", err);
       alert("Error al generar el análisis: " + err.message);
     }
   };
-  // Obtener evolución temporal de un estudiante (últimos 10 registros)
-
-  const fetchStudentEvolution = async (studentId, courseId) => {
+  // Obtener evolución temporal de un estudiante 
+  const fetchStudentEvolution = async (studentId, fechaInicio, fechaFin) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('progreso_estudiantes')
         .select(`
+        id,
         progreso,
         completado,
         tiempo_dedicado,
         intentos,
         updated_at,
-        recursos!inner(tipo, curso_id)
+        created_at,
+        iniciado_en,
+        recursos!inner(
+          id,
+          tipo,
+          curso_id,
+          titulo,
+          tiempo_estimado
+        )
       `)
         .eq('usuario_id', studentId)
-        .eq('recursos.curso_id', courseId)
-        .order('updated_at', { ascending: true })
-        .limit(10);
+        .order('updated_at', { ascending: true });
 
-      if (error) throw error;
+      if (fechaInicio && fechaFin) {
+        query = query
+          .gte('updated_at', `${fechaInicio} 00:00:00`)
+          .lte('updated_at', `${fechaFin} 23:59:59`);
+      }
 
-      return data.map(record => ({
-        fecha: new Date(record.updated_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
-        progreso: record.progreso || 0,
-        completado: record.completado ? 100 : (record.progreso || 0),
-        tiempo: Math.floor((record.tiempo_dedicado || 0) / 60),
-        intentos: record.intentos || 1
-      }));
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error en fetchStudentEvolution:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      const evolutionData = data.map((record, index) => {
+        const fechaReal = new Date(record.updated_at);
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const dia = fechaReal.getDate();
+        const mes = meses[fechaReal.getMonth()];
+        const año = fechaReal.getFullYear();
+        const formatFecha = `${dia} ${mes} ${año}`;
+
+        let tiempoReal = 0;
+        if (record.tiempo_dedicado && record.tiempo_dedicado > 0) {
+          tiempoReal = Math.floor(record.tiempo_dedicado / 60);
+          tiempoReal = Math.min(5, Math.max(1, tiempoReal));
+        } else if (record.recursos?.tiempo_estimado) {
+          tiempoReal = Math.min(5, Math.max(1, record.recursos.tiempo_estimado));
+        } else {
+          tiempoReal = 2;
+        }
+
+        const progreso = record.completado ? 100 : (record.progreso || 0);
+        const intentos = record.intentos || 1;
+
+        let comportamiento = "";
+        let comportamientoColor = "";
+
+        if (progreso === 100 && intentos === 1 && tiempoReal <= 2) {
+          comportamiento = "Excelente";
+          comportamientoColor = "text-green-700 bg-green-100";
+        } else if (progreso === 100 && intentos <= 2 && tiempoReal <= 3) {
+          comportamiento = "Bueno";
+          comportamientoColor = "text-blue-700 bg-blue-100";
+        } else if (progreso >= 70 && intentos <= 2) {
+          comportamiento = "Regular";
+          comportamientoColor = "text-yellow-700 bg-yellow-100";
+        } else if (progreso < 70 || intentos > 2 || tiempoReal > 3) {
+          comportamiento = "Requiere atención";
+          comportamientoColor = "text-red-700 bg-red-100";
+        } else {
+          comportamiento = "En proceso";
+          comportamientoColor = "text-gray-700 bg-gray-100";
+        }
+
+        return {
+          id: record.id || index,
+          fecha: formatFecha,
+          fechaCompleta: fechaReal,
+          fechaOriginal: record.updated_at,
+          progreso: progreso,
+          tiempo: tiempoReal,
+          intentos: intentos,
+          comportamiento: comportamiento,
+          comportamientoColor: comportamientoColor,
+          recursoTitulo: record.recursos?.titulo || 'Actividad sin título',
+          recursoTipo: record.recursos?.tipo || 'actividad'
+        };
+      });
+
+      return evolutionData;
+
     } catch (err) {
-      console.error('Error fetching evolution:', err);
+      console.error('Error en fetchStudentEvolution:', err);
       return [];
     }
   };
 
   const calculateTrend = (values) => {
-    if (values.length < 2) return 0;
-    const first = values[0];
-    const last = values[values.length - 1];
-    if (first === 0) return last > 0 ? 100 : 0;
-    const change = ((last - first) / first) * 100;
-    return Math.round(change);
+    // Validación
+    if (!values || !Array.isArray(values) || values.length === 0) {
+      return { cambio: 0, texto: "→ Sin datos", color: "text-gray-500" };
+    }
+
+    // Filtrar solo valores numéricos válidos
+    const validValues = values.filter(v =>
+      typeof v === 'number' && !isNaN(v) && isFinite(v)
+    );
+
+    if (validValues.length < 2) {
+      if (validValues.length === 1) {
+        return { cambio: 0, texto: "→ Comenzando", color: "text-blue-500" };
+      }
+      return { cambio: 0, texto: "→ Datos insuficientes", color: "text-gray-500" };
+    }
+
+    const primero = validValues[0];
+    const ultimo = validValues[validValues.length - 1];
+
+    // Prevenir NaN
+    if (isNaN(primero) || isNaN(ultimo)) {
+      return { cambio: 0, texto: "→ Estable", color: "text-gray-500" };
+    }
+
+    const cambio = ultimo - primero;
+
+    if (cambio > 10) {
+      return { cambio: cambio, texto: `↑ Mejorando (+${Math.round(cambio)}%)`, color: "text-green-600" };
+    } else if (cambio < -10) {
+      return { cambio: cambio, texto: `↓ Necesita apoyo (${Math.round(cambio)}%)`, color: "text-red-600" };
+    } else {
+      return { cambio: 0, texto: "→ Estable", color: "text-gray-500" };
+    }
   };
 
   // Componente gráfico simple
   const SimpleLineChart = ({ data, xKey, yKey, color, label }) => {
-    if (!data || data.length === 0) return <div className="text-center text-gray-400">Sin datos</div>;
+    if (!data || data.length < 2) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-xl">
+          <div className="text-center">
+            <div className="text-4xl mb-2">📊</div>
+            <p className="text-sm text-gray-500">Datos insuficientes</p>
+          </div>
+        </div>
+      );
+    }
 
-    const maxY = Math.max(...data.map(d => d[yKey]), 1);
+    const valores = data.map(d => Math.min(100, Math.max(0, d[yKey] || 0)));
+    const maxValue = Math.max(...valores, 1);
+
     const points = data.map((d, i) => ({
       x: (i / (data.length - 1)) * 100,
-      y: 100 - ((d[yKey] / maxY) * 80)
+      y: 100 - ((d[yKey] || 0) / maxValue) * 85
     }));
 
     const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const promedio = Math.round(valores.reduce((a, b) => a + b, 0) / valores.length);
+    const tendencia = calculateTrend(valores);
 
     return (
-      <div className="relative w-full h-full">
-        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <div className="relative w-full h-full" style={{ minHeight: '250px' }}>
+        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ background: '#f9fafb' }}>
+          {/* Grid */}
           {[0, 25, 50, 75, 100].map(y => (
-            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.5" />
+            <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2,2" />
           ))}
-          <path d={`${pathD} L 100 100 L 0 100 Z`} fill={`${color}20`} />
+
+          {/* Área */}
+          <path d={`${pathD} L 100 100 L 0 100 Z`} fill={`${color}15`} />
+
+          {/* Línea */}
           <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+
+          {/* Puntos */}
           {points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="2" fill={color} stroke="white" strokeWidth="1" />
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} stroke="white" strokeWidth="1.5" />
           ))}
         </svg>
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 mt-1">
+
+        {/* Etiquetas X */}
+        <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-[10px] text-gray-500">
           {data.map((d, i) => (
-            <span key={i} className="text-[10px]">{d[xKey]}</span>
+            <span key={i} className="text-center truncate" style={{ width: `${100 / data.length}%` }}>
+              {d[xKey]?.split(' ').slice(0, 2).join(' ') || `Act ${i + 1}`}
+            </span>
           ))}
         </div>
-        <div className="absolute -top-5 left-0 text-xs font-medium text-gray-600">{label}</div>
+
+        {/* Estadísticas */}
+        <div className="absolute -top-6 left-0 text-[10px] font-bold text-gray-700 bg-white px-2 py-0.5 rounded shadow-sm">
+          📊 {label}: {promedio}%
+        </div>
+        <div className={`absolute -top-6 right-0 text-[10px] font-bold bg-white px-2 py-0.5 rounded shadow-sm ${tendencia.color}`}>
+          {tendencia.texto}
+        </div>
       </div>
     );
   };
@@ -5524,7 +5860,6 @@ Genera ${num} preguntas.`;
       setIsAnalyzingAllCourses(true);
       console.log("🚀 Iniciando análisis de TODOS los cursos...");
 
-      //  CORRECCIÓN: Removido nivel_nombre de la consulta (no existe en BD)
       const { data: progressData, error: progressError } = await supabase.from(
         "progreso_estudiantes"
       ).select(`
@@ -5548,21 +5883,19 @@ Genera ${num} preguntas.`;
 
       console.log(`📊 Se obtuvieron ${progressData.length} registros de progreso`);
 
-      //  Agrupar por curso
+      // Agrupar por curso
       const courseMap = {};
       progressData.forEach((progress) => {
         const cursoId = progress.recursos?.curso_id;
         if (!cursoId) return;
 
         if (!courseMap[cursoId]) {
-          // ✅ Obtener datos del curso desde el ESTADO 'courses'
-          // (que ya tiene nivel_nombre cargado desde fetchCourses)
           const courseData = courses.find((c) => c.id === cursoId);
-
           courseMap[cursoId] = {
             id: cursoId,
             titulo: courseData?.titulo || `Curso ${cursoId}`,
-            nivel: courseData?.nivel_nombre || "Sin nivel", // ✅ Del estado, no de BD
+            nivel: courseData?.nivel_nombre || "Sin nivel",
+            color: courseData?.color || "#3B82F6",
             data: [],
           };
         }
@@ -5572,15 +5905,12 @@ Genera ${num} preguntas.`;
       console.log(`✅ ${Object.keys(courseMap).length} cursos identificados`);
 
       // Obtener estudiantes únicos
-      const uniqueStudentIds = [
-        ...new Set(progressData.map((p) => p.usuario_id)),
-      ];
-
+      const uniqueStudentIds = [...new Set(progressData.map((p) => p.usuario_id))];
       console.log(`👥 ${uniqueStudentIds.length} estudiantes únicos`);
 
-      // ✅ Analizar cada estudiante (máximo 10)
+      // Analizar cada estudiante (máximo 10)
       const studentsData = [];
-      const studentsToAnalyze = uniqueStudentIds.slice(0, 10);
+      const studentsToAnalyze = uniqueStudentIds;
 
       for (const studentId of studentsToAnalyze) {
         const student = users.find((u) => u.id === studentId);
@@ -5592,13 +5922,16 @@ Genera ${num} preguntas.`;
         console.log(`🔍 Analizando estudiante: ${student.nombre}`);
 
         try {
-          // Analizar sin filtro de curso (análisis general)
+          // ✅ USAR null para análisis GENERAL (todos los cursos)
           const feedback = await generateAdaptiveFeedback(studentId, null);
 
           if (!feedback) {
             console.warn(`⚠️ No se pudo generar feedback para: ${student.nombre}`);
             continue;
           }
+
+          // Obtener evolución temporal (todos los cursos)
+          const evolutionData = await fetchStudentEvolution(studentId, null);
 
           const grupoNombre = student.grupo_id
             ? groups.find((g) => g.id === student.grupo_id)?.nombre || "Sin grupo"
@@ -5608,6 +5941,7 @@ Genera ${num} preguntas.`;
             student,
             feedback,
             grupo: grupoNombre,
+            evolution: evolutionData,
           });
         } catch (studentError) {
           console.error(`❌ Error analizando ${student.nombre}:`, studentError);
@@ -5620,8 +5954,7 @@ Genera ${num} preguntas.`;
       // Calcular estadísticas generales
       const completedCount = progressData.filter((p) => p.completado).length;
       const avgProgress = Math.round(
-        progressData.reduce((sum, p) => sum + (p.progreso || 0), 0) /
-        progressData.length
+        progressData.reduce((sum, p) => sum + (p.progreso || 0), 0) / progressData.length
       );
       const totalTime = Math.round(
         progressData.reduce((sum, p) => sum + (p.tiempo_dedicado || 0), 0) / 60
@@ -5630,16 +5963,12 @@ Genera ${num} preguntas.`;
         (completedCount / progressData.length) * 100
       );
 
-      console.log("📈 Estadísticas calculadas:");
-      console.log(`  - Progreso promedio: ${avgProgress}%`);
-      console.log(`  - Completitud: ${completionRate}%`);
-      console.log(`  - Tiempo total: ${totalTime} minutos`);
-
       // Crear objeto del reporte de todos los cursos
       const reportObj = {
         course: {
           titulo: `ANÁLISIS GENERAL - ${Object.keys(courseMap).length} Cursos`,
           nivel: "Sistema Completo",
+          color: "#8B5CF6",
           fecha: new Date().toLocaleDateString("es-ES", {
             weekday: "long",
             year: "numeric",
@@ -5656,33 +5985,26 @@ Genera ${num} preguntas.`;
         },
         students: studentsData,
         allCoursesStats: Object.values(courseMap)
-          .sort((a, b) => b.data.length - a.data.length) // Ordenar por cantidad de registros
+          .sort((a, b) => b.data.length - a.data.length)
           .map((course) => {
-            const courseStudents = new Set(
-              course.data.map((p) => p.usuario_id)
-            ).size;
+            const courseStudents = new Set(course.data.map((p) => p.usuario_id)).size;
             const courseCompleted = course.data.filter((p) => p.completado).length;
-
             return {
               titulo: course.titulo,
               nivel: course.nivel,
+              color: course.color,
               totalEstudiantes: courseStudents,
               totalRegistros: course.data.length,
               progresoPromedio: Math.round(
-                course.data.reduce((sum, p) => sum + (p.progreso || 0), 0) /
-                course.data.length
+                course.data.reduce((sum, p) => sum + (p.progreso || 0), 0) / course.data.length
               ),
               completados: courseCompleted,
-              completionRate: Math.round(
-                (courseCompleted / course.data.length) * 100
-              ),
+              completionRate: Math.round((courseCompleted / course.data.length) * 100),
             };
           }),
       };
 
       console.log("✅ Análisis de todos los cursos completado");
-      console.log("📊 Reporte final:", reportObj);
-
       setCourseReportData(reportObj);
       setShowCourseReportModal(true);
       setIsAnalyzingAllCourses(false);
@@ -6194,10 +6516,33 @@ ${courseReportData.stats.avgProgress >= 70
 
   //  QUIZ REDISEÑADO PARA NIÑOS
   const renderQuestionPreview = () => {
-    if (!currentQuiz.preguntas || currentQuiz.preguntas.length === 0) return null;
+    console.log('🎨 Renderizando vista previa...');
+    console.log('currentQuiz:', currentQuiz);
+    console.log('preguntas:', currentQuiz?.preguntas);
+
+    if (!currentQuiz?.preguntas || currentQuiz.preguntas.length === 0) {
+      console.log('❌ No hay preguntas en currentQuiz');
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <p className="text-gray-600">⚠️ Este quiz no tiene preguntas aún.</p>
+          <p className="text-sm text-gray-500 mt-2">Edita el quiz para agregar preguntas.</p>
+        </div>
+      );
+    }
 
     const question = currentQuiz.preguntas[currentPreviewQuestion];
-    if (!question) return null;
+    if (!question) {
+      console.log('❌ No se encontró la pregunta actual');
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-600">Error: No se pudo cargar la pregunta</p>
+        </div>
+      );
+    }
+
+    console.log('✅ Mostrando pregunta:', question.pregunta);
 
     // Normalizar la pregunta
     const normalizedQuestion = {
@@ -6205,10 +6550,8 @@ ${courseReportData.stats.avgProgress >= 70
       opciones: question.opciones || question.options || [],
       respuesta_correcta: question.respuesta_correcta ?? question.correct ?? 0,
       puntos: question.puntos || question.points || 10,
-      retroalimentacion_correcta: question.retroalimentacion_correcta ||
-        question.feedback_correct || '¡Excelente! 🎉',
-      retroalimentacion_incorrecta: question.retroalimentacion_incorrecta ||
-        question.feedback_incorrect || '¡Intenta otra vez! 💪',
+      retroalimentacion_correcta: question.retroalimentacion_correcta || question.feedback_correct || '¡Excelente! 🎉',
+      retroalimentacion_incorrecta: question.retroalimentacion_incorrecta || question.feedback_incorrect || '¡Intenta otra vez! 💪',
       audio_pregunta: question.audio_pregunta !== false,
       audio_retroalimentacion: question.audio_retroalimentacion !== false,
       video_url: question.video_url || '',
@@ -6221,27 +6564,45 @@ ${courseReportData.stats.avgProgress >= 70
     const attempts = attemptCount[currentPreviewQuestion] || 0;
     const maxAttempts = 3;
 
-    // Función para manejar la selección inmediata (ya debe existir)
-    const handleImmediateAnswer = async (selectedIdx) => { /* ... */ };
+    // Función para manejar la selección de respuesta
+    const handleAnswer = (selectedIdx) => {
+      if (answer?.isCorrect || attempts >= maxAttempts) return;
+
+      const isCorrect = selectedIdx === normalizedQuestion.respuesta_correcta;
+      const newAttempts = attempts + 1;
+
+      setAttemptCount(prev => ({ ...prev, [currentPreviewQuestion]: newAttempts }));
+
+      setPreviewAnswers(prev => ({
+        ...prev,
+        [currentPreviewQuestion]: {
+          selected: selectedIdx,
+          isCorrect: isCorrect,
+          attempts: newAttempts,
+          showCorrect: newAttempts >= maxAttempts && !isCorrect
+        }
+      }));
+
+      // Feedback de voz
+      if (isCorrect) {
+        speakText(normalizedQuestion.retroalimentacion_correcta);
+      } else if (newAttempts >= maxAttempts) {
+        speakText(`La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`);
+      } else {
+        speakText(`${normalizedQuestion.retroalimentacion_incorrecta} Te quedan ${maxAttempts - newAttempts} intentos`);
+      }
+    };
 
     // Determinar estado de Karin
     const getKarinState = () => {
-      if (answer?.isCorrect) {
-        return { state: "happy", message: "¡Excelente! Respuesta correcta 🎉" };
-      }
-      if (answer && !answer.isCorrect && attempts >= maxAttempts) {
-        return { state: "encourage", message: "No te preocupes, sigamos aprendiendo 💚" };
-      }
-      if (attempts > 0 && attempts < maxAttempts) {
-        const remaining = maxAttempts - attempts;
-        return { state: "thinking", message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪` };
-      }
+      if (answer?.isCorrect) return { state: "happy", message: "¡Excelente! Respuesta correcta 🎉" };
+      if (answer && !answer.isCorrect && attempts >= maxAttempts) return { state: "encourage", message: "No te preocupes, sigamos aprendiendo 💚" };
+      if (attempts > 0 && attempts < maxAttempts) return { state: "thinking", message: `Te quedan ${maxAttempts - attempts} intentos. ¡Tú puedes! 💪` };
       return { state: "idle", message: "Escucha la pregunta y elige la respuesta correcta" };
     };
 
     const repeatQuestionWithOptions = () => {
-      let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. `;
-      fullText += `Las opciones son: `;
+      let fullText = `La pregunta es: ${normalizedQuestion.pregunta}. Las opciones son: `;
       normalizedQuestion.opciones.forEach((opcion, idx) => {
         fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
       });
@@ -6265,12 +6626,7 @@ ${courseReportData.stats.avgProgress >= 70
           {currentQuiz.preguntas.map((_, idx) => (
             <div
               key={idx}
-              className={`flex-1 h-2 rounded-full transition-all ${idx === currentPreviewQuestion
-                ? "bg-blue-500"
-                : idx < currentPreviewQuestion
-                  ? "bg-green-400"
-                  : "bg-gray-200"
-                }`}
+              className={`flex-1 h-2 rounded-full transition-all ${idx === currentPreviewQuestion ? "bg-blue-500" : idx < currentPreviewQuestion ? "bg-green-400" : "bg-gray-200"}`}
             />
           ))}
         </div>
@@ -6278,18 +6634,10 @@ ${courseReportData.stats.avgProgress >= 70
         {/* CONTADOR DE INTENTOS */}
         {attempts > 0 && (
           <div className="bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 mb-4 text-center">
-            <p className="text-lg font-bold text-yellow-800">
-              🎯 Intentos: {attempts} / {maxAttempts}
-            </p>
+            <p className="text-lg font-bold text-yellow-800">🎯 Intentos: {attempts} / {maxAttempts}</p>
             <div className="flex gap-2 justify-center mt-2">
               {[...Array(maxAttempts)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-8 h-8 rounded-full ${i < attempts
-                    ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
-                    : 'bg-gray-300'
-                    }`}
-                />
+                <div key={i} className={`w-8 h-8 rounded-full ${i < attempts ? (answer?.isCorrect ? 'bg-green-400' : 'bg-red-400') : 'bg-gray-300'}`} />
               ))}
             </div>
           </div>
@@ -6299,25 +6647,17 @@ ${courseReportData.stats.avgProgress >= 70
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
           <div className="flex items-center gap-4 justify-center">
             {normalizedQuestion.audio_pregunta && (
-              <button
-                onClick={() => speakText(normalizedQuestion.pregunta)}
-                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
-              >
+              <button onClick={() => speakText(normalizedQuestion.pregunta)} className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition">
                 🔊
               </button>
             )}
             {normalizedQuestion.imagen_url && (
               <div className="text-7xl flex-shrink-0">{normalizedQuestion.imagen_url}</div>
             )}
-            <p className="text-3xl font-bold text-gray-800 text-center">
-              {normalizedQuestion.pregunta}
-            </p>
+            <p className="text-3xl font-bold text-gray-800 text-center">{normalizedQuestion.pregunta}</p>
           </div>
           <div className="mt-6 text-center">
-            <button
-              onClick={() => repeatQuestionWithOptions()}
-              className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
-            >
+            <button onClick={repeatQuestionWithOptions} className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto">
               <RefreshCw className="w-5 h-5" />
               Repetir Pregunta y Opciones
             </button>
@@ -6336,47 +6676,11 @@ ${courseReportData.stats.avgProgress >= 70
             return (
               <div
                 key={idx}
-                className={`relative p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 ${showAsCorrect
-                  ? 'bg-green-50 border-green-400 ring-4 ring-green-200'
-                  : isDisabled && answer?.isCorrect && isSelected
-                    ? 'bg-green-100 border-green-500 ring-4 ring-green-200'
-                    : isDisabled && !isCorrectOption
-                      ? 'bg-gray-100 border-gray-300 opacity-50'
-                      : isSelected && !answer?.isCorrect
-                        ? 'bg-red-100 border-red-400 ring-4 ring-red-200'
-                        : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
-                  }`}
+                onClick={() => !isDisabled && handleAnswer(idx)}
+                className={`p-5 rounded-2xl text-xl font-semibold border transition-all flex items-center gap-4 cursor-pointer ${showAsCorrect ? 'bg-green-50 border-green-400 ring-4 ring-green-200' : isDisabled && answer?.isCorrect && isSelected ? 'bg-green-100 border-green-500 ring-4 ring-green-200' : isDisabled && !isCorrectOption ? 'bg-gray-100 border-gray-300 opacity-50' : isSelected && !answer?.isCorrect ? 'bg-red-100 border-red-400 ring-4 ring-red-200' : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'}`}
               >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    speakText(`La opción ${String.fromCharCode(65 + idx)} dice: ${opcion}`);
-                  }}
-                  className="absolute -left-12 top-1/2 transform -translate-y-1/2 bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 z-10"
-                  title="Repetir esta palabra"
-                >
-                  <Volume2 className="w-6 h-6" />
-                </button>
-
-                <div
-                  className="flex-1 flex items-center gap-4 cursor-pointer"
-                  onClick={() => handleImmediateAnswer(idx)}
-                >
-                  <span className="text-5xl flex-shrink-0 drop-shadow-sm">{emojiOpcion}</span>
-                  <span className="flex-1">{opcion}</span>
-                </div>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    speakText(opcion);
-                  }}
-                  className="bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-full flex-shrink-0 ml-2"
-                  title="Repetir palabra"
-                >
-                  <Volume2 className="w-6 h-6" />
-                </button>
-
+                <span className="text-5xl flex-shrink-0 drop-shadow-sm">{emojiOpcion}</span>
+                <span className="flex-1">{opcion}</span>
                 {showAsCorrect && <span className="text-3xl animate-bounce flex-shrink-0 ml-2">✅</span>}
                 {isSelected && answer?.isCorrect && <span className="text-3xl animate-bounce flex-shrink-0 ml-2">🎉</span>}
                 {isSelected && !answer?.isCorrect && <span className="text-3xl flex-shrink-0 ml-2">❌</span>}
@@ -6385,139 +6689,50 @@ ${courseReportData.stats.avgProgress >= 70
           })}
         </div>
 
-        {/* RETROALIMENTACIÓN Y BOTÓN FINALIZAR */}
+        {/* RETROALIMENTACIÓN Y BOTONES */}
         {answer && (
-          <div className="mt-8 max-w-2xl mx-auto w-full space-y-4 animate-fadeIn">
-            <div
-              className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect
-                ? "bg-green-100 border-green-400 animate-pulse"
-                : attempts >= maxAttempts
-                  ? "bg-orange-100 border-orange-400"
-                  : "bg-red-100 border-red-400"
-                }`}
-            >
-              <p className="text-5xl font-black mb-3">
-                {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
-              </p>
+          <div className="mt-8 max-w-2xl mx-auto w-full space-y-4">
+            <div className={`rounded-2xl p-6 text-center border-4 shadow-2xl ${answer.isCorrect ? "bg-green-100 border-green-400 animate-pulse" : attempts >= maxAttempts ? "bg-orange-100 border-orange-400" : "bg-red-100 border-red-400"}`}>
+              <p className="text-5xl font-black mb-3">{answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}</p>
               <p className="text-3xl font-black mb-2">
-                {answer.isCorrect
-                  ? "¡CORRECTO!"
-                  : attempts >= maxAttempts
-                    ? "VAMOS A APRENDER"
-                    : "¡INTENTA DE NUEVO!"}
+                {answer.isCorrect ? "¡CORRECTO!" : attempts >= maxAttempts ? "VAMOS A APRENDER" : "¡INTENTA DE NUEVO!"}
               </p>
               <p className="text-lg font-bold text-gray-800 mb-4">
-                {answer.isCorrect
-                  ? normalizedQuestion.retroalimentacion_correcta
-                  : attempts >= maxAttempts
-                    ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}`
-                    : `Lo siento, te has equivocado. Te quedan ${maxAttempts - attempts} intentos.`}
+                {answer.isCorrect ? normalizedQuestion.retroalimentacion_correcta : attempts >= maxAttempts ? `La respuesta correcta es: ${normalizedQuestion.opciones[normalizedQuestion.respuesta_correcta]}` : `Te quedan ${maxAttempts - attempts} intentos.`}
               </p>
             </div>
 
-            {/* BOTÓN FINALIZAR QUIZ (completo) */}
-            <button
-              onClick={async () => {
-                // Determinar el ID del usuario (solo estudiantes)
-                const userId = currentUser?.id;  // Guarda con el ID del admin
-                const totalPreguntas = currentQuiz.preguntas.length;
+            <button onClick={() => {
+              if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
+                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+                setPreviewAnswers(prev => ({ ...prev, [currentPreviewQuestion + 1]: undefined }));
+                setAttemptCount(prev => ({ ...prev, [currentPreviewQuestion + 1]: 0 }));
+              } else {
                 const correctas = Object.values(previewAnswers).filter(a => a?.isCorrect).length;
-                const progresoFinal = Math.round((correctas / totalPreguntas) * 100);
-
-                // Solo guardar si es un estudiante y hay recurso seleccionado
-                if (userId && selectedResource?.id) {
-                  try {
-                    const { data: existing } = await supabase
-                      .from('progreso_estudiantes')
-                      .select('id')
-                      .eq('usuario_id', userId)
-                      .eq('recurso_id', selectedResource.id)
-                      .maybeSingle();
-
-                    if (existing) {
-                      await supabase
-                        .from('progreso_estudiantes')
-                        .update({
-                          completado: true,
-                          progreso: progresoFinal,
-                          updated_at: new Date()
-                        })
-                        .eq('id', existing.id);
-                    } else {
-                      await supabase
-                        .from('progreso_estudiantes')
-                        .insert({
-                          usuario_id: userId,
-                          recurso_id: selectedResource.id,
-                          progreso: progresoFinal,
-                          completado: true,
-                          iniciado_en: new Date()
-                        });
-                    }
-                    // Refrescar métricas del dashboard
-                    await calculateAdvancedAnalytics();
-                    console.log("✅ Progreso final guardado correctamente");
-                  } catch (err) {
-                    console.error("❌ Error guardando progreso final:", err);
-                  }
-                } else {
-                  console.warn("No se guardó el progreso porque el usuario no es estudiante o no hay recurso");
-                }
-
-                // Mostrar resultado al usuario
-                alert(`🎉 ¡QUIZ COMPLETADO!\n\n✅ Correctas: ${correctas}/${totalPreguntas}\n📊 Puntuación: ${progresoFinal}%`);
-
-                // Cerrar la vista previa
+                alert(`🎉 Quiz completado!\n✅ Correctas: ${correctas}/${currentQuiz.preguntas.length}\n📊 Puntuación: ${Math.round((correctas / currentQuiz.preguntas.length) * 100)}%`);
                 closePreview();
-              }}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
-            >
-              <Trophy className="w-6 h-6" />
-              Finalizar Quiz
+              }
+            }} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-4 rounded-2xl text-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
+              {currentPreviewQuestion === currentQuiz.preguntas.length - 1 ? <><Trophy className="w-6 h-6" /> Finalizar Quiz</> : <>Siguiente Pregunta →</>}
             </button>
           </div>
         )}
 
-        {/* NAVEGACIÓN (Anterior / Saltar) */}
+        {/* NAVEGACIÓN */}
         <div className="flex justify-between mt-10 gap-4">
-          <button
-            disabled={currentPreviewQuestion === 0}
-            onClick={() => {
-              setCurrentPreviewQuestion(currentPreviewQuestion - 1);
-              setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion - 1]: undefined });
-              setAttemptCount({ ...attemptCount, [currentPreviewQuestion - 1]: 0 });
-            }}
-            className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40"
-          >
+          <button disabled={currentPreviewQuestion === 0} onClick={() => {
+            setCurrentPreviewQuestion(currentPreviewQuestion - 1);
+            setPreviewAnswers(prev => ({ ...prev, [currentPreviewQuestion - 1]: undefined }));
+            setAttemptCount(prev => ({ ...prev, [currentPreviewQuestion - 1]: 0 }));
+          }} className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-xl font-bold disabled:opacity-40">
             ← Anterior
           </button>
-
-          {answer?.isCorrect || attempts >= maxAttempts ? (
-            <button
-              onClick={() => {
-                if (currentPreviewQuestion < currentQuiz.preguntas.length - 1) {
-                  setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                  setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion + 1]: undefined });
-                  setAttemptCount({ ...attemptCount, [currentPreviewQuestion + 1]: 0 });
-                } else {
-                  // Si ya está en la última pregunta, no se necesita acción extra
-                  // El botón finalizar ya está arriba
-                }
-              }}
-              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
-            >
-              Siguiente →
-            </button>
-          ) : (
-            <button
-              disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1}
-              onClick={() => {
-                setCurrentPreviewQuestion(currentPreviewQuestion + 1);
-                setPreviewAnswers({ ...previewAnswers, [currentPreviewQuestion + 1]: undefined });
-                setAttemptCount({ ...attemptCount, [currentPreviewQuestion + 1]: 0 });
-              }}
-              className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40"
-            >
+          {!answer && (
+            <button disabled={currentPreviewQuestion === currentQuiz.preguntas.length - 1} onClick={() => {
+              setCurrentPreviewQuestion(currentPreviewQuestion + 1);
+              setPreviewAnswers(prev => ({ ...prev, [currentPreviewQuestion + 1]: undefined }));
+              setAttemptCount(prev => ({ ...prev, [currentPreviewQuestion + 1]: 0 }));
+            }} className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold disabled:opacity-40">
               Saltar Pregunta →
             </button>
           )}
@@ -8443,7 +8658,8 @@ ${courseReportData.stats.avgProgress >= 70
 
           {/* BODY */}
           <div className="p-6 bg-gray-50">
-            {/* GENERADOR */}
+
+            {/* ==================== GENERADOR ==================== */}
             {contentGeneratorTab === "generator" && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Tipos de contenido */}
@@ -8530,7 +8746,7 @@ ${courseReportData.stats.avgProgress >= 70
               </div>
             )}
 
-            {/* BIBLIOTECA */}
+            {/* ==================== BIBLIOTECA ==================== */}
             {contentGeneratorTab === "library" && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -8617,7 +8833,7 @@ ${courseReportData.stats.avgProgress >= 70
                               </div>
                             )}
 
-                            {/* Edición específica para quizzes - área ampliada */}
+                            {/* Edición específica para quizzes */}
                             {isEditing && item.type === 'quiz' && (
                               <div className="max-h-80 overflow-y-auto border rounded-md p-3 space-y-3 bg-gray-50">
                                 <p className="font-bold text-sm text-gray-700">📝 Editar preguntas del Quiz</p>
@@ -8682,8 +8898,9 @@ ${courseReportData.stats.avgProgress >= 70
                               <span className="capitalize font-medium text-gray-500">{item.type}</span>
                             </div>
 
-                            {/* Botones */}
-                            <div className="grid grid-cols-3 gap-2 pt-2">
+                            {/* ==================== BOTONES ACTUALIZADOS ==================== */}
+                            <div className="grid grid-cols-2 gap-2 pt-2">
+                              {/* Botón Ver (solo quizzes) */}
                               {item.type === 'quiz' && !isEditing && (
                                 <button
                                   onClick={() => {
@@ -8699,6 +8916,18 @@ ${courseReportData.stats.avgProgress >= 70
                                   <Eye className="w-3.5 h-3.5" /> Ver
                                 </button>
                               )}
+
+                              {/* ✅ NUEVO BOTÓN: MANDAR A RECURSOS (solo quizzes) */}
+                              {item.type === 'quiz' && !isEditing && (
+                                <button
+                                  onClick={() => convertContentToResource(item)}
+                                  className="bg-green-500 hover:bg-green-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
+                                >
+                                  <Upload className="w-3.5 h-3.5" /> Mandar a Recursos
+                                </button>
+                              )}
+
+                              {/* Botón Editar/Guardar */}
                               <button
                                 onClick={() => {
                                   if (isEditing) {
@@ -8716,25 +8945,32 @@ ${courseReportData.stats.avgProgress >= 70
                                 {isEditing ? <Save className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
                                 {isEditing ? 'Guardar' : 'Editar'}
                               </button>
+
+                              {/* Botón Descargar */}
                               {!isEditing && (
-                                <>
-                                  <button
-                                    onClick={() => downloadContentFile(item)}
-                                    className="bg-gray-500 hover:bg-gray-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
-                                  >
-                                    <Download className="w-3.5 h-3.5" /> Descargar
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (confirm(`¿Eliminar "${item.title}"?`)) deleteGeneratedContent(item.id);
-                                    }}
-                                    className="bg-red-500 hover:bg-red-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" /> Eliminar
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => downloadContentFile(item)}
+                                  className="bg-gray-500 hover:bg-gray-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Descargar
+                                </button>
                               )}
                             </div>
+
+                            {/* Fila adicional para Eliminar (si no está en edición) */}
+                            {!isEditing && (
+                              <div className="grid grid-cols-1 gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`¿Eliminar "${item.title}"?`)) deleteGeneratedContent(item.id);
+                                  }}
+                                  className="bg-red-500 hover:bg-red-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                                </button>
+                              </div>
+                            )}
+
                             {isEditing && (
                               <button
                                 onClick={() => setEditingContent(null)}
@@ -11104,55 +11340,152 @@ ${courseReportData.stats.avgProgress >= 70
                               </div>
                             </div>
 
-                            {/* NUEVA SECCIÓN: EVOLUCIÓN DEL APRENDIZAJE */}
-                            {evolution && evolution.length > 1 && (
-                              <div className="mt-4 bg-white rounded-xl p-4 border-2 border-blue-200 shadow-sm">
-                                <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                  <TrendingUp className="w-4 h-4 text-blue-600" />
-                                  Evolución del Aprendizaje (últimas actividades)
-                                </h4>
-                                <div className="h-48 mb-4">
-                                  <SimpleLineChart
-                                    data={evolution}
-                                    xKey="fecha"
-                                    yKey="progreso"
-                                    color="#3b82f6"
-                                    label="Progreso %"
-                                  />
-                                </div>
-                                {/* Estadísticas de evolución */}
-                                <div className="grid grid-cols-3 gap-3 text-center">
-                                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
-                                    <p className="text-xs font-bold text-green-700 uppercase">Tendencia</p>
-                                    <p className={`text-2xl font-black ${calculateTrend(evolution.map(e => e.progreso)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                      {calculateTrend(evolution.map(e => e.progreso)) >= 0 ? '↑' : '↓'}
-                                      {Math.abs(calculateTrend(evolution.map(e => e.progreso)))}%
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-1">vs primera actividad</p>
-                                  </div>
-                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
-                                    <p className="text-xs font-bold text-blue-700 uppercase">Promedio</p>
-                                    <p className="text-2xl font-black text-blue-700">
-                                      {Math.round(evolution.reduce((a, b) => a + b.progreso, 0) / evolution.length)}%
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-1">general</p>
-                                  </div>
-                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
-                                    <p className="text-xs font-bold text-purple-700 uppercase">Mejora Absoluta</p>
-                                    <p className="text-2xl font-black text-purple-700">
-                                      {evolution.length > 1 ? (evolution[evolution.length - 1].progreso - evolution[0].progreso) : 0}%
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-1">último - primero</p>
-                                  </div>
-                                </div>
-                                {/* Detalle adicional */}
-                                <div className="mt-3 text-xs text-gray-500 text-center border-t border-gray-100 pt-3">
-                                  <span className="inline-flex items-center gap-1 mx-2">⏱️ Tiempo promedio: {Math.round(evolution.reduce((a, b) => a + b.tiempo, 0) / evolution.length)} min</span>
-                                  <span className="inline-flex items-center gap-1 mx-2">🔄 Intentos promedio: {(evolution.reduce((a, b) => a + b.intentos, 0) / evolution.length).toFixed(1)}</span>
-                                </div>
-                              </div>
-                            )}
+                            {/* Comportamiento del Estudiante - CON FECHAS REALES */}
+                            {/* Comportamiento del Estudiante - CON ESPACIO ADECUADO */}
+                            <div className="mt-6 bg-white rounded-xl p-6 border-2 border-blue-200 shadow-sm">
 
+                              {/* TÍTULO */}
+                              <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-blue-600" />
+                                Comportamiento del Estudiante
+                              </h4>
+
+                              {/* MENSAJE SI NO HAY DATOS */}
+                              {!evolution || evolution.length === 0 ? (
+                                <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                                  <Activity className="w-16 h-16 text-gray-400 mx-auto mb-3" />
+                                  <p className="text-gray-600 font-semibold">📭 Sin datos de comportamiento</p>
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Este estudiante aún no ha completado ninguna actividad.
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-2">
+                                    Las actividades aparecerán aquí cuando el estudiante complete recursos.
+                                  </p>
+                                </div>
+                              ) : evolution.length === 1 ? (
+                                <div className="text-center py-12 bg-blue-50 rounded-xl border-2 border-blue-200">
+                                  <div className="text-5xl mb-3">📊</div>
+                                  <p className="text-gray-700 font-semibold">Datos insuficientes</p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Solo hay {evolution.length} actividad completada.
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Se necesitan al menos 2 actividades para mostrar la evolución.
+                                  </p>
+                                </div>
+                              ) : (
+                                <>
+                                  {/* GRÁFICO CON ALTURA ADECUADA */}
+                                  <div className="w-full h-64 mb-6">
+                                    <SimpleLineChart
+                                      data={evolution}
+                                      xKey="fecha"
+                                      yKey="progreso"
+                                      color="#3b82f6"
+                                      label="Comportamiento %"
+                                    />
+                                  </div>
+
+                                  {/* ESTADÍSTICAS - CON ESPACIO */}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200 text-center">
+                                      <p className="text-xs font-bold text-green-700 uppercase">Tendencia</p>
+                                      <p className={`text-xl font-black mt-1 ${(() => {
+                                        const progressValues = evolution.map(e => e.progreso);
+                                        const trend = calculateTrend(progressValues);
+                                        return trend.color;
+                                      })()}`}>
+                                        {(() => {
+                                          const progressValues = evolution.map(e => e.progreso);
+                                          const trend = calculateTrend(progressValues);
+                                          return trend.texto;
+                                        })()}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 mt-1">vs primera actividad</p>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 text-center">
+                                      <p className="text-xs font-bold text-blue-700 uppercase">Promedio</p>
+                                      <p className="text-2xl font-black text-blue-700 mt-1">
+                                        {Math.round(evolution.reduce((a, b) => a + b.progreso, 0) / evolution.length)}%
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 mt-1">general</p>
+                                    </div>
+
+                                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200 text-center">
+                                      <p className="text-xs font-bold text-purple-700 uppercase">Actividades</p>
+                                      <p className="text-2xl font-black text-purple-700 mt-1">
+                                        {evolution.length}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 mt-1">completadas</p>
+                                    </div>
+                                  </div>
+
+                                  {/* TABLA CON SCROLL Y ESPACIO */}
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm border-collapse">
+                                      <thead>
+                                        <tr className="bg-gray-100">
+                                          <th className="px-3 py-2 text-left font-bold text-gray-700">#</th>
+                                          <th className="px-3 py-2 text-left font-bold text-gray-700">Fecha</th>
+                                          <th className="px-3 py-2 text-left font-bold text-gray-700">Actividad</th>
+                                          <th className="px-3 py-2 text-center font-bold text-gray-700">Comportamiento</th>
+                                          <th className="px-3 py-2 text-center font-bold text-gray-700">Progreso</th>
+                                          <th className="px-3 py-2 text-center font-bold text-gray-700">Tiempo</th>
+                                          <th className="px-3 py-2 text-center font-bold text-gray-700">Intentos</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-200">
+                                        {evolution.map((act, idx) => (
+                                          <tr key={idx} className="hover:bg-gray-50">
+                                            <td className="px-3 py-2 font-bold text-gray-500">{idx + 1}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                              <span className="text-gray-700">{act.fecha}</span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-lg">
+                                                  {act.recursoTipo === 'quiz' ? '❓' :
+                                                    act.recursoTipo === 'video' ? '🎥' :
+                                                      act.recursoTipo === 'juego' ? '🎮' : '📝'}
+                                                </span>
+                                                <span className="text-gray-700 truncate max-w-[200px]" title={act.recursoTitulo}>
+                                                  {act.recursoTitulo}
+                                                </span>
+                                              </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${act.comportamientoColor}`}>
+                                                {act.comportamiento}
+                                              </span>
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              <div className="flex items-center justify-center gap-2">
+                                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${act.progreso}%` }}></div>
+                                                </div>
+                                                <span className="text-sm font-bold">{act.progreso}%</span>
+                                              </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-center text-gray-700">
+                                              ⏱️ {act.tiempo} min
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${act.intentos === 1 ? "bg-green-100 text-green-700" :
+                                                act.intentos <= 2 ? "bg-yellow-100 text-yellow-700" :
+                                                  "bg-red-100 text-red-700"
+                                                }`}>
+                                                {act.intentos} {act.intentos === 1 ? "vez" : "veces"}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                             {/* FORTALEZAS Y DEBILIDADES */}
                             {(feedback.strengths?.length > 0 || feedback.weaknesses?.length > 0) && (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

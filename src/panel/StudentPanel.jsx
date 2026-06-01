@@ -977,7 +977,7 @@ const StudentQuizView = ({
             </div>
           )}
         </div>
-      </div>
+      </div> 
     </div>
   );
 };
@@ -1127,7 +1127,9 @@ export default function StudentPanel() {
     { type: 'bot', text: '¡Hola! Soy Carín 🐢 ¿En qué puedo ayudarte hoy?' }
   ]);
   const [chatInput, setChatInput] = useState('');
-
+// Estados para medir tiempo en el quiz
+const [quizStartTime, setQuizStartTime] = useState(null);
+const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState(null);
   // Cargar datos iniciales
   useEffect(() => {
     checkAuth();
