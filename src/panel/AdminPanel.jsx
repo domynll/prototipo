@@ -8020,10 +8020,10 @@ ${courseReportData.stats.avgProgress >= 70
                   setSelectedCourseForReport(null);
                   setTimeout(() => generateCourseReport(null), 100);
                 }}
-                className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-bold transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white rounded-xl font-bold transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg"
               >
                 <BarChart3 className="w-5 h-5" />
-                📊 Ver Análisis General del Sistema
+                Ver Análisis General del Sistema
               </button>
             </div>
           )}
