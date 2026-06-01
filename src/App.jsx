@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './services/supabaseClient';
 import TurtleWelcome from './TurtleWelcome.jsx';
 import LoginForm from './LoginForm';
@@ -49,8 +49,8 @@ const useTheme = () => {
 // Componente del botón toggle
 const ThemeToggle = ({ theme, toggleTheme }) => {
   return (
-    <button 
-      className="theme-toggle" 
+    <button
+      className="theme-toggle"
       onClick={toggleTheme}
       aria-label={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}
       title={`Modo ${theme === 'light' ? 'oscuro' : 'claro'}`}
@@ -96,7 +96,7 @@ function Welcome() {
   const fetchUserRole = async (userId) => {
     try {
       console.log('🔍 Buscando rol para userId:', userId);
-      
+
       const { data: userData, error } = await supabase
         .from('usuarios')
         .select('rol, nombre, email')
@@ -119,7 +119,7 @@ function Welcome() {
 
       const userRole = (userData?.rol || '').trim().toLowerCase();
       console.log('✅ Usuario encontrado:', userData?.nombre, 'Email:', userData?.email, 'Rol:', userRole);
-      
+
       setRole(userRole);
       setLoading(false);
       navigateToRole(userRole);
@@ -133,8 +133,8 @@ function Welcome() {
   const navigateToRole = (roleToNavigate) => {
     const normalizedRole = (roleToNavigate || '').trim().toLowerCase();
     console.log('📍 Navegando a rol:', normalizedRole);
-    
-    switch(normalizedRole) {
+
+    switch (normalizedRole) {
       case 'admin':
         console.log('➡️ Redirigiendo a /admin');
         navigate('/admin');
@@ -149,7 +149,7 @@ function Welcome() {
         break;
       default:
         console.log('⚠️ Rol desconocido, permaneciendo en home:', normalizedRole);
-        // No navegar a ningún lado si el rol es desconocido
+      // No navegar a ningún lado si el rol es desconocido
     }
   };
 
@@ -159,18 +159,18 @@ function Welcome() {
   if (currentPage === 'login') return (
     <>
       <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-      <LoginForm 
-        supabase={supabase} 
+      <LoginForm
+        supabase={supabase}
         navigateBack={handleBackToHome}
       />
     </>
   );
-  
+
   if (currentPage === 'register') return (
     <>
       <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-      <RegisterForm 
-        supabase={supabase} 
+      <RegisterForm
+        supabase={supabase}
         navigateBack={handleBackToHome}
         onGoToLogin={() => setCurrentPage('login')}
         onRegisterSuccess={() => setCurrentPage('login')}
@@ -181,7 +181,7 @@ function Welcome() {
   return (
     <>
       <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-      
+
       <div className="app-container">
         <div className="welcome-card">
           <div className="turtle-wrapper">
