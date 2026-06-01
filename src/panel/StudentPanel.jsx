@@ -10,16 +10,13 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
-// ========================================
-// 🔄 COMPONENTE: SELECTOR DE ROLES CORREGIDO
-// ========================================
 const RoleSwitcherMejorado = ({ user, userPoints, onLogout }) => {
   const navigate = useNavigate();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [currentViewRole, setCurrentViewRole] = useState(() => {
     const savedRole = localStorage.getItem('didaktik_view_role');
-    const currentPath = window.location.pathname;
+    const currentPath = window.location.hash;
 
     if (currentPath.includes('/student')) return 'estudiante';
     if (currentPath.includes('/teacher')) return 'docente';
@@ -977,7 +974,7 @@ const StudentQuizView = ({
             </div>
           )}
         </div>
-      </div> 
+      </div>
     </div>
   );
 };
@@ -1127,9 +1124,9 @@ export default function StudentPanel() {
     { type: 'bot', text: '¡Hola! Soy Carín 🐢 ¿En qué puedo ayudarte hoy?' }
   ]);
   const [chatInput, setChatInput] = useState('');
-// Estados para medir tiempo en el quiz
-const [quizStartTime, setQuizStartTime] = useState(null);
-const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState(null);
+  // Estados para medir tiempo en el quiz
+  const [quizStartTime, setQuizStartTime] = useState(null);
+  const [currentQuestionStartTime, setCurrentQuestionStartTime] = useState(null);
   // Cargar datos iniciales
   useEffect(() => {
     checkAuth();
