@@ -294,236 +294,267 @@ const KarinMascot = ({ state = 'idle', message }) => {
   );
 };
 
-// ========================================
-// 📝 COMPONENTE: QUIZ CORREGIDO CON LAS MEJORAS SOLICITADAS
-// ========================================
 const StudentQuizView = ({
   resource,
   onClose,
   user,
   onComplete
 }) => {
-  const navigate = useNavigate();
-  const timerRef = useRef(null);
-  const inactivityTimerRef = useRef(null);
+  // Refs para manejar timers y evitar choques
+  const repeatIntervalRef = useRef(null);
+  const timeoutIdsRef = useRef([]);
+  const isMountedRef = useRef(true);
+  const audioQueueRef = useRef([]);
+  const isPlayingRef = useRef(false);
+  const speechSynthesisRef = useRef(null);
 
-  const [quizState, setQuizState] = useState({
-    questions: [],
-    currentQuestionIndex: 0,
-    answers: {},
-    attemptCount: {},
-    selectedOption: null,
-    results: null,
-    soundEnabled: true,
-    lastActivityTime: Date.now()
-  });
+  // Estados
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [attemptCount, setAttemptCount] = useState({});
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [results, setResults] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showTimer, setShowTimer] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   // Cargar preguntas del recurso
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (resource?.contenido_quiz) {
-      const questions = Array.isArray(resource.contenido_quiz)
+      const loadedQuestions = Array.isArray(resource.contenido_quiz)
         ? resource.contenido_quiz
-        : JSON.parse(resource.contenido_quiz || '[]');
+        : (typeof resource.contenido_quiz === 'string' ? JSON.parse(resource.contenido_quiz || '[]') : []);
 
-      setQuizState(prev => ({
-        ...prev,
-        questions: questions.map((q, idx) => ({
-          id: q.id || `q_${idx}`,
-          pregunta: q.pregunta || q.text || '',
-          opciones: q.opciones || q.options || ['', '', '', ''],
-          respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
-          puntos: q.puntos || q.points || 10,
-          retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
-          retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
-          audio_pregunta: q.audio_pregunta !== false,
-          audio_retroalimentacion: q.audio_retroalimentacion !== false,
-          video_url: q.video_url || '',
-          imagen_url: q.imagen_url || q.image_url || '',
-          imagen_opciones: q.imagen_opciones || q.image_options || ['🅰️', '🅱️', '🅲️', '🅳️'],
-          tiempo_limite: q.tiempo_limite || q.timeLimit || 0
-        }))
+      const formattedQuestions = loadedQuestions.map((q, idx) => ({
+        id: q.id || `q_${idx}`,
+        pregunta: q.pregunta || q.text || q.question || '',
+        opciones: q.opciones || q.options || ['', '', '', ''],
+        respuesta_correcta: q.respuesta_correcta ?? q.correct ?? 0,
+        puntos: q.puntos || q.points || 10,
+        retroalimentacion_correcta: q.retroalimentacion_correcta || q.feedback_correct || '¡Excelente! 🎉',
+        retroalimentacion_incorrecta: q.retroalimentacion_incorrecta || q.feedback_incorrect || '¡Intenta otra vez! 💪',
+        audio_pregunta: q.audio_pregunta !== false,
+        audio_retroalimentacion: q.audio_retroalimentacion !== false,
+        video_url: q.video_url || '',
+        imagen_url: q.imagen_url || q.image_url || '',
+        imagen_opciones: q.imagen_opciones || q.image_options || ['🅰️', '🅱️', '🅲️', '🅳️'],
+        tiempo_limite: q.tiempo_limite || q.timeLimit || 0
       }));
-    }
-  }, [resource]);
 
-  // LEER PREGUNTA Y OPCIONES AUTOMÁTICAMENTE AL CAMBIAR DE PREGUNTA
-  useEffect(() => {
-    if (quizState.questions.length > 0) {
-      const question = quizState.questions[quizState.currentQuestionIndex];
-      if (question) {
-        // Esperar un momento para que se renderice la pregunta
-        setTimeout(() => {
-          speakQuestionWithOptions();
-        }, 500);
-
-        // Reiniciar temporizador de inactividad
-        resetInactivityTimer();
-      }
+      setQuestions(formattedQuestions);
     }
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-      }
+      isMountedRef.current = false;
+      if (repeatIntervalRef.current) clearInterval(repeatIntervalRef.current);
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
     };
-  }, [quizState.currentQuestionIndex, quizState.questions]);
+  }, [resource]);
 
-  // Configurar temporizador de inactividad
-  const resetInactivityTimer = () => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
+  // Función de voz mejorada con cola
+  const speakText = (text) => {
+    if (!soundEnabled || !text || !("speechSynthesis" in window)) return;
+    if (!isMountedRef.current) return;
+
+    audioQueueRef.current.push(text);
+
+    if (isPlayingRef.current) return;
+    processAudioQueue();
+  };
+
+  const processAudioQueue = () => {
+    if (!isMountedRef.current) {
+      audioQueueRef.current = [];
+      isPlayingRef.current = false;
+      return;
     }
 
-    inactivityTimerRef.current = setTimeout(() => {
-      // Si pasan más de 15 segundos sin actividad, repetir pregunta
-      const currentTime = Date.now();
-      const timeSinceLastActivity = currentTime - quizState.lastActivityTime;
+    if (audioQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      return;
+    }
 
-      if (timeSinceLastActivity > 15000) {
-        speakQuestionWithOptions();
-        setQuizState(prev => ({ ...prev, lastActivityTime: Date.now() }));
-      }
-    }, 15000); // 15 segundos
-  };
+    isPlayingRef.current = true;
+    const text = audioQueueRef.current.shift();
 
-  // Actualizar actividad del usuario
-  const updateActivity = () => {
-    setQuizState(prev => ({ ...prev, lastActivityTime: Date.now() }));
-    resetInactivityTimer();
-  };
-
-  // Función para leer pregunta con opciones
-  const speakQuestionWithOptions = () => {
-    const question = quizState.questions[quizState.currentQuestionIndex];
-    if (!question) return;
-
-    let fullText = `La pregunta es: ${question.pregunta}. `;
-    fullText += `Las opciones son: `;
-
-    question.opciones.forEach((opcion, idx) => {
-      fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-    });
-
-    speakText(fullText);
-  };
-
-  // Función de voz mejorada en español
-  const speakText = (text) => {
-    if (!quizState.soundEnabled || !("speechSynthesis" in window)) return;
-
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-
-    // 🎧 Configuración ideal para niños
-    utterance.lang = "es-MX";   // Español latino
-    utterance.rate = 0.8;       // Más lento = más comprensible
-    utterance.pitch = 1.25;     // Más agudo = voz amigable
+    utterance.lang = "es-MX";
+    utterance.rate = 0.85;
+    utterance.pitch = 1.2;
     utterance.volume = 1;
 
     const loadVoicesAndSpeak = () => {
       const voices = window.speechSynthesis.getVoices();
-
-      // 🌎 Prioridad: voz femenina latina
-      const preferredVoice =
-        voices.find(v =>
-          v.lang === "es-MX" &&
-          (
-            v.name.toLowerCase().includes("google") ||
-            v.name.toLowerCase().includes("female") ||
-            v.name.toLowerCase().includes("paulina") ||
-            v.name.toLowerCase().includes("luciana")
-          )
-        ) ||
+      const preferredVoice = voices.find(v => v.lang === "es-MX" &&
+        (v.name.toLowerCase().includes("google") ||
+          v.name.toLowerCase().includes("female") ||
+          v.name.toLowerCase().includes("paulina"))) ||
         voices.find(v => v.lang.startsWith("es")) ||
         voices[0];
 
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
-
+      if (preferredVoice) utterance.voice = preferredVoice;
       window.speechSynthesis.speak(utterance);
     };
 
-    // 🛠 Fix: esperar a que las voces carguen
     if (speechSynthesis.getVoices().length === 0) {
       speechSynthesis.onvoiceschanged = loadVoicesAndSpeak;
     } else {
       loadVoicesAndSpeak();
     }
+
+    utterance.onend = () => {
+      setTimeout(() => processAudioQueue(), 200);
+    };
+
+    utterance.onerror = () => {
+      processAudioQueue();
+    };
   };
+
+  // Efecto de audio automático al cambiar de pregunta
+  useEffect(() => {
+    if (questions.length === 0 || !isMountedRef.current) return;
+
+    const question = questions[currentQuestionIndex];
+    if (!question) return;
+
+    const answer = answers[currentQuestionIndex];
+    const attempts = attemptCount[currentQuestionIndex] || 0;
+
+    timeoutIdsRef.current.forEach(id => clearTimeout(id));
+    if (repeatIntervalRef.current) clearInterval(repeatIntervalRef.current);
+    timeoutIdsRef.current = [];
+
+    if (answer?.isCorrect || attempts >= 3) return;
+
+    const timeout1 = setTimeout(() => {
+      if (isMountedRef.current) speakText("Responde la pregunta");
+    }, 300);
+    timeoutIdsRef.current.push(timeout1);
+
+    const timeout2 = setTimeout(() => {
+      if (isMountedRef.current && question.pregunta) speakText(question.pregunta);
+    }, 2000);
+    timeoutIdsRef.current.push(timeout2);
+
+    const timeout3 = setTimeout(() => {
+      if (isMountedRef.current && question.opciones) {
+        let opcionesTexto = "Las opciones son: ";
+        question.opciones.forEach((opcion, idx) => {
+          if (opcion) opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+        });
+        speakText(opcionesTexto);
+      }
+    }, 4000);
+    timeoutIdsRef.current.push(timeout3);
+
+    setShowTimer(true);
+    setTimeLeft(15);
+
+    const timerInterval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    timeoutIdsRef.current.push(timerInterval);
+
+    const repeatTimeout = setTimeout(() => {
+      if (!isMountedRef.current) return;
+
+      repeatIntervalRef.current = setInterval(() => {
+        const currentAnswer = answers[currentQuestionIndex];
+        const currentAttempts = attemptCount[currentQuestionIndex] || 0;
+
+        if (isMountedRef.current && !currentAnswer?.isCorrect && currentAttempts < 3) {
+          speakText("Recuerda responder la pregunta");
+          setTimeout(() => {
+            if (isMountedRef.current && !currentAnswer?.isCorrect && currentAttempts < 3) {
+              speakText(question.pregunta);
+            }
+          }, 1000);
+          setTimeout(() => {
+            if (isMountedRef.current && !currentAnswer?.isCorrect && currentAttempts < 3 && question.opciones) {
+              let opcionesTexto = "Las opciones son: ";
+              question.opciones.forEach((opcion, idx) => {
+                if (opcion) opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+              });
+              speakText(opcionesTexto);
+            }
+          }, 3000);
+        } else if (!isMountedRef.current || currentAnswer?.isCorrect || currentAttempts >= 3) {
+          if (repeatIntervalRef.current) clearInterval(repeatIntervalRef.current);
+        }
+      }, 15000);
+    }, 12000);
+    timeoutIdsRef.current.push(repeatTimeout);
+
+    return () => {
+      timeoutIdsRef.current.forEach(id => clearTimeout(id));
+      if (repeatIntervalRef.current) clearInterval(repeatIntervalRef.current);
+    };
+  }, [currentQuestionIndex, questions, answers, attemptCount]);
 
   // Repetir pregunta con opciones
   const repeatQuestionWithOptions = () => {
-    updateActivity();
-    speakQuestionWithOptions();
+    const question = questions[currentQuestionIndex];
+    if (!question) return;
+    let fullText = `La pregunta es: ${question.pregunta}. Las opciones son: `;
+    question.opciones.forEach((opcion, idx) => {
+      if (opcion) fullText += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+    });
+    speakText(fullText);
+
+    setShowTimer(true);
+    setTimeLeft(15);
   };
 
   // Manejar selección de respuesta
   const handleAnswerSelection = (selectedIdx) => {
-    updateActivity();
-
-    const { currentQuestionIndex, questions, answers, attemptCount } = quizState;
     const question = questions[currentQuestionIndex];
+    if (!question) return;
 
-    if (!question || answers[currentQuestionIndex]?.isCorrect) return;
-
-    const attempts = attemptCount[currentQuestionIndex] || 0;
+    const currentAnswer = answers[currentQuestionIndex];
+    const currentAttempts = attemptCount[currentQuestionIndex] || 0;
     const maxAttempts = 3;
 
-    if (attempts >= maxAttempts) return;
+    if (currentAnswer?.isCorrect || currentAttempts >= maxAttempts) return;
 
     const isCorrect = selectedIdx === question.respuesta_correcta;
-    const newAttempts = attempts + 1;
+    const newAttempts = currentAttempts + 1;
 
-    // 1. Repetir la palabra seleccionada
     speakText(question.opciones[selectedIdx]);
 
-    // 2. Actualizar intentos
-    setQuizState(prev => ({
-      ...prev,
-      attemptCount: {
-        ...prev.attemptCount,
-        [currentQuestionIndex]: newAttempts
-      }
-    }));
+    setAttemptCount(prev => ({ ...prev, [currentQuestionIndex]: newAttempts }));
 
-    // 3. Guardar respuesta
     const newAnswer = {
       selected: selectedIdx,
-      isCorrect,
+      isCorrect: isCorrect,
       attempts: newAttempts,
       showCorrect: newAttempts >= maxAttempts && !isCorrect
     };
 
-    setQuizState(prev => ({
-      ...prev,
-      answers: {
-        ...prev.answers,
-        [currentQuestionIndex]: newAnswer
-      },
-      selectedOption: selectedIdx
-    }));
+    setAnswers(prev => ({ ...prev, [currentQuestionIndex]: newAnswer }));
+    setSelectedOption(selectedIdx);
+    setShowTimer(false);
 
-    // 4. Dar retroalimentación inmediata
     setTimeout(() => {
       if (isCorrect) {
         speakText("¡Correcto! " + question.retroalimentacion_correcta);
-
         setTimeout(() => {
-          speakText(
-            `La pregunta era: ${question.pregunta}. ` +
-            `La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`
-          );
+          speakText(`La pregunta era: ${question.pregunta}. La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`);
         }, 1500);
       } else if (newAttempts >= maxAttempts) {
-        speakText(
-          `Lo siento, te has equivocado ${maxAttempts} veces. ` +
-          `La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`
-        );
+        speakText(`Lo siento, te has equivocado ${maxAttempts} veces. La respuesta correcta es: ${question.opciones[question.respuesta_correcta]}`);
       } else {
         const remaining = maxAttempts - newAttempts;
         speakText(`Incorrecto. Te quedan ${remaining} intentos. Intenta de nuevo.`);
@@ -531,103 +562,64 @@ const StudentQuizView = ({
     }, 1000);
   };
 
-  // Determinar estado de Karin
-  const getKarinState = () => {
-    const { currentQuestionIndex, answers, attemptCount } = quizState;
-    const answer = answers[currentQuestionIndex];
-    const attempts = attemptCount[currentQuestionIndex] || 0;
-    const maxAttempts = 3;
-
-    if (answer?.isCorrect) {
-      return {
-        state: "happy",
-        message: "¡Excelente! Respuesta correcta 🎉"
-      };
-    }
-
-    if (answer && !answer.isCorrect && attempts >= maxAttempts) {
-      return {
-        state: "encourage",
-        message: "No te preocupes, sigamos aprendiendo 💚"
-      };
-    }
-
-    if (attempts > 0 && attempts < maxAttempts) {
-      const remaining = maxAttempts - attempts;
-      return {
-        state: "thinking",
-        message: `Te quedan ${remaining} intentos. ¡Tú puedes! 💪`
-      };
-    }
-
-    return {
-      state: "idle",
-      message: "Escucha la pregunta y elige la respuesta correcta"
-    };
-  };
-
   // Navegar a siguiente pregunta
   const goToNextQuestion = () => {
-    updateActivity();
-    const { currentQuestionIndex, questions } = quizState;
-
+    setShowTimer(false);
     if (currentQuestionIndex < questions.length - 1) {
-      setQuizState(prev => ({
-        ...prev,
-        currentQuestionIndex: prev.currentQuestionIndex + 1,
-        selectedOption: null
-      }));
+      setCurrentQuestionIndex(prev => prev + 1);
+      setSelectedOption(null);
     } else {
-      // Calcular resultados finales
-      const { answers, questions } = quizState;
       const correct = Object.values(answers).filter(a => a?.isCorrect).length;
       const totalQuestions = questions.length;
       const score = Math.round((correct / totalQuestions) * 100);
 
-      const results = {
+      const resultsData = {
         correct,
         total: totalQuestions,
         percentage: score,
         points: questions.reduce((sum, q, idx) => {
-          if (answers[idx]?.isCorrect) {
-            return sum + (q.puntos || 10);
-          }
+          if (answers[idx]?.isCorrect) return sum + (q.puntos || 10);
           return sum;
         }, 0),
         passed: score >= 60
       };
 
-      setQuizState(prev => ({ ...prev, results }));
-
-      // Guardar progreso
-      if (onComplete) {
-        onComplete(results);
-      }
+      setResults(resultsData);
+      if (onComplete) onComplete(resultsData);
     }
   };
 
   // Reiniciar quiz
   const restartQuiz = () => {
-    updateActivity();
-    setQuizState(prev => ({
-      ...prev,
-      currentQuestionIndex: 0,
-      answers: {},
-      attemptCount: {},
-      selectedOption: null,
-      results: null,
-      lastActivityTime: Date.now()
-    }));
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setAttemptCount({});
+    setSelectedOption(null);
+    setResults(null);
+    setShowTimer(false);
   };
 
-  const {
-    questions,
-    currentQuestionIndex,
-    answers,
-    attemptCount,
-    selectedOption,
-    results
-  } = quizState;
+  const currentQuestion = questions[currentQuestionIndex];
+  const answer = answers[currentQuestionIndex];
+  const attempts = attemptCount[currentQuestionIndex] || 0;
+  const maxAttempts = 3;
+
+  // Estado de Karin mejorado
+  const getKarinState = () => {
+    if (answer?.isCorrect) {
+      return { state: "happy", message: "¡Excelente! Respuesta correcta 🎉", emoji: "😊🎉", bgColor: "from-green-400 to-emerald-500" };
+    }
+    if (answer && !answer.isCorrect && attempts >= maxAttempts) {
+      return { state: "encourage", message: "No te preocupes, sigamos aprendiendo juntos 💚", emoji: "💪📚", bgColor: "from-blue-400 to-cyan-500" };
+    }
+    if (attempts > 0 && attempts < maxAttempts) {
+      const remaining = maxAttempts - attempts;
+      return { state: "thinking", message: `Te quedan ${remaining} intento${remaining !== 1 ? 's' : ''}. ¡Tú puedes! 💪`, emoji: "🤔✨", bgColor: "from-yellow-400 to-orange-500" };
+    }
+    return { state: "idle", message: "¡Hola! Escucha la pregunta y elige la respuesta correcta", emoji: "🐢💚", bgColor: "from-emerald-400 to-teal-500" };
+  };
+
+  const karin = getKarinState();
 
   if (!questions.length) {
     return (
@@ -636,354 +628,230 @@ const StudentQuizView = ({
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">No hay preguntas</h3>
           <p className="text-gray-600 mb-4">Este quiz no tiene preguntas disponibles</p>
-          <button
-            onClick={onClose}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all"
-          >
-            Cerrar
-          </button>
+          <button onClick={onClose} className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-bold transition-all">Cerrar</button>
         </div>
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const answer = answers[currentQuestionIndex];
-  const attempts = attemptCount[currentQuestionIndex] || 0;
-  const maxAttempts = 3;
-  const karin = getKarinState();
+  if (results) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-fadeIn">
+          <div className={`bg-gradient-to-r ${results.passed ? 'from-green-500 to-emerald-500' : 'from-orange-500 to-red-500'} text-white p-6`}>
+            <h2 className="text-2xl font-black text-center">🎉 QUIZ COMPLETADO 🎉</h2>
+          </div>
+          <div className="p-8 text-center">
+            <div className={`w-32 h-32 rounded-full mx-auto flex items-center justify-center text-6xl mb-6 shadow-lg ${results.passed ? 'bg-green-100' : 'bg-orange-100'}`}>
+              {results.passed ? '🏆' : '💪'}
+            </div>
+            <h3 className="text-3xl font-black text-gray-800 mb-2">{results.passed ? '¡FELICITACIONES!' : '¡SIGUE PRACTICANDO!'}</h3>
+            <p className="text-gray-600 mb-6">{results.passed ? 'Has completado el quiz exitosamente' : 'Necesitas al menos 60% para aprobar. ¡Sigue aprendiendo!'}</p>
+
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
+                <p className="text-xs text-gray-600">Correctas</p>
+                <p className="text-3xl font-black text-blue-600">{results.correct}/{results.total}</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4 border-2 border-purple-200">
+                <p className="text-xs text-gray-600">Puntuación</p>
+                <p className="text-3xl font-black text-purple-600">{results.percentage}%</p>
+              </div>
+              <div className="bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
+                <p className="text-xs text-gray-600">Puntos</p>
+                <p className="text-3xl font-black text-yellow-600">{results.points}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button onClick={restartQuiz} className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white py-3 rounded-xl font-bold transition transform hover:scale-105">
+                <RefreshCw className="inline w-5 h-5 mr-2" /> Reintentar
+              </button>
+              <button onClick={onClose} className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-3 rounded-xl font-bold transition transform hover:scale-105">
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-2 md:p-4">
-      <div className="bg-white rounded-3xl max-w-6xl w-full h-[95vh] max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-2 md:p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
         {/* HEADER */}
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 md:p-6">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 md:p-5">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl md:text-2xl font-black flex items-center gap-2">
-                👁️ Quiz: {resource?.titulo || 'Quiz Interactivo'}
+                <Sparkles className="w-6 h-6" />
+                {resource?.titulo || 'Quiz Interactivo'}
               </h2>
-              <p className="text-blue-100 text-xs md:text-sm mt-1">
-                Responde correctamente para ganar puntos
-              </p>
+              <p className="text-blue-100 text-xs md:text-sm mt-1">Responde correctamente para ganar puntos</p>
             </div>
-            <button
-              onClick={onClose}
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 md:p-3 rounded-xl transition-all"
-            >
-              <X className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
+            <div className="flex items-center gap-3">
+              {showTimer && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+                  <span className="font-bold text-lg">⏱️ {timeLeft}s</span>
+                </div>
+              )}
+              <button onClick={onClose} className="bg-white/20 hover:bg-white/30 p-2 md:p-3 rounded-xl transition-all">
+                <X className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* CONTENIDO DEL QUIZ - DISEÑO COMPACTO */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          {results ? (
-            /* RESULTADOS FINALES */
-            <div className="text-center space-y-6 md:space-y-8 p-4 md:p-8 h-full flex flex-col justify-center">
-              <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full mx-auto flex items-center justify-center text-4xl md:text-6xl ${results.passed
-                ? 'bg-gradient-to-r from-green-400 to-emerald-500'
-                : 'bg-gradient-to-r from-orange-400 to-red-500'
-                } text-white shadow-2xl`}>
-                {results.passed ? '🏆' : '💪'}
-              </div>
+        {/* CONTENIDO DEL QUIZ */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+          <div className="max-w-4xl mx-auto">
 
-              <div>
-                <h3 className="text-2xl md:text-4xl font-black text-gray-800 mb-2 md:mb-3">
-                  {results.passed ? '¡FELICITACIONES!' : '¡SIGUE PRACTICANDO!'}
-                </h3>
-                <p className="text-base md:text-xl text-gray-600 max-w-2xl mx-auto">
-                  {results.passed
-                    ? 'Has completado el quiz exitosamente'
-                    : 'Necesitas al menos 60% para aprobar. ¡Sigue aprendiendo!'
-                  }
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-w-3xl mx-auto">
-                <div className="bg-blue-50 rounded-xl md:rounded-2xl p-4 md:p-6 border-2 md:border-4 border-blue-200">
-                  <p className="text-xs md:text-sm text-gray-600 mb-2">RESPUESTAS CORRECTAS</p>
-                  <p className="text-3xl md:text-5xl font-black text-blue-600">
-                    {results.correct}/{results.total}
-                  </p>
+            {/* ============================================ */}
+            {/* KARIN MASCOTA - SOLO TORTUGA SIN CORAZÓN */}
+            {/* ============================================ */}
+            <div className="mb-6">
+              <div className={`bg-gradient-to-r ${karin.bgColor} rounded-2xl p-5 shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]`}>
+                <div className="flex items-center gap-5">
+                  <div>
+                    {/* Tortuga principal con animación suave */}
+                    <div className="w-24 h-24 md:w-28 md:h-28 bg-white/30 rounded-2xl flex items-center justify-center text-6xl md:text-7xl shadow-lg backdrop-blur-sm transition-all duration-700 hover:scale-105 animate-soft-bounce">
+                      {karin.emoji || '🐢'}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {/* Tortuguita pequeña con movimiento sutil */}
+                      <span className="text-2xl inline-block animate-soft-wave">
+                        🐢
+                      </span>
+                      <h3 className="font-black text-white text-lg md:text-xl">Karin</h3>
+                    </div>
+                    <p className="text-white text-sm md:text-base font-medium leading-relaxed">
+                      {karin.message}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-purple-50 rounded-xl md:rounded-2xl p-4 md:p-6 border-2 md:border-4 border-purple-200">
-                  <p className="text-xs md:text-sm text-gray-600 mb-2">PUNTUACIÓN</p>
-                  <p className="text-3xl md:text-5xl font-black text-purple-600">
-                    {results.percentage}%
-                  </p>
-                </div>
-                <div className="bg-yellow-50 rounded-xl md:rounded-2xl p-4 md:p-6 border-2 md:border-4 border-yellow-200">
-                  <p className="text-xs md:text-sm text-gray-600 mb-2">PUNTOS GANADOS</p>
-                  <p className="text-3xl md:text-5xl font-black text-yellow-600">
-                    {results.points}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 max-w-xl mx-auto">
-                <button
-                  onClick={restartQuiz}
-                  className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white py-3 md:py-4 rounded-xl md:rounded-2xl text-base md:text-xl font-bold transition transform hover:scale-105"
-                >
-                  <RefreshCw className="inline w-4 h-4 md:w-6 md:h-6 mr-2" />
-                  Reintentar Quiz
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-3 md:py-4 rounded-xl md:rounded-2xl text-base md:text-xl font-bold transition transform hover:scale-105"
-                >
-                  Salir
-                </button>
               </div>
             </div>
-          ) : (
-            /* QUIZ EN PROCESO - DISEÑO COMPACTO */
-            <div className="bg-[#F7F9FC] rounded-2xl md:rounded-3xl p-3 md:p-4 h-full flex flex-col">
-              {/* KARIN + PROGRESO */}
-              <div className="flex justify-between items-start mb-3 md:mb-4">
-                <div className="flex-1 min-w-0 mr-2">
-                  <KarinMascot state={karin.state} message={karin.message} />
-                </div>
-                <div className="bg-white rounded-full px-3 py-1 md:px-4 md:py-2 shadow-sm border-2 text-sm md:text-base font-bold whitespace-nowrap">
-                  {currentQuestionIndex + 1} / {questions.length}
-                </div>
-              </div>
 
-              {/* BARRA DE PROGRESO */}
-              <div className="flex gap-1 md:gap-2 mb-3 md:mb-4">
+            {/* BARRA DE PROGRESO */}
+            <div className="mb-5">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span className="font-bold">Progreso</span>
+                <span className="font-bold bg-white px-3 py-1 rounded-full shadow-sm">{currentQuestionIndex + 1} / {questions.length}</span>
+              </div>
+              <div className="flex gap-1.5">
                 {questions.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex-1 h-2 rounded-full transition-all ${idx === currentQuestionIndex
-                      ? 'bg-blue-500'
-                      : idx < currentQuestionIndex
-                        ? 'bg-green-400'
-                        : 'bg-gray-200'
-                      }`}
-                  />
+                  <div key={idx} className={`flex-1 h-3 rounded-full transition-all duration-500 ${idx === currentQuestionIndex ? 'bg-blue-500 shadow-md' : idx < currentQuestionIndex ? 'bg-green-400' : 'bg-gray-200'}`} />
                 ))}
               </div>
+            </div>
 
-              {/* CONTADOR DE INTENTOS */}
-              {attempts > 0 && (
-                <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg p-2 md:p-3 mb-3 md:mb-4 text-center">
-                  <p className="text-sm md:text-base font-black text-yellow-800">
-                    🎯 INTENTOS: {attempts} / {maxAttempts}
-                  </p>
-                  <div className="flex gap-1 md:gap-2 justify-center mt-1 md:mt-2">
-                    {[...Array(maxAttempts)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center ${i < attempts
-                          ? answer?.isCorrect ? 'bg-green-400' : 'bg-red-400'
-                          : 'bg-gray-300'
-                          }`}
-                      >
-                        {i < attempts ? (answer?.isCorrect ? '✓' : '✗') : i + 1}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* PREGUNTA - MUY COMPACTA */}
-              <div className="bg-white rounded-xl shadow p-3 md:p-4 mb-3 md:mb-4 border border-blue-100 flex-shrink-0">
-                <div className="flex flex-col items-center justify-center gap-1 md:gap-2">
-                  {currentQuestion.imagen_url && (
-                    <div className="text-2xl md:text-3xl flex-shrink-0 mb-1">
-                      {currentQuestion.imagen_url}
+            {/* CONTADOR DE INTENTOS */}
+            {attempts > 0 && (
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-3 mb-5 text-center shadow-sm">
+                <p className="text-sm font-black text-yellow-800">🎯 INTENTOS: {attempts} / {maxAttempts}</p>
+                <div className="flex gap-2 justify-center mt-2">
+                  {[...Array(maxAttempts)].map((_, i) => (
+                    <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${i < attempts ? (answer?.isCorrect ? 'bg-green-400 text-white' : 'bg-red-400 text-white') : 'bg-gray-200 text-gray-500'}`}>
+                      {i < attempts ? (answer?.isCorrect ? '✓' : '✗') : i + 1}
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PREGUNTA */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 mb-5 border-2 border-blue-100">
+              <div className="text-center">
+                {currentQuestion.imagen_url && (
+                  <div className="mb-4">
+                    <div className="inline-block bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-6 shadow-md">
+                      <span className="text-7xl md:text-8xl drop-shadow-lg">{currentQuestion.imagen_url}</span>
+                    </div>
+                  </div>
+                )}
+                <p className="text-xl md:text-2xl font-black text-gray-800 mb-4 leading-relaxed">
+                  {currentQuestion.pregunta}
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                  {currentQuestion.audio_pregunta && (
+                    <button onClick={() => speakText(currentQuestion.pregunta)} className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-md transition-all">
+                      <Volume2 className="w-5 h-5" /> Escuchar Pregunta
+                    </button>
                   )}
-                  <p className="text-base md:text-lg font-bold text-gray-800 text-center mb-2">
-                    {currentQuestion.pregunta}
-                  </p>
-                  <div className="flex items-center justify-center gap-2">
-                    {currentQuestion.audio_pregunta && (
-                      <button
-                        onClick={() => {
-                          updateActivity();
-                          speakText(currentQuestion.pregunta);
-                        }}
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-full shadow transition-all"
-                      >
-                        <Volume2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={repeatQuestionWithOptions}
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-lg font-medium flex items-center gap-1 transition-all text-xs"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Repetir
-                    </button>
-                  </div>
+                  <button onClick={repeatQuestionWithOptions} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-md transition-all">
+                    <RefreshCw className="w-5 h-5" /> Repetir Todo
+                  </button>
                 </div>
-              </div>
-
-              {/* OPCIONES - COMPACTAS Y VISIBLES */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 flex-1 overflow-y-auto">
-                {currentQuestion.opciones.map((opcion, idx) => {
-                  const isSelected = selectedOption === idx;
-                  const isCorrectOption = idx === currentQuestion.respuesta_correcta;
-                  const showAsCorrect = answer?.showCorrect && isCorrectOption;
-                  const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
-                  const emojiOpcion = currentQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`relative p-3 md:p-4 rounded-lg border-2 transition-all flex items-center gap-2 md:gap-3 ${showAsCorrect
-                        ? 'bg-green-50 border-green-400'
-                        : isDisabled && answer?.isCorrect && isSelected
-                          ? 'bg-green-100 border-green-500'
-                          : isDisabled && !isCorrectOption
-                            ? 'bg-gray-100 border-gray-300 opacity-50'
-                            : isSelected && !answer?.isCorrect
-                              ? 'bg-red-100 border-red-400'
-                              : 'bg-white border-gray-300 hover:bg-blue-50 hover:border-blue-400'
-                        }`}
-                    >
-                      {/* CONTENIDO DE LA OPCIÓN */}
-                      <div
-                        className="flex-1 flex items-center gap-2 md:gap-3 cursor-pointer"
-                        onClick={() => !isDisabled && handleAnswerSelection(idx)}
-                      >
-                        <span className="text-xl md:text-2xl flex-shrink-0">
-                          {emojiOpcion}
-                        </span>
-                        <span className="flex-1 text-sm md:text-base">{opcion}</span>
-                      </div>
-
-                      {/* BOTÓN REPETIR PALABRA */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateActivity();
-                          speakText(opcion);
-                        }}
-                        className="bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white p-1.5 rounded-full shadow transition-all flex-shrink-0"
-                        title="Repetir palabra"
-                      >
-                        <Volume2 className="w-3 h-3" />
-                      </button>
-
-                      {/* INDICADORES DE RESPUESTA */}
-                      {showAsCorrect && (
-                        <span className="text-lg md:text-xl animate-bounce flex-shrink-0 ml-1">
-                          ✅
-                        </span>
-                      )}
-                      {isSelected && answer?.isCorrect && (
-                        <span className="text-lg md:text-xl animate-bounce flex-shrink-0 ml-1">
-                          🎉
-                        </span>
-                      )}
-                      {isSelected && !answer?.isCorrect && (
-                        <span className="text-lg md:text-xl flex-shrink-0 ml-1">
-                          ❌
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* RETROALIMENTACIÓN Y NAVEGACIÓN */}
-              <div className="mt-3 md:mt-4 space-y-3">
-                {answer && (
-                  <div className="space-y-3 animate-fadeIn">
-                    <div className={`rounded-lg p-3 md:p-4 text-center border-2 ${answer.isCorrect
-                      ? "bg-green-50 border-green-400"
-                      : attempts >= maxAttempts
-                        ? "bg-orange-50 border-orange-400"
-                        : "bg-red-50 border-red-400"
-                      }`}>
-                      <p className="text-xl md:text-2xl font-black mb-1 md:mb-2">
-                        {answer.isCorrect ? "🎉" : attempts >= maxAttempts ? "💡" : "💪"}
-                      </p>
-                      <p className="text-sm md:text-base font-bold text-gray-800 mb-1">
-                        {answer.isCorrect
-                          ? "¡CORRECTO!"
-                          : attempts >= maxAttempts
-                            ? "VAMOS A APRENDER"
-                            : "¡INTENTA DE NUEVO!"}
-                      </p>
-                      <p className="text-xs md:text-sm text-gray-700">
-                        {answer.isCorrect
-                          ? currentQuestion.retroalimentacion_correcta
-                          : attempts >= maxAttempts
-                            ? `La respuesta correcta es: ${currentQuestion.opciones[currentQuestion.respuesta_correcta]}`
-                            : `Te quedan ${maxAttempts - attempts} intentos.`}
-                      </p>
-                    </div>
-
-                    {/* BOTÓN SIGUIENTE */}
-                    <button
-                      onClick={goToNextQuestion}
-                      className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 md:py-3 rounded-lg text-base md:text-lg font-bold transition flex items-center justify-center gap-2 shadow"
-                    >
-                      {currentQuestionIndex === questions.length - 1 ? (
-                        <>
-                          <Trophy className="w-4 h-4" />
-                          FINALIZAR QUIZ
-                        </>
-                      ) : (
-                        <>
-                          SIGUIENTE
-                          <ChevronRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {/* NAVEGACIÓN - COMPACTA */}
-                {!answer && (
-                  <div className="flex justify-between gap-2">
-                    <button
-                      disabled={currentQuestionIndex === 0}
-                      onClick={() => {
-                        updateActivity();
-                        setQuizState(prev => ({
-                          ...prev,
-                          currentQuestionIndex: Math.max(0, prev.currentQuestionIndex - 1),
-                          selectedOption: null
-                        }));
-                      }}
-                      className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium text-xs disabled:opacity-40 transition-all"
-                    >
-                      ← Anterior
-                    </button>
-
-                    <button
-                      disabled={currentQuestionIndex === questions.length - 1}
-                      onClick={() => {
-                        updateActivity();
-                        setQuizState(prev => ({
-                          ...prev,
-                          currentQuestionIndex: Math.min(questions.length - 1, prev.currentQuestionIndex + 1),
-                          selectedOption: null
-                        }));
-                      }}
-                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-xs disabled:opacity-40 transition-all"
-                    >
-                      Saltar →
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
-          )}
+
+            {/* OPCIONES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {currentQuestion.opciones.map((opcion, idx) => {
+                const isSelected = selectedOption === idx;
+                const isCorrectOption = idx === currentQuestion.respuesta_correcta;
+                const showAsCorrect = answer?.showCorrect && isCorrectOption;
+                const isDisabled = answer?.isCorrect || attempts >= maxAttempts;
+                const emojiOpcion = currentQuestion.imagen_opciones?.[idx] || ['🅰️', '🅱️', '🅲️', '🅳️'][idx];
+                const letra = String.fromCharCode(65 + idx);
+
+                return (
+                  <div key={idx} className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${showAsCorrect ? 'bg-green-50 border-green-400 shadow-md' : isDisabled && answer?.isCorrect && isSelected ? 'bg-green-100 border-green-500' : isDisabled && !isCorrectOption ? 'bg-gray-100 border-gray-300 opacity-60' : isSelected && !answer?.isCorrect ? 'bg-red-100 border-red-400' : 'bg-white border-gray-200 hover:border-blue-400 hover:shadow-md hover:bg-blue-50'}`}>
+                    <div className="flex items-center gap-4 cursor-pointer" onClick={() => !isDisabled && handleAnswerSelection(idx)}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-black shadow-sm ${isSelected && answer?.isCorrect ? 'bg-green-500 text-white' : isSelected && !answer?.isCorrect ? 'bg-red-500 text-white' : showAsCorrect ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                        {emojiOpcion}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`font-black text-sm ${showAsCorrect ? 'text-green-600' : isSelected && !answer?.isCorrect ? 'text-red-600' : 'text-gray-500'}`}>{letra})</span>
+                          <span className="font-medium text-gray-800">{opcion}</span>
+                        </div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); speakText(opcion); }} className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-full transition-all" title="Escuchar opción">
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                      {showAsCorrect && <span className="text-2xl animate-bounce">✅</span>}
+                      {isSelected && answer?.isCorrect && <span className="text-2xl animate-bounce">🎉</span>}
+                      {isSelected && !answer?.isCorrect && <span className="text-2xl">❌</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* RETROALIMENTACIÓN */}
+            {answer && (
+              <div className="space-y-4 animate-fadeIn">
+                <div className={`rounded-xl p-5 text-center border-2 shadow-lg ${answer.isCorrect ? "bg-green-50 border-green-400" : attempts >= maxAttempts ? "bg-orange-50 border-orange-400" : "bg-red-50 border-red-400"}`}>
+                  <div className="text-4xl mb-2">{answer.isCorrect ? "🎉✨" : attempts >= maxAttempts ? "💡📚" : "💪🌟"}</div>
+                  <p className="text-xl font-black mb-2">{answer.isCorrect ? "¡CORRECTO!" : attempts >= maxAttempts ? "VAMOS A APRENDER" : "¡INTENTA DE NUEVO!"}</p>
+                  <p className="text-gray-700">{answer.isCorrect ? currentQuestion.retroalimentacion_correcta : attempts >= maxAttempts ? `La respuesta correcta es: ${currentQuestion.opciones[currentQuestion.respuesta_correcta]}` : `Te quedan ${maxAttempts - attempts} intentos. ¡Sigue intentando!`}</p>
+                </div>
+                <button onClick={goToNextQuestion} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 rounded-xl text-lg font-bold transition transform hover:scale-[1.02] flex items-center justify-center gap-3 shadow-lg">
+                  {currentQuestionIndex === questions.length - 1 ? <><Trophy className="w-6 h-6" /> FINALIZAR QUIZ</> : <><ChevronRight className="w-6 h-6" /> SIGUIENTE PREGUNTA</>}
+                </button>
+              </div>
+            )}
+
+            {/* NAVEGACIÓN RÁPIDA */}
+            {!answer && (
+              <div className="flex justify-between gap-3 mt-4">
+                <button disabled={currentQuestionIndex === 0} onClick={() => { setCurrentQuestionIndex(prev => Math.max(0, prev - 1)); setSelectedOption(null); setShowTimer(false); }} className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-semibold disabled:opacity-40 transition-all">← Anterior</button>
+                <button disabled={currentQuestionIndex === questions.length - 1} onClick={() => { setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1)); setSelectedOption(null); setShowTimer(false); }} className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold disabled:opacity-40 transition-all">Saltar →</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// ========================================
-// 📚 COMPONENTES AUXILIARES
-// ========================================
+// COMPONENTES AUXILIARES
+
 const AchievementCard = ({ achievement, unlocked }) => (
   <div className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all ${unlocked ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50' : 'border-gray-200 opacity-60'
     }`}>

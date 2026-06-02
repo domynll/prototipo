@@ -513,6 +513,10 @@ export default function EnhancedAdminPanel() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [mascotAnimation, setMascotAnimation] = useState('idle');
 
+  const [inactivityTimer, setInactivityTimer] = useState(null);
+  const [showTimer, setShowTimer] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+
   // Notificaciones tipo Toast
   const [toastMessage, setToastMessage] = useState(null);
   const showToast = (message, type = 'success') => {
@@ -583,6 +587,10 @@ export default function EnhancedAdminPanel() {
   const [quizPreviewAnswers, setQuizPreviewAnswers] = useState({});
   const [attemptCount, setAttemptCount] = useState({}); // Contador de intentos por pregunta
   const [lastAutoRepeat, setLastAutoRepeat] = useState(Date.now()); // Última repetición automática
+  // Estados para control de repetición de audio
+  const [lastRepeatTime, setLastRepeatTime] = useState(0);
+  const [isRepeating, setIsRepeating] = useState(false);
+  const REPEAT_COOLDOWN = 3000; // 3 segundos de espera entre repeticiones
 
   // Estados de filtros de usuarios
   const [filterRole, setFilterRole] = useState("todos");
@@ -829,47 +837,62 @@ export default function EnhancedAdminPanel() {
   const exportReportToExcel = () => {
     if (!courseReportData) return;
 
-    let csvContent = "REPORTE ANALÍTICO DEL CURSO\n";
-    csvContent += `Curso,${courseReportData.course.titulo}\n`;
-    csvContent += `Nivel,${courseReportData.course.nivel}\n`;
-    csvContent += `Fecha,${courseReportData.course.fecha}\n\n`;
+    try {
+      let csvRows = [];
 
-    csvContent += "ESTADÍSTICAS GENERALES\n";
-    csvContent += `Total Estudiantes,${courseReportData.stats.totalStudents}\n`;
-    csvContent += `Progreso Promedio,${courseReportData.stats.avgProgress}%\n`;
-    csvContent += `Recursos Completados,${courseReportData.stats.completedResources}\n`;
-    csvContent += `Tiempo Total,${courseReportData.stats.totalTime} minutos\n\n`;
+      // Título
+      csvRows.push(['"REPORTE DE CURSO"']);
+      csvRows.push([`"Curso: ${courseReportData.course.titulo}"`]);
+      csvRows.push([`"Nivel: ${courseReportData.course.nivel}"`]);
+      csvRows.push([`"Fecha: ${courseReportData.course.fecha}"`]);
+      csvRows.push([]);
 
-    csvContent += "ANÁLISIS POR ESTUDIANTE\n";
-    csvContent +=
-      "Nombre,Email,Grupo,Estado General,Aprendizaje Real,Confianza,Atención,Puntuación,Fortalezas,Áreas Mejora\n";
+      // Estadísticas
+      csvRows.push(['"ESTADÍSTICAS GENERALES"']);
+      csvRows.push([`"Total Estudiantes","${courseReportData.stats.totalStudents}"`]);
+      csvRows.push([`"Progreso Promedio","${courseReportData.stats.avgProgress}%"`]);
+      csvRows.push([`"Recursos Completados","${courseReportData.stats.completedResources}"`]);
+      csvRows.push([`"Tiempo Total","${courseReportData.stats.totalTime} minutos"`]);
+      csvRows.push([]);
 
-    courseReportData.students.forEach((data) => {
-      const { student, feedback, grupo } = data;
-      csvContent += `"${student.nombre}","${student.email}","${grupo}","${feedback.overallStatus
-        }","${feedback.learningEffectiveness?.isLearning ? "Sí" : "No"}",${feedback.learningEffectiveness?.confidence || 0
-        },${feedback.attentionLevel?.level},"${feedback.attentionLevel?.score || 0
-        }","${feedback.strengths.join("; ")}","${feedback.weaknesses.join(
-          "; "
-        )}"\n`;
-    });
+      // Estudiantes
+      csvRows.push(['"ANÁLISIS POR ESTUDIANTE"']);
+      csvRows.push(['"Nombre"', '"Email"', '"Grupo"', '"Estado General"', '"Aprendizaje Real"', '"Confianza"', '"Atención"', '"Puntuación"', '"Fortalezas"', '"Áreas Mejora"']);
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+      courseReportData.students.forEach((data) => {
+        const { student, feedback, grupo } = data;
+        const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
 
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `Reporte_${courseReportData.course.titulo}_${Date.now()}.csv`
-    );
-    link.style.visibility = "hidden";
+        csvRows.push([
+          escape(student.nombre),
+          escape(student.email),
+          escape(grupo),
+          escape(feedback.overallStatus),
+          escape(feedback.learningEffectiveness?.isLearning ? "Sí" : "No"),
+          feedback.learningEffectiveness?.confidence?.toFixed(1) || 0,
+          escape(feedback.attentionLevel?.level || "Sin datos"),
+          feedback.attentionLevel?.score || 0,
+          escape(feedback.strengths?.join("; ") || "N/A"),
+          escape(feedback.weaknesses?.join("; ") || "N/A")
+        ]);
+      });
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Reporte_${courseReportData.course.titulo.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    alert("✅ Reporte exportado a Excel correctamente");
+      alert('✅ Reporte exportado a Excel correctamente');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Error al exportar: ' + error.message);
+    }
   };
 
   // 3. Retroalimentación Avanzada
@@ -1051,7 +1074,7 @@ export default function EnhancedAdminPanel() {
   const contentTypes = [
     {
       id: 'quiz',
-      name: '❓ Quiz Interactivo',
+      name: 'Quiz Interactivo',
       icon: '❓',
       description: 'Preguntas coloridas con emojis y retroalimentación inmediata',
       color: 'from-blue-500 to-cyan-500',
@@ -1061,7 +1084,7 @@ export default function EnhancedAdminPanel() {
     },
     {
       id: 'game',
-      name: '🎮 Juego Educativo',
+      name: 'Juego Educativo',
       icon: '🎮',
       description: 'Juegos interactivos con mecánicas divertidas',
       color: 'from-purple-500 to-pink-500',
@@ -1071,7 +1094,7 @@ export default function EnhancedAdminPanel() {
     },
     {
       id: 'exercise',
-      name: '📝 Ejercicios Prácticos',
+      name: 'Ejercicios Prácticos',
       icon: '📝',
       description: 'Actividades con instrucciones claras y ejemplos visuales',
       color: 'from-green-500 to-emerald-500',
@@ -1081,7 +1104,7 @@ export default function EnhancedAdminPanel() {
     },
     {
       id: 'story',
-      name: '📖 Historia Educativa',
+      name: 'Historia Educativa',
       icon: '📖',
       description: 'Historias coloridas con personajes, diálogos e ilustraciones',
       color: 'from-orange-500 to-yellow-500',
@@ -1091,7 +1114,7 @@ export default function EnhancedAdminPanel() {
     },
     {
       id: 'challenge',
-      name: '⚡ Desafío Semanal',
+      name: 'Desafío Semanal',
       icon: '⚡',
       description: 'Retos emocionantes con recompensas y logros',
       color: 'from-red-500 to-pink-500',
@@ -1556,26 +1579,19 @@ export default function EnhancedAdminPanel() {
                   {normalizedQuestion.audio_pregunta && (
                     <button
                       onClick={() => speakText(normalizedQuestion.pregunta)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition"
+                      className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition shadow-md hover:shadow-lg"
                     >
                       🔊
                     </button>
                   )}
-                  {normalizedQuestion.imagen_url && (
-                    <div className="text-7xl flex-shrink-0">
-                      {normalizedQuestion.imagen_url}
-                    </div>
-                  )}
-                  <p className="text-3xl font-bold text-gray-800 text-center">
+                  <p className="text-3xl font-bold text-gray-800 text-center flex-1">
                     {normalizedQuestion.pregunta}
                   </p>
                 </div>
-
-                {/* BOTÓN REPETIR PREGUNTA CON OPCIONES - CAMBIADO DE MORADO A AZUL */}
                 <div className="mt-6 text-center">
                   <button
-                    onClick={() => repeatQuestionWithOptions()}
-                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto"
+                    onClick={repeatQuestionWithOptions}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto transition-all hover:scale-105"
                   >
                     <RefreshCw className="w-5 h-5" />
                     Repetir Pregunta y Opciones
@@ -2122,7 +2138,7 @@ export default function EnhancedAdminPanel() {
 
       console.log(`✅ Total estudiantes: ${totalStudents}`);
 
-      // 2. Calcular ENGAGEMENT (por días de inactividad)
+      // Calcular ENGAGEMENT (por días de inactividad)
       const hoy = new Date();
       let sumaCompromiso = 0;
 
@@ -2132,11 +2148,12 @@ export default function EnhancedAdminPanel() {
         if (student.ultimo_acceso) {
           const diasInactivo = Math.floor((hoy - new Date(student.ultimo_acceso)) / (1000 * 60 * 60 * 24));
 
-          if (diasInactivo <= 2) compromiso = 100;
-          else if (diasInactivo <= 7) compromiso = 75;
-          else if (diasInactivo <= 14) compromiso = 50;
-          else if (diasInactivo <= 30) compromiso = 25;
-          else compromiso = 0;
+          // ✅ SOLO CAMBIAMOS LOS DÍAS: de 30 días a 120 días (4 meses)
+          if (diasInactivo <= 7) compromiso = 100;      // Activo esta semana
+          else if (diasInactivo <= 30) compromiso = 75;  // Activo este mes
+          else if (diasInactivo <= 60) compromiso = 50;  // 2 meses
+          else if (diasInactivo <= 120) compromiso = 25; // 4 meses ← CAMBIADO de 30 a 120
+          else compromiso = 0;                           // Más de 4 meses
         }
 
         sumaCompromiso += compromiso;
@@ -3137,7 +3154,7 @@ export default function EnhancedAdminPanel() {
       };
     }
   };
-  // Función para generar contenido con IA usando Gemini
+  // Función para generar contenido con IA usando Groq
   const generateContentWithAI = async () => {
     if (!generatorPrompt.trim()) {
       alert("✏️ Escribe qué contenido deseas generar");
@@ -3152,98 +3169,215 @@ export default function EnhancedAdminPanel() {
       if (!selectedType) throw new Error("Tipo de contenido no válido");
 
       const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-      if (!apiKey) throw new Error("❌ API Key de Groq no configurada");
 
-      // ⏱️ Timeout para evitar bloqueos
+      // Si no hay API key, usar modo offline directamente
+      if (!apiKey || apiKey === "") {
+        console.warn("⚠️ API key no configurada, usando modo offline");
+        const mock = generateMockContent(contentType, generatorPrompt);
+        const fallback = {
+          id: Date.now(),
+          type: contentType,
+          prompt: generatorPrompt,
+          title: `${selectedType.name}: ${generatorPrompt.slice(0, 40)} (ejemplo)`,
+          createdAt: new Date().toLocaleString(),
+          content: mock,
+          status: "offline",
+        };
+        setGeneratedContent(fallback);
+        setContentLibrary(prev => [fallback, ...prev]);
+        setGeneratorPrompt("");
+        alert("✅ Contenido generado en modo offline (sin IA)");
+        setGeneratingContent(false);
+        return;
+      }
+
+      // Timeout para evitar bloqueos
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
+      const timeout = setTimeout(() => controller.abort(), 30000);
 
+      // Prompts más específicos para mejor respuesta
       const systemPrompts = {
-        quiz: `Genera un quiz de 5 preguntas sobre "${generatorPrompt}".
-Devuelve SOLO JSON válido.`,
+        quiz: `Eres un experto educativo. Genera un quiz de 5 preguntas para niños de 6-10 años sobre: "${generatorPrompt}".
 
-        game: `Diseña un juego educativo sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
+Responde EXACTAMENTE con este formato JSON, sin texto adicional:
 
-        exercise: `Crea 5 ejercicios sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
+{
+  "questions": [
+    {
+      "text": "pregunta aquí",
+      "options": ["opción A", "opción B", "opción C", "opción D"],
+      "correct": 0,
+      "explanation": "explicación corta"
+    }
+  ]
+}`,
 
-        story: `Escribe una historia educativa sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
+        game: `Diseña un juego educativo simple para niños de 6-10 años sobre: "${generatorPrompt}".
 
-        challenge: `Crea un desafío sobre "${generatorPrompt}". Devuelve SOLO JSON.`,
+Responde EXACTAMENTE con este formato JSON:
+
+{
+  "name": "nombre del juego",
+  "description": "descripción corta",
+  "levels": 3,
+  "mechanics": ["mecánica 1", "mecánica 2", "mecánica 3"],
+  "challenges": [
+    {"question": "pregunta 1", "options": ["A","B","C","D"], "correct": 0, "reward": 100}
+  ],
+  "rewards": ["recompensa 1", "recompensa 2"],
+  "instructions": ["instrucción 1", "instrucción 2"]
+}`,
+
+        exercise: `Crea 5 ejercicios prácticos para niños de 6-10 años sobre: "${generatorPrompt}".
+
+Responde EXACTAMENTE con este formato JSON:
+
+{
+  "exercises": [
+    {"id": 1, "instruction": "instrucción", "example": "ejemplo", "difficulty": "facil"}
+  ],
+  "difficulty": "medio",
+  "estimatedTime": 30
+}`,
+
+        story: `Escribe una historia educativa corta para niños de 6-10 años sobre: "${generatorPrompt}".
+
+Responde EXACTAMENTE con este formato JSON:
+
+{
+  "title": "título",
+  "chapters": 3,
+  "description": "descripción",
+  "keywords": ["palabra1", "palabra2"],
+  "moralLesson": "lección"
+}`,
+
+        challenge: `Crea un desafío semanal educativo para niños de 6-10 años sobre: "${generatorPrompt}".
+
+Responde EXACTAMENTE con este formato JSON:
+
+{
+  "title": "título",
+  "difficulty": "medio",
+  "reward": "recompensa",
+  "duration": "7 días",
+  "tasks": ["tarea 1", "tarea 2", "tarea 3"],
+  "criteria": ["criterio 1", "criterio 2"]
+}`,
       };
 
       const prompt = systemPrompts[contentType];
       if (!prompt) throw new Error("Tipo no soportado");
 
-      const response = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-70b-versatile",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Responde ÚNICAMENTE con JSON válido. No agregues texto.",
+      console.log("📤 Enviando solicitud a Groq API...");
+
+      // Intentar con diferentes modelos en orden
+      const models = ["mixtral-8x7b-32768", "llama-3.1-8b-instant", "gemma2-9b-it"];
+      let lastError = null;
+      let data = null;
+
+      for (const model of models) {
+        try {
+          console.log(`🔄 Intentando con modelo: ${model}`);
+
+          const response = await fetch(
+            "https://api.groq.com/openai/v1/chat/completions",
+            {
+              method: "POST",
+              signal: controller.signal,
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
               },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.3,
-            max_tokens: 3000,
-          }),
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: "system",
+                    content: "Eres un asistente educativo. Responde ÚNICAMENTE con JSON válido. No agregues texto antes o después del JSON. Usa comillas dobles.",
+                  },
+                  { role: "user", content: prompt },
+                ],
+                temperature: 0.5,
+                max_tokens: 2000,
+              }),
+            }
+          );
+
+          clearTimeout(timeout);
+
+          if (response.ok) {
+            data = await response.json();
+            console.log(`✅ Éxito con modelo: ${model}`);
+            break;
+          } else {
+            const errorText = await response.text();
+            console.warn(`⚠️ Modelo ${model} falló: ${response.status}`);
+            lastError = new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+          }
+        } catch (modelError) {
+          console.warn(`⚠️ Error con modelo ${model}:`, modelError.message);
+          lastError = modelError;
         }
-      );
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || `HTTP ${response.status}`);
       }
 
-      const data = await response.json();
+      if (!data) {
+        throw lastError || new Error("Todos los modelos fallaron");
+      }
+
       let aiText = data?.choices?.[0]?.message?.content?.trim();
 
-      if (!aiText) throw new Error("Respuesta vacía de la IA");
+      if (!aiText) {
+        throw new Error("Respuesta vacía de la IA");
+      }
 
-      // 🔥 Limpieza inteligente
+      console.log("📥 Respuesta recibida (primeros 200 chars):", aiText.substring(0, 200));
+
+      // Limpieza más robusta
       aiText = aiText
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
+        .replace(/```json\n?/gi, "")
+        .replace(/```\n?/g, "")
+        .replace(/`/g, "")
+        .replace(/^[^{]*/, "")
+        .replace(/[^}]*$/, "")
         .trim();
 
-      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No se encontró JSON válido");
+      // Buscar JSON válido
+      let jsonMatch = aiText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        // Intentar con otra expresión regular
+        jsonMatch = aiText.match(/[\{\[][\s\S]*[\}\]]/);
+        if (!jsonMatch) {
+          console.error("❌ Texto recibido:", aiText);
+          throw new Error("No se encontró JSON válido en la respuesta");
+        }
+      }
 
       let parsed;
       try {
         parsed = JSON.parse(jsonMatch[0]);
-      } catch {
-        throw new Error("JSON inválido generado por la IA");
+      } catch (e) {
+        console.error("❌ Error parsing JSON:", e);
+        throw new Error("La IA devolvió un formato JSON inválido");
       }
 
-      // ✅ Validaciones según tipo
+      // Validaciones según tipo
       if (contentType === "quiz") {
-        if (!parsed.questions?.length)
-          throw new Error("El quiz no tiene preguntas");
-
+        if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+          throw new Error("El quiz no tiene preguntas válidas");
+        }
         parsed.questions = parsed.questions.map((q, i) => ({
           id: i + 1,
-          pregunta: q.text || "Pregunta",
-          opciones: q.options || [],
-          respuesta_correcta: q.correct ?? 0,
-          puntos: 10,
+          pregunta: q.text || q.pregunta || `Pregunta ${i + 1}`,
+          opciones: q.options || q.opciones || ["Opción 1", "Opción 2", "Opción 3", "Opción 4"],
+          respuesta_correcta: q.correct ?? q.respuesta_correcta ?? 0,
+          puntos: q.puntos || 10,
           imagen_url: q.image_theme || "❓",
           imagen_opciones: q.option_emojis || ["🔴", "🔵", "🟢", "🟡"],
+          retroalimentacion_correcta: q.explanation || q.retroalimentacion_correcta || "¡Excelente! 🎉",
+          retroalimentacion_incorrecta: q.feedback || "¡Intenta otra vez! 💪"
         }));
-
-        parsed.totalPoints =
-          parsed.totalPoints || parsed.questions.length * 10;
+        parsed.totalPoints = parsed.totalPoints || parsed.questions.length * 10;
       }
 
       const newContent = {
@@ -3260,56 +3394,68 @@ Devuelve SOLO JSON válido.`,
       setGeneratedContent(newContent);
       setContentLibrary(prev => [newContent, ...prev]);
 
-      // 💾 Guardar en Supabase (opcional)
+      // Guardar en Supabase
       if (currentUser?.auth_id) {
-        await supabase.from("contenido_generado").insert([{
-          type: contentType,
-          prompt: generatorPrompt,
-          title: newContent.title,
-          content: parsed,
-          created_by: currentUser.auth_id,
-          status: "generated",
-        }]);
+        try {
+          await supabase.from("contenido_generado").insert([{
+            type: contentType,
+            prompt: generatorPrompt,
+            title: newContent.title,
+            content: parsed,
+            created_by: currentUser.auth_id,
+            status: "generated",
+          }]);
+          console.log("✅ Guardado en Supabase");
+        } catch (dbError) {
+          console.warn("⚠️ No se pudo guardar en Supabase:", dbError);
+        }
       }
 
       setGeneratorPrompt("");
-      alert("✅ Contenido generado correctamente");
+      alert(`✅ ${selectedType.name} generado correctamente`);
+
+      // Cambiar a biblioteca para ver el resultado
+      setContentGeneratorTab("library");
 
     } catch (error) {
-      console.error(error);
+      console.error("❌ Error en generación:", error);
 
       let msg = "❌ Error desconocido";
 
       if (error.name === "AbortError") {
-        msg = "⏱️ La IA tardó demasiado (timeout)";
-      } else if (error.message.includes("model")) {
-        msg = "⚠️ Modelo de IA no disponible";
+        msg = "⏱️ La IA tardó demasiado. Usando contenido de ejemplo.";
+      } else if (error.message.includes("API key") || error.message.includes("api key")) {
+        msg = "🔑 Error de API key. Usando modo offline.";
       } else if (error.message.includes("JSON")) {
-        msg = "⚠️ La IA devolvió formato incorrecto";
+        msg = "⚠️ La IA devolvió formato incorrecto. Usando contenido de ejemplo.";
+      } else if (error.message.includes("fetch")) {
+        msg = "🌐 Error de conexión. Verifica tu internet.";
       } else {
         msg = error.message;
       }
 
       setError(msg);
 
-      const usarFallback = window.confirm(`${msg}\n\n¿Usar contenido de ejemplo?`);
+      // Usar contenido de ejemplo automáticamente
+      const selectedType = contentTypes.find(c => c.id === contentType);
+      const mock = generateMockContent(contentType, generatorPrompt);
 
-      if (usarFallback) {
-        const mock = generateMockContent(contentType, generatorPrompt);
+      const fallback = {
+        id: Date.now(),
+        type: contentType,
+        prompt: generatorPrompt,
+        title: `${selectedType?.name || contentType}: ${generatorPrompt.slice(0, 40)} (ejemplo)`,
+        createdAt: new Date().toLocaleString(),
+        content: mock,
+        status: "fallback",
+      };
 
-        const fallback = {
-          id: Date.now(),
-          type: contentType,
-          prompt: generatorPrompt,
-          title: `Ejemplo: ${generatorPrompt}`,
-          createdAt: new Date().toLocaleString(),
-          content: mock,
-          status: "fallback",
-        };
+      setGeneratedContent(fallback);
+      setContentLibrary(prev => [fallback, ...prev]);
+      setGeneratorPrompt("");
 
-        setGeneratedContent(fallback);
-        setContentLibrary(prev => [fallback, ...prev]);
-      }
+      alert(`⚠️ ${msg}\n\n✅ Se ha generado un contenido de ejemplo como alternativa.`);
+      setContentGeneratorTab("library");
 
     } finally {
       setGeneratingContent(false);
@@ -5175,50 +5321,81 @@ Genera ${num} preguntas.`;
   };
   // FUNCIÓN DE VOZ MEJORADA Y NATURAL
 
-  const speakText = (text) => {
-    if (!("speechSynthesis" in window)) return;
+  // Cola de reproducción de audio
+  let audioQueue = [];
+  let isPlaying = false;
 
+  const speakText = (text) => {
+    if (!text || text.trim() === "") {
+      console.log("❌ Texto vacío, no se puede reproducir");
+      return;
+    }
+
+    if (!("speechSynthesis" in window)) {
+      console.error("❌ El navegador no soporta síntesis de voz");
+      return;
+    }
+
+    // Agregar a la cola
+    audioQueue.push(text);
+
+    // Si ya se está reproduciendo, no hacer nada
+    if (isPlaying) {
+      console.log("⏳ Audio en cola:", text.substring(0, 30));
+      return;
+    }
+
+    // Procesar la cola
+    processAudioQueue();
+  };
+
+  const processAudioQueue = () => {
+    if (audioQueue.length === 0) {
+      isPlaying = false;
+      return;
+    }
+
+    isPlaying = true;
+    const text = audioQueue.shift();
+
+    // Cancelar solo el audio actual, no toda la cola
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "es-MX"; // Español latino
-    utterance.rate = 0.85;   // Más lento = más claro para niños
-    utterance.pitch = 1.2;   // Más agudo = más amigable
+    utterance.lang = "es-ES";
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
     utterance.volume = 1;
 
-    const loadVoices = () => {
+    const speakWithVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-
-      // Buscar voz femenina latina
-      const femaleLatinVoice = voices.find(voice =>
-        (
-          voice.lang.includes("es-MX") ||
-          voice.lang.includes("es-US") ||
-          voice.lang.includes("es-ES")
-        ) &&
-        (
-          voice.name.toLowerCase().includes("female") ||
-          voice.name.toLowerCase().includes("mujer") ||
-          voice.name.toLowerCase().includes("google") ||
-          voice.name.toLowerCase().includes("luciana") ||
-          voice.name.toLowerCase().includes("paulina") ||
-          voice.name.toLowerCase().includes("monica")
-        )
+      const spanishVoice = voices.find(voice =>
+        voice.lang.includes("es-") ||
+        voice.lang === "es-MX" ||
+        voice.lang === "es-ES"
       );
-
-      if (femaleLatinVoice) {
-        utterance.voice = femaleLatinVoice;
-      }
-
+      if (spanishVoice) utterance.voice = spanishVoice;
       window.speechSynthesis.speak(utterance);
     };
 
-    // Solución al bug de carga de voces
-    if (speechSynthesis.getVoices().length === 0) {
-      speechSynthesis.onvoiceschanged = loadVoices;
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = speakWithVoice;
     } else {
-      loadVoices();
+      speakWithVoice();
     }
+
+    utterance.onend = () => {
+      console.log("✅ Audio completado:", text.substring(0, 30));
+      // Procesar siguiente audio en la cola después de un pequeño retraso
+      setTimeout(() => {
+        processAudioQueue();
+      }, 300);
+    };
+
+    utterance.onerror = (event) => {
+      console.error("❌ Error en audio:", event);
+      processAudioQueue(); // Continuar con la cola aunque haya error
+    };
   };
 
   // Cargar voces al iniciar 
@@ -5361,18 +5538,39 @@ Genera ${num} preguntas.`;
     console.log('✅ Vista previa abierta con', preguntasFormateadas.length, 'preguntas');
   };
 
-  // FUNCIÓN 4: CERRAR VISTA PREVIA
+  // FUNCIÓN 4: CERRAR VISTA PREVIA (CORREGIDA)
   const closePreview = () => {
     console.log('❌ Cerrando vista previa');
-    window.speechSynthesis.cancel();
+
+    // DETENER TODOS LOS AUDIOS INMEDIATAMENTE
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel(); // Detiene cualquier audio en reproducción
+      window.speechSynthesis.pause();  // Pausa por si acaso
+    }
+
+    // LIMPIAR COLA DE AUDIOS
+    audioQueue = [];
+    isPlaying = false;
+
+    // Guardamos los IDs de los timeouts para poder limpiarlos
+    if (window._quizTimeouts) {
+      window._quizTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+      window._quizTimeouts = [];
+    }
+    if (window._quizIntervals) {
+      window._quizIntervals.forEach(intervalId => clearInterval(intervalId));
+      window._quizIntervals = [];
+    }
+
+    // Limpiar estados
     setPreviewQuiz(false);
     setPreviewAnswers({});
-    setAttemptCount({}); // 
+    setAttemptCount({});
     setOptionListenState({});
     setCurrentPreviewQuestion(0);
     setSelectedResource(null);
     setSelectedOption(null);
-    setLastAutoRepeat(Date.now()); // 
+    setLastAutoRepeat(Date.now());
   };
 
   // FUNCIÓN 5: GUARDAR QUIZ A RECURSO (MEJORADA)
@@ -5519,7 +5717,7 @@ Genera ${num} preguntas.`;
       *,
       usuario_id,
       recurso_id,
-      usuarios!inner(id, nombre, email, grupo_id),
+      usuarios!inner(id, nombre, email, grupo_id, activo, ultimo_acceso),
       recursos!inner(id, curso_id, titulo, tipo, puntos_recompensa)
     `);
 
@@ -5539,7 +5737,7 @@ Genera ${num} preguntas.`;
       console.log(`📊 Progreso filtrado del curso: ${courseProgressData.length}`);
 
       // Obtener estudiantes únicos
-      const uniqueStudentIds = [
+      let uniqueStudentIds = [
         ...new Set(courseProgressData.map((p) => p.usuario_id)),
       ];
 
@@ -5550,7 +5748,44 @@ Genera ${num} preguntas.`;
 
       console.log(`👥 Estudiantes únicos: ${uniqueStudentIds.length}`);
 
-      // Calcular estadísticas generales
+      // ========== 🔥 NUEVO: APLICAR FILTROS ANTES DE ANALIZAR ==========
+      let estudiantesParaAnalizar = users.filter(u =>
+        u.rol === 'estudiante' && uniqueStudentIds.includes(u.id)
+      );
+
+      // 🔥 FILTRO 1: Por grupo (usando los estados que ya tienes)
+      if (filterByGroup && filterByGroup !== "") {
+        if (filterByGroup === "sin_grupo") {
+          estudiantesParaAnalizar = estudiantesParaAnalizar.filter(u => !u.grupo_id);
+        } else {
+          estudiantesParaAnalizar = estudiantesParaAnalizar.filter(u =>
+            u.grupo_id === parseInt(filterByGroup)
+          );
+        }
+      }
+
+      // 🔥 FILTRO 2: Por estado (excelente/warning/critical)
+      // Nota: Esto solo funciona si ya tienes feedback previo, pero lo dejamos para después del análisis
+      // Por ahora, solo filtramos por grupo
+
+      // 🔥 FILTRO 3: Búsqueda por nombre
+      if (searchStudent && searchStudent !== "") {
+        estudiantesParaAnalizar = estudiantesParaAnalizar.filter(u =>
+          u.nombre.toLowerCase().includes(searchStudent.toLowerCase())
+        );
+      }
+
+      const estudiantesFiltradosIds = estudiantesParaAnalizar.map(u => u.id);
+
+      if (estudiantesFiltradosIds.length === 0) {
+        alert("⚠️ No hay estudiantes que coincidan con los filtros seleccionados");
+        return;
+      }
+
+      console.log(`✅ Después de filtros: ${estudiantesFiltradosIds.length} estudiantes para analizar`);
+      // ========== FIN DE FILTROS ==========
+
+      // Calcular estadísticas generales (con TODOS los estudiantes del curso)
       const completedCount = courseProgressData.filter((p) => p.completado).length;
       const avgProgress =
         courseProgressData.length > 0
@@ -5571,11 +5806,10 @@ Genera ${num} preguntas.`;
 
       console.log("📊 Estadísticas calculadas");
 
-      // Recolectar datos de estudiantes con algoritmos de IA
+      // 🔥 ANALIZAR SOLO LOS ESTUDIANTES FILTRADOS
       const studentsData = [];
-      const studentsToAnalyze = uniqueStudentIds;
 
-      for (const studentId of studentsToAnalyze) {
+      for (const studentId of estudiantesFiltradosIds) {
         const student = users.find((u) => u.id === studentId);
 
         if (!student) {
@@ -5585,7 +5819,6 @@ Genera ${num} preguntas.`;
 
         console.log(`🔍 Analizando estudiante: ${student.nombre}`);
 
-        // ✅ USAR finalCourseId (NO null) para análisis específico del curso
         const feedback = await generateAdaptiveFeedback(studentId, finalCourseId);
 
         if (!feedback) {
@@ -5593,7 +5826,6 @@ Genera ${num} preguntas.`;
           continue;
         }
 
-        // Obtener evolución temporal del estudiante (solo para este curso)
         const evolutionData = await fetchStudentEvolution(studentId, finalCourseId);
 
         const grupoNombre = student.grupo_id
@@ -5625,6 +5857,7 @@ Genera ${num} preguntas.`;
         },
         stats: {
           totalStudents: uniqueStudentIds.length,
+          filteredStudents: studentsData.length,
           avgProgress,
           completedResources: completedCount,
           totalTime,
@@ -5647,6 +5880,7 @@ Genera ${num} preguntas.`;
       alert("Error al generar el análisis: " + err.message);
     }
   };
+
   // Obtener evolución temporal de un estudiante 
   const fetchStudentEvolution = async (studentId, fechaInicio, fechaFin) => {
     try {
@@ -5756,38 +5990,68 @@ Genera ${num} preguntas.`;
   const calculateTrend = (values) => {
     // Validación
     if (!values || !Array.isArray(values) || values.length === 0) {
-      return { cambio: 0, texto: "→ Sin datos", color: "text-gray-500" };
+      return { texto: "Sin datos", color: "text-gray-500", bgColor: "bg-gray-100" };
     }
 
-    // Filtrar solo valores numéricos válidos
+    // Filtrar valores numéricos válidos
     const validValues = values.filter(v =>
       typeof v === 'number' && !isNaN(v) && isFinite(v)
     );
 
-    if (validValues.length < 2) {
-      if (validValues.length === 1) {
-        return { cambio: 0, texto: "→ Comenzando", color: "text-blue-500" };
-      }
-      return { cambio: 0, texto: "→ Datos insuficientes", color: "text-gray-500" };
+    if (validValues.length === 0) {
+      return { texto: "Sin datos", color: "text-gray-500", bgColor: "bg-gray-100" };
     }
 
+    // Obtener métricas
     const primero = validValues[0];
     const ultimo = validValues[validValues.length - 1];
-
-    // Prevenir NaN
-    if (isNaN(primero) || isNaN(ultimo)) {
-      return { cambio: 0, texto: "→ Estable", color: "text-gray-500" };
-    }
-
+    const promedio = validValues.reduce((a, b) => a + b, 0) / validValues.length;
+    const minimo = Math.min(...validValues);
     const cambio = ultimo - primero;
 
-    if (cambio > 10) {
-      return { cambio: cambio, texto: `↑ Mejorando (+${Math.round(cambio)}%)`, color: "text-green-600" };
-    } else if (cambio < -10) {
-      return { cambio: cambio, texto: `↓ Necesita apoyo (${Math.round(cambio)}%)`, color: "text-red-600" };
-    } else {
-      return { cambio: 0, texto: "→ Estable", color: "text-gray-500" };
+    // 1. CRÍTICO (menos de 40%)
+    if (promedio < 40 || ultimo < 40 || minimo < 30) {
+      if (cambio > 15) {
+        return { texto: "Mejorando", color: "text-yellow-600", bgColor: "bg-yellow-100" };
+      }
+      return { texto: "Crítico", color: "text-red-600", bgColor: "bg-red-100" };
     }
+
+    // 2. REGULAR (40% - 60%)
+    if (promedio >= 40 && promedio < 60) {
+      if (cambio > 10) {
+        return { texto: "Mejorando", color: "text-green-600", bgColor: "bg-green-100" };
+      }
+      if (cambio < -10) {
+        return { texto: "Declive", color: "text-orange-600", bgColor: "bg-orange-100" };
+      }
+      return { texto: "Regular", color: "text-yellow-600", bgColor: "bg-yellow-100" };
+    }
+
+    // 3. BUENO (60% - 80%)
+    if (promedio >= 60 && promedio < 80) {
+      if (cambio > 10) {
+        return { texto: "Mejorando", color: "text-green-600", bgColor: "bg-green-100" };
+      }
+      if (cambio < -10) {
+        return { texto: "Declive", color: "text-orange-600", bgColor: "bg-orange-100" };
+      }
+      return { texto: "Bueno", color: "text-blue-600", bgColor: "bg-blue-100" };
+    }
+
+    // 4. EXCELENTE (80% o más)
+    if (promedio >= 80) {
+      if (cambio > 5) {
+        return { texto: "Mejorando", color: "text-green-600", bgColor: "bg-green-100" };
+      }
+      if (cambio < -10) {
+        return { texto: "Declive", color: "text-orange-600", bgColor: "bg-orange-100" };
+      }
+      return { texto: "Excelente", color: "text-purple-600", bgColor: "bg-purple-100" };
+    }
+
+    // Fallback por si acaso
+    return { texto: "Estable", color: "text-gray-600", bgColor: "bg-gray-100" };
   };
 
   // Componente gráfico simple
@@ -6193,127 +6457,97 @@ ${courseReportData.stats.avgProgress >= 70
 
   // Función para descargar el reporte
   const handleDownloadReport = () => {
+    if (!courseReportData) return;
+
     try {
-      // Crear contenido CSV
-      let csvContent = "sep=,\n"; // Separador para Excel en español
+      // Crear contenido CSV correctamente formateado para Excel
+      let csvRows = [];
 
-      // ENCABEZADO PRINCIPAL
-      csvContent += `REPORTE ANALÍTICO DE CURSO CON IA PREDICTIVA\n`;
-      csvContent += `Curso,${courseReportData.course.titulo}\n`;
-      csvContent += `Nivel,${courseReportData.course.nivel}\n`;
-      csvContent += `Fecha de Generación,${courseReportData.course.fecha}\n`;
-      csvContent += `\n`;
+      // 1. Título principal
+      csvRows.push(['"REPORTE ANALÍTICO DE CURSO CON IA PREDICTIVA"']);
+      csvRows.push([`"Curso: ${courseReportData.course.titulo.replace(/"/g, '""')}"`]);
+      csvRows.push([`"Nivel: ${courseReportData.course.nivel.replace(/"/g, '""')}"`]);
+      csvRows.push([`"Fecha: ${courseReportData.course.fecha}"`]);
+      csvRows.push([]); // Línea en blanco
 
-      // ESTADÍSTICAS GENERALES
-      csvContent += `ESTADÍSTICAS GENERALES\n`;
-      csvContent += `Total Estudiantes,${courseReportData.stats.totalStudents}\n`;
-      csvContent += `Progreso Promedio,${courseReportData.stats.avgProgress}%\n`;
-      csvContent += `Recursos Completados,${courseReportData.stats.completedResources}\n`;
-      csvContent += `Tiempo Total,${courseReportData.stats.totalTime} minutos\n`;
-      csvContent += `Tasa de Completitud,${courseReportData.stats.completionRate}%\n`;
-      csvContent += `\n`;
+      // 2. Estadísticas generales
+      csvRows.push(['"ESTADÍSTICAS GENERALES"']);
+      csvRows.push([`"Total Estudiantes","${courseReportData.stats.totalStudents}"`]);
+      csvRows.push([`"Progreso Promedio","${courseReportData.stats.avgProgress}%"`]);
+      csvRows.push([`"Recursos Completados","${courseReportData.stats.completedResources}"`]);
+      csvRows.push([`"Tiempo Total","${courseReportData.stats.totalTime} minutos"`]);
+      csvRows.push([`"Tasa de Completitud","${courseReportData.stats.completionRate}%"`]);
+      csvRows.push([]);
 
-      // ENCABEZADOS DE ESTUDIANTES
-      csvContent += `ANÁLISIS DETALLADO POR ESTUDIANTE\n`;
-      csvContent += `Nombre,Email,Grupo,Estado General,Aprendizaje (LEA),Confianza,Atención (ADA),Score Atención,`;
-      csvContent += `Intentos Promedio,Tiempo Respuesta,Tasa Retención,Mejora Tendencia,`;
-      csvContent += `Fortalezas,Áreas Mejora,Plan de Acción\n`;
+      // 3. Encabezados de estudiantes
+      csvRows.push(['"ANÁLISIS DETALLADO POR ESTUDIANTE"']);
+      csvRows.push([
+        '"Nombre"', '"Email"', '"Grupo"', '"Estado General"',
+        '"Aprendizaje (LEA)"', '"Confianza"', '"Atención (ADA)"', '"Score Atención"',
+        '"Intentos Promedio"', '"Tiempo Respuesta"', '"Tasa Retención"', '"Mejora Tendencia"',
+        '"Fortalezas"', '"Áreas Mejora"', '"Plan de Acción"'
+      ]);
 
-      // DATOS DE ESTUDIANTES con filtros aplicados
-      const filteredStudentsForExport = courseReportData.students.filter(
-        (data) => {
-          if (filterByGroup && data.grupo !== filterByGroup) return false;
-          if (
-            filterByStatus === "excellent" &&
-            !data.feedback.overallStatus.includes("✅")
-          )
-            return false;
-          if (
-            filterByStatus === "warning" &&
-            !data.feedback.overallStatus.includes("⚠️")
-          )
-            return false;
-          if (
-            filterByStatus === "critical" &&
-            !data.feedback.overallStatus.includes("🚨")
-          )
-            return false;
-          if (
-            searchStudent &&
-            !data.student.nombre
-              .toLowerCase()
-              .includes(searchStudent.toLowerCase())
-          )
-            return false;
-          return true;
-        }
-      );
+      // 4. Datos de estudiantes
+      courseReportData.students.forEach((data) => {
+        const { student, feedback, grupo } = data;
 
-      filteredStudentsForExport.forEach((data) => {
-        const { student, feedback } = data;
+        // Escapar comillas dobles para CSV
+        const escapeCSV = (text) => text ? `"${String(text).replace(/"/g, '""')}"` : '""';
 
-        csvContent += `"${student.nombre}",`;
-        csvContent += `"${student.email}",`;
-        csvContent += `"${data.grupo}",`;
-        csvContent += `"${feedback.overallStatus}",`;
-        csvContent += `"${feedback.learningEffectiveness?.isLearning ? "Sí" : "No"
-          }",`;
-        csvContent += `${feedback.learningEffectiveness?.confidence?.toFixed(1) || 0
-          },`;
-        csvContent += `"${feedback.attentionLevel?.level || "Sin datos"}",`;
-        csvContent += `${feedback.attentionLevel?.score || 0},`;
-        csvContent += `${feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(
-          2
-        ) || 0
-          },`;
-        csvContent += `${feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(
-          0
-        ) || 0
-          },`;
-        csvContent += `${feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(
-          1
-        ) || 0
-          }%,`;
-        csvContent += `${feedback.learningEffectiveness?.indicators?.improvementTrend?.toFixed(
-          1
-        ) || 0
-          }%,`;
-        csvContent += `"${feedback.strengths?.join("; ") || "N/A"}",`;
-        csvContent += `"${feedback.weaknesses?.join("; ") || "N/A"}",`;
-        csvContent += `"${feedback.actionPlan?.join("; ") || "N/A"}"\n`;
+        csvRows.push([
+          escapeCSV(student.nombre),
+          escapeCSV(student.email),
+          escapeCSV(grupo),
+          escapeCSV(feedback.overallStatus),
+          escapeCSV(feedback.learningEffectiveness?.isLearning ? "Sí" : "No"),
+          feedback.learningEffectiveness?.confidence?.toFixed(1) || 0,
+          escapeCSV(feedback.attentionLevel?.level || "Sin datos"),
+          feedback.attentionLevel?.score || 0,
+          feedback.learningEffectiveness?.indicators?.averageAttempts?.toFixed(2) || 0,
+          feedback.learningEffectiveness?.indicators?.averageTimePerQuestion?.toFixed(0) || 0,
+          feedback.learningEffectiveness?.indicators?.retentionRate?.toFixed(1) || 0,
+          feedback.learningEffectiveness?.indicators?.improvementTrend?.toFixed(1) || 0,
+          escapeCSV(feedback.strengths?.join("; ") || "N/A"),
+          escapeCSV(feedback.weaknesses?.join("; ") || "N/A"),
+          escapeCSV(feedback.actionPlan?.join("; ") || "N/A")
+        ]);
       });
 
-      csvContent += `\n`;
-      csvContent += `LEYENDA DE INDICADORES\n`;
-      csvContent += `LEA,Learning Effectiveness Analysis - Detecta aprendizaje real\n`;
-      csvContent += `ADA,Attention Detection Algorithm - Analiza concentración\n`;
-      csvContent += `AFS,Adaptive Feedback System - Sistema de retroalimentación\n`;
-      csvContent += `\n`;
-      csvContent += `Generado por Didactikapp - Plataforma Educativa con IA\n`;
+      // 5. Leyenda
+      csvRows.push([]);
+      csvRows.push(['"LEYENDA DE INDICADORES"']);
+      csvRows.push(['"LEA"', '"Learning Effectiveness Analysis - Detecta aprendizaje real"']);
+      csvRows.push(['"ADA"', '"Attention Detection Algorithm - Analiza concentración"']);
+      csvRows.push(['"AFS"', '"Adaptive Feedback System - Sistema de retroalimentación"']);
+      csvRows.push([]);
+      csvRows.push([`"Generado por Didaktikapp - ${new Date().toLocaleString('es-ES')}"`]);
 
-      // Crear blob y descargar
-      const blob = new Blob([csvContent], {
-        type: "application/vnd.ms-excel;charset=utf-8;",
+      // Convertir a CSV
+      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+
+      // Agregar BOM para UTF-8 (evita problemas con caracteres especiales en Excel)
+      const blob = new Blob(['\uFEFF' + csvContent], {
+        type: 'text/csv;charset=utf-8;'
       });
-      const link = document.createElement("a");
+
+      // Crear link de descarga
+      const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
-
-      link.setAttribute("href", url);
-      link.setAttribute(
-        "download",
-        `Reporte_${courseReportData.course.titulo.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]
-        }.xlsx`
-      );
-      link.style.visibility = "hidden";
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Reporte_${courseReportData.course.titulo.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-      alert("✅ Reporte descargado en Excel correctamente");
+      alert('✅ Reporte exportado correctamente. Se abrirá en Excel.');
+
     } catch (error) {
-      console.error("Error descargando reporte:", error);
-      alert("❌ Error al descargar el reporte");
+      console.error('Error descargando reporte:', error);
+      alert('❌ Error al descargar el reporte: ' + error.message);
     }
   };
 
@@ -6323,69 +6557,133 @@ ${courseReportData.stats.avgProgress >= 70
   };
 
   useEffect(() => {
-    if (!previewQuiz || !currentQuiz.preguntas.length) return;
+    let timeoutId1, timeoutId2, timeoutId3;
+    let repeatInterval = null;
+    let isMounted = true;
+
+    if (!previewQuiz) {
+      console.log('🔇 Modal cerrado, limpiando recursos...');
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      return;
+    }
+
+    if (!currentQuiz?.preguntas?.length) return;
 
     const question = currentQuiz.preguntas[currentPreviewQuestion];
+    if (!question) return;
+
     const answer = previewAnswers[currentPreviewQuestion];
     const attempts = attemptCount[currentPreviewQuestion] || 0;
 
-    let timeoutId1, timeoutId2, timeoutId3;
+    if (answer || attempts >= 3) return;
+
+    console.log('🎤 Iniciando secuencia de audio para pregunta:', question.pregunta?.substring(0, 30));
 
     const executeAudioSequence = () => {
-      // Solo si no ha respondido y no ha agotado intentos
-      if (answer || attempts >= 3) return;
+      if (!isMounted || !previewQuiz || answer || attempts >= 3) return;
 
       // PRIMERO: "Responde la pregunta"
       timeoutId1 = setTimeout(() => {
-        speakText("Responde la pregunta");
+        if (isMounted && previewQuiz && !answer && attempts < 3) {
+          speakText("Responde la pregunta");
+        }
       }, 300);
 
       // SEGUNDO: Pregunta completa
       timeoutId2 = setTimeout(() => {
-        speakText(question.pregunta);
+        if (isMounted && previewQuiz && !answer && attempts < 3 && question?.pregunta) {
+          speakText(question.pregunta);
+        }
       }, 2000);
 
       // TERCERO: Opciones enumeradas
       timeoutId3 = setTimeout(() => {
-        let opcionesTexto = "Las opciones son: ";
-        question.opciones.forEach((opcion, idx) => {
-          opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-        });
-        speakText(opcionesTexto);
+        if (isMounted && previewQuiz && !answer && attempts < 3 && question?.opciones) {
+          let opcionesTexto = "Las opciones son: ";
+          question.opciones.forEach((opcion, idx) => {
+            if (opcion) {
+              opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+            }
+          });
+          speakText(opcionesTexto);
+        }
       }, 4000);
 
-      // REPETIR CADA 15 SEGUNDOS si no ha respondido
-      const repeatInterval = setInterval(() => {
-        if (!answer && attempts < 3) {
-          speakText("Recuerda responder la pregunta");
-          setTimeout(() => {
-            speakText(question.pregunta);
-            setTimeout(() => {
-              let opcionesTexto = "Las opciones son: ";
-              question.opciones.forEach((opcion, idx) => {
-                opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
-              });
-              speakText(opcionesTexto);
-            }, 2000);
-          }, 1000);
-        } else {
-          clearInterval(repeatInterval);
-        }
-      }, 15000);
+      // Esperar a que termine la locución (12 segundos) ANTES de iniciar el intervalo
+      setTimeout(() => {
+        // Solo crear el intervalo si aún no ha respondido
+        if (!answer && attempts < 3 && isMounted && previewQuiz) {
+          repeatInterval = setInterval(() => {
+            const currentAnswer = previewAnswers[currentPreviewQuestion];
+            const currentAttempts = attemptCount[currentPreviewQuestion] || 0;
 
-      return () => clearInterval(repeatInterval);
+            if (isMounted && previewQuiz && !currentAnswer && currentAttempts < 3) {
+              console.log('🔄 Repitiendo pregunta (intervalo de 15s)');
+              speakText("Recuerda responder la pregunta");
+
+              setTimeout(() => {
+                if (isMounted && previewQuiz && !currentAnswer && currentAttempts < 3) {
+                  speakText(question.pregunta);
+                }
+              }, 1000);
+
+              setTimeout(() => {
+                if (isMounted && previewQuiz && !currentAnswer && currentAttempts < 3 && question?.opciones) {
+                  let opcionesTexto = "Las opciones son: ";
+                  question.opciones.forEach((opcion, idx) => {
+                    if (opcion) {
+                      opcionesTexto += `${String.fromCharCode(65 + idx)}) ${opcion}. `;
+                    }
+                  });
+                  speakText(opcionesTexto);
+                }
+              }, 3000);
+            } else if (!previewQuiz) {
+              if (repeatInterval) {
+                clearInterval(repeatInterval);
+                repeatInterval = null;
+              }
+            }
+          }, 15000);
+        }
+      }, 12000); // Esperar 12 segundos (tiempo total de la locución inicial)
     };
 
-    const cleanup = executeAudioSequence();
+    executeAudioSequence();
 
     return () => {
-      clearTimeout(timeoutId1);
-      clearTimeout(timeoutId2);
-      clearTimeout(timeoutId3);
-      if (cleanup) cleanup();
-      window.speechSynthesis.cancel();
+      console.log('🧹 LIMPIANDO: Cerrando useEffect del quiz');
+      isMounted = false;
+
+      if (timeoutId1) clearTimeout(timeoutId1);
+      if (timeoutId2) clearTimeout(timeoutId2);
+      if (timeoutId3) clearTimeout(timeoutId3);
+
+      if (repeatInterval) {
+        clearInterval(repeatInterval);
+        repeatInterval = null;
+      }
+
+      if (window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.pause();
+        } catch (e) {
+          console.warn('Error deteniendo speech:', e);
+        }
+      }
+
+      if (typeof audioQueue !== 'undefined') {
+        audioQueue = [];
+      }
+      if (typeof isPlaying !== 'undefined') {
+        isPlaying = false;
+      }
     };
   }, [previewQuiz, currentPreviewQuestion, previewAnswers, attemptCount, currentQuiz.preguntas]);
+
   // Este se ejecuta cuando el usuario SELECCIONA una opción
   useEffect(() => {
     if (selectedOption === null || !previewQuiz) return;
@@ -6644,20 +6942,27 @@ ${courseReportData.stats.avgProgress >= 70
         )}
 
         {/* PREGUNTA */}
+        {/* PREGUNTA - SIN EMOJI */}
         <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 border">
           <div className="flex items-center gap-4 justify-center">
             {normalizedQuestion.audio_pregunta && (
-              <button onClick={() => speakText(normalizedQuestion.pregunta)} className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition">
+              <button
+                onClick={() => speakText(normalizedQuestion.pregunta)}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-full transition shadow-md hover:shadow-lg"
+              >
                 🔊
               </button>
             )}
-            {normalizedQuestion.imagen_url && (
-              <div className="text-7xl flex-shrink-0">{normalizedQuestion.imagen_url}</div>
-            )}
-            <p className="text-3xl font-bold text-gray-800 text-center">{normalizedQuestion.pregunta}</p>
+            {/* ✅ ELIMINADO: {normalizedQuestion.imagen_url && ( ... )} */}
+            <p className="text-3xl font-bold text-gray-800 text-center flex-1">
+              {normalizedQuestion.pregunta}
+            </p>
           </div>
           <div className="mt-6 text-center">
-            <button onClick={repeatQuestionWithOptions} className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto">
+            <button
+              onClick={repeatQuestionWithOptions}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto transition-all hover:scale-105"
+            >
               <RefreshCw className="w-5 h-5" />
               Repetir Pregunta y Opciones
             </button>
@@ -8636,8 +8941,8 @@ ${courseReportData.stats.avgProgress >= 70
           {/* TABS */}
           <div className="flex gap-2 p-4 border-b border-gray-200 bg-gray-50">
             {[
-              { id: "generator", label: "✨ Generador", icon: Sparkles },
-              { id: "library", label: "📚 Biblioteca", icon: Library },
+              { id: "generator", label: "Generador", icon: Sparkles },
+              { id: "library", label: " Biblioteca", icon: Library },
             ].map(tab => {
               const Icon = tab.icon;
               return (
@@ -8898,26 +9203,29 @@ ${courseReportData.stats.avgProgress >= 70
                               <span className="capitalize font-medium text-gray-500">{item.type}</span>
                             </div>
 
-                            {/* ==================== BOTONES ACTUALIZADOS ==================== */}
+                            {/* BOTONES ACTUALIZADOS */}
                             <div className="grid grid-cols-2 gap-2 pt-2">
-                              {/* Botón Ver (solo quizzes) */}
+
+                              {/* Botón Ver (solo quizzes)  */}
                               {item.type === 'quiz' && !isEditing && (
                                 <button
                                   onClick={() => {
-                                    setEditingGeneratedQuiz({
-                                      ...item,
-                                      preguntas: item.content?.questions || [],
-                                      title: item.title
-                                    });
-                                    setShowContentPreview(true);
+                                    // Crear un objeto "resource" simulado para usar openPreview
+                                    const tempResource = {
+                                      id: item.id,
+                                      titulo: item.title,
+                                      tipo: 'quiz',
+                                      contenido_quiz: item.content?.questions || item.preguntas || []
+                                    };
+                                    // Usar la misma función openPreview que usan los recursos
+                                    openPreview(tempResource);
                                   }}
                                   className="bg-blue-500 hover:bg-blue-600 text-white py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition"
                                 >
                                   <Eye className="w-3.5 h-3.5" /> Ver
                                 </button>
                               )}
-
-                              {/* ✅ NUEVO BOTÓN: MANDAR A RECURSOS (solo quizzes) */}
+                              {/* MANDAR A RECURSOS (solo quizzes) */}
                               {item.type === 'quiz' && !isEditing && (
                                 <button
                                   onClick={() => convertContentToResource(item)}
@@ -9256,7 +9564,7 @@ ${courseReportData.stats.avgProgress >= 70
                   className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors font-semibold shadow-lg"
                 >
                   <Plus className="w-5 h-5" />
-                  📚 Nuevo Estudiante
+                  Nuevo Estudiante
                 </button>
 
                 <button
@@ -9272,7 +9580,7 @@ ${courseReportData.stats.avgProgress >= 70
               </div>
             </div>
 
-            {/* ✅ MODAL: CREAR NUEVO ESTUDIANTE - COMPACTO */}
+            {/* MODAL: CREAR NUEVO ESTUDIANTE - COMPACTO */}
             {showNewStudent && (
               <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden">
@@ -10218,12 +10526,83 @@ ${courseReportData.stats.avgProgress >= 70
                         <span>Orden: {course.orden}</span>
                       </div>
                       <div className="flex gap-2 mt-4">
+                        {/* BOTÓN REPORTE CORREGIDO - DESCARGA DIRECTA EXCEL */}
                         <button
-                          onClick={() => generateCourseReport(course.id)}
-                          className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                          onClick={async () => {
+                            try {
+                              // Mostrar loading
+                              const loadingDiv = document.createElement('div');
+                              loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+                              loadingDiv.innerHTML = '<div class="bg-white rounded-xl p-6 flex items-center gap-3 shadow-2xl"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div><span class="font-medium">Generando reporte del curso...</span></div>';
+                              document.body.appendChild(loadingDiv);
+
+                              // Obtener estudiantes con progreso en este curso
+                              const courseResources = resources.filter(r => r.curso_id === course.id);
+                              const courseResourceIds = courseResources.map(r => r.id);
+
+                              const studentsWithProgress = users.filter(u => u.rol === 'estudiante');
+
+                              // Crear contenido CSV
+                              let csvContent = "\uFEFF"; // BOM para UTF-8
+                              csvContent += `"REPORTE DEL CURSO: ${course.titulo.replace(/"/g, '""')}"\n`;
+                              csvContent += `"Fecha de generación","${new Date().toLocaleString('es-ES')}"\n`;
+                              csvContent += `"Nivel","${course.nivel_nombre || 'Sin nivel'}"\n`;
+                              csvContent += `"Total Estudiantes","${studentsWithProgress.length}"\n`;
+                              csvContent += `"Total Recursos","${courseResources.length}"\n`;
+                              csvContent += `"Recursos del curso","${courseResources.map(r => r.titulo).join(', ')}"\n`;
+                              csvContent += `\n`;
+                              csvContent += `"ESTUDIANTES","","","",""\n`;
+                              csvContent += `"Nombre","Email","Grupo","Progreso %","Intentos Promedio","Recursos Completados","Último Acceso"\n`;
+
+                              for (const student of studentsWithProgress) {
+                                // Obtener progreso del estudiante en este curso
+                                const studentProgress = userProgress.filter(p =>
+                                  p.usuario_id === student.id && courseResourceIds.includes(p.recurso_id)
+                                );
+
+                                const avgProgress = studentProgress.length > 0
+                                  ? Math.round(studentProgress.reduce((a, b) => a + (b.progreso || 0), 0) / studentProgress.length)
+                                  : 0;
+
+                                const avgAttempts = studentProgress.length > 0
+                                  ? (studentProgress.reduce((a, b) => a + (b.intentos || 1), 0) / studentProgress.length).toFixed(1)
+                                  : 0;
+
+                                const completedCount = studentProgress.filter(p => p.completado).length;
+
+                                const grupoNombre = student.grupo_id
+                                  ? groups.find(g => g.id === student.grupo_id)?.nombre || "Sin grupo"
+                                  : "Sin grupo";
+
+                                const ultimoAcceso = student.ultimo_acceso
+                                  ? new Date(student.ultimo_acceso).toLocaleDateString('es-ES')
+                                  : "Nunca";
+
+                                csvContent += `"${student.nombre.replace(/"/g, '""')}","${student.email || ''}","${grupoNombre}",${avgProgress},${avgAttempts},${completedCount},"${ultimoAcceso}"\n`;
+                              }
+
+                              // Descargar archivo
+                              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                              const link = document.createElement('a');
+                              const url = URL.createObjectURL(blob);
+                              link.href = url;
+                              link.download = `Reporte_${course.titulo.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+                              link.click();
+                              URL.revokeObjectURL(url);
+
+                              loadingDiv.remove();
+                              alert('✅ Reporte descargado correctamente');
+
+                            } catch (error) {
+                              console.error('Error:', error);
+                              document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50')?.remove();
+                              alert('❌ Error al generar el reporte: ' + error.message);
+                            }
+                          }}
+                          className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
                         >
                           <Download className="w-3 h-3" />
-                          Reporte
+                          Reporte Excel
                         </button>
                         <button
                           onClick={() => deleteCourse(course.id)}
