@@ -163,3 +163,202 @@ input:focus, textarea:focus, select:focus {
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================
+   RESPONSIVE UNIVERSAL - DIDACTIKAPP
+   ============================================ */
+
+/* Vista móvil (menos de 768px) */
+@media (max-width: 768px) {
+  
+  /* Contenedor principal */
+  main, .main-content {
+    padding: 12px !important;
+  }
+  
+  /* Grids responsivos - convierten múltiples columnas a 1 */
+  .grid-cols-2, 
+  .grid-cols-3, 
+  .grid-cols-4,
+  .grid-cols-1.md\:grid-cols-2,
+  .grid-cols-1.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Tarjetas y contenedores */
+  .bg-white.rounded-lg, 
+  .bg-white.rounded-xl,
+  .bg-white.rounded-2xl,
+  .shadow-sm, 
+  .shadow-md,
+  .border {
+    margin-bottom: 12px;
+  }
+  
+  /* Scroll horizontal para tablas */
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+  
+  table {
+    min-width: 700px;
+  }
+  
+  /* Botones - altura mínima para dedos */
+  button {
+    min-height: 44px !important;
+    padding: 8px 12px !important;
+  }
+  
+  /* Botones pequeños en tablas */
+  button .w-3, 
+  button .w-4 {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  /* Inputs más grandes (evita zoom en iOS) */
+  input, 
+  select, 
+  textarea {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+  }
+  
+  /* Header y navegación */
+  header .px-6 {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  header .flex.space-x-6 {
+    gap: 12px !important;
+  }
+  
+  header button.py-3 {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  
+  /* Tarjetas de métricas */
+  .grid-cols-2.md\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Progress circles */
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Botón flotante del chat */
+  .fixed.bottom-6.right-6 {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+  
+  .fixed.bottom-6.right-6 .w-14.h-14 {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  
+  /* Ventana de chat */
+  .fixed.bottom-6.right-6.w-80 {
+    width: calc(100vw - 32px) !important;
+    right: 16px !important;
+    left: 16px !important;
+    bottom: 16px !important;
+    max-width: none !important;
+  }
+  
+  /* Espaciado vertical */
+  .space-y-6 > * + * {
+    margin-top: 16px !important;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 12px !important;
+  }
+  
+  /* Títulos */
+  h1, h2, .text-xl, .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  
+  h3, .text-lg {
+    font-size: 1.125rem !important;
+  }
+  
+  /* Tooltips en móvil (se ocultan) */
+  .group-hover\:visible {
+    display: none !important;
+  }
+  
+  /* Modales */
+  .fixed.inset-0 .bg-white {
+    margin: 16px !important;
+    width: calc(100% - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+  }
+  
+  /* Filtros */
+  .grid-cols-1.md\:grid-cols-4 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Tabla de usuarios - celdas más compactas */
+  td, th {
+    padding: 8px 12px !important;
+  }
+  
+  /* Badges y etiquetas */
+  .px-2.py-1, .px-3.py-1 {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+  
+  /* Tarjetas de curso */
+  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Vista tablet (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Prevenir zoom en inputs en iOS */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Mejorar touch targets */
+button, 
+a, 
+[role="button"],
+.cursor-pointer {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll suave en toda la app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Animaciones suaves */
+* {
+  transition: all 0.2s ease;
+}

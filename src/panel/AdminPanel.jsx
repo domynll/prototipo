@@ -10569,32 +10569,33 @@ ${courseReportData.stats.avgProgress >= 70
                         <button
                           onClick={async () => {
                             try {
-                              // Mostrar loading
                               const loadingDiv = document.createElement('div');
                               loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
-                              loadingDiv.innerHTML = '<div class="bg-white rounded-xl p-6 flex items-center gap-3 shadow-2xl"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div><span class="font-medium">Generando reporte del curso...</span></div>';
+                              loadingDiv.innerHTML = '<div class="bg-white rounded-xl p-6 flex items-center gap-3 shadow-2xl"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div><span class="font-medium">Generando reporte...</span></div>';
                               document.body.appendChild(loadingDiv);
 
-                              // Obtener estudiantes con progreso en este curso
                               const courseResources = resources.filter(r => r.curso_id === course.id);
                               const courseResourceIds = courseResources.map(r => r.id);
 
+                              const { data: userProgress, error: progressError } = await supabase
+                                .from('progreso_estudiantes')
+                                .select('*')
+                                .in('recurso_id', courseResourceIds);
+
+                              if (progressError) throw progressError;
+
                               const studentsWithProgress = users.filter(u => u.rol === 'estudiante');
 
-                              // Crear contenido CSV
-                              let csvContent = "\uFEFF"; // BOM para UTF-8
+                              let csvContent = "\uFEFF";
                               csvContent += `"REPORTE DEL CURSO: ${course.titulo.replace(/"/g, '""')}"\n`;
-                              csvContent += `"Fecha de generación","${new Date().toLocaleString('es-ES')}"\n`;
+                              csvContent += `"Fecha","${new Date().toLocaleString('es-ES')}"\n`;
                               csvContent += `"Nivel","${course.nivel_nombre || 'Sin nivel'}"\n`;
                               csvContent += `"Total Estudiantes","${studentsWithProgress.length}"\n`;
                               csvContent += `"Total Recursos","${courseResources.length}"\n`;
-                              csvContent += `"Recursos del curso","${courseResources.map(r => r.titulo).join(', ')}"\n`;
                               csvContent += `\n`;
-                              csvContent += `"ESTUDIANTES","","","",""\n`;
-                              csvContent += `"Nombre","Email","Grupo","Progreso %","Intentos Promedio","Recursos Completados","Último Acceso"\n`;
+                              csvContent += `"Nombre","Email","Grupo","Progreso %","Intentos","Completados","Último Acceso"\n`;
 
                               for (const student of studentsWithProgress) {
-                                // Obtener progreso del estudiante en este curso
                                 const studentProgress = userProgress.filter(p =>
                                   p.usuario_id === student.id && courseResourceIds.includes(p.recurso_id)
                                 );
@@ -10608,19 +10609,12 @@ ${courseReportData.stats.avgProgress >= 70
                                   : 0;
 
                                 const completedCount = studentProgress.filter(p => p.completado).length;
-
-                                const grupoNombre = student.grupo_id
-                                  ? groups.find(g => g.id === student.grupo_id)?.nombre || "Sin grupo"
-                                  : "Sin grupo";
-
-                                const ultimoAcceso = student.ultimo_acceso
-                                  ? new Date(student.ultimo_acceso).toLocaleDateString('es-ES')
-                                  : "Nunca";
+                                const grupoNombre = student.grupo_id ? groups.find(g => g.id === student.grupo_id)?.nombre || "Sin grupo" : "Sin grupo";
+                                const ultimoAcceso = student.ultimo_acceso ? new Date(student.ultimo_acceso).toLocaleDateString('es-ES') : "Nunca";
 
                                 csvContent += `"${student.nombre.replace(/"/g, '""')}","${student.email || ''}","${grupoNombre}",${avgProgress},${avgAttempts},${completedCount},"${ultimoAcceso}"\n`;
                               }
 
-                              // Descargar archivo
                               const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                               const link = document.createElement('a');
                               const url = URL.createObjectURL(blob);
@@ -10630,12 +10624,12 @@ ${courseReportData.stats.avgProgress >= 70
                               URL.revokeObjectURL(url);
 
                               loadingDiv.remove();
-                              alert('✅ Reporte descargado correctamente');
+                              alert('✅ Reporte descargado');
 
                             } catch (error) {
-                              console.error('Error:', error);
+                              console.error(error);
                               document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50')?.remove();
-                              alert('❌ Error al generar el reporte: ' + error.message);
+                              alert('❌ Error: ' + error.message);
                             }
                           }}
                           className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
