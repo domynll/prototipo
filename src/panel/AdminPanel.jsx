@@ -210,35 +210,47 @@ const ExcelColumnChart = ({ title, data, colors }) => {
 };
 
 // Componente de Gráfico de Barras
-const BarChart = ({ title, data, color, maxValue }) => {
+const BarChart = ({ title, data, color }) => {
   if (!data || data.length === 0) return null;
 
-  return (
-    <div className="bg-white border-2 border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-sm font-bold text-gray-800">{title}</span>
-      </div>
+  const values = data.map(d => d.value);
+  const maxValue = Math.max(...values, 1);
 
-      <div className="space-y-2">
-        {data.map((item, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <span className="text-xs text-gray-600 w-20 truncate">
-              {item.label}
-            </span>
-            <div className="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${(item.value / maxValue) * 100}%`,
-                  backgroundColor: color,
-                }}
-              />
+  return (
+    <div className="bg-white border-2 border-gray-300 rounded-lg p-4">
+      <h4 className="text-sm font-bold text-gray-800 mb-4">{title}</h4>
+
+      <div className="space-y-3">
+        {data.map((item, idx) => {
+          // ✅ Forzar un mínimo de 8% para que se vea aunque sea 1
+          let porcentaje = (item.value / maxValue) * 100;
+          const esValorPequeno = item.value > 0 && porcentaje < 8;
+          if (esValorPequeno) porcentaje = 8; // Mínimo visible
+
+          return (
+            <div key={idx}>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="font-bold text-gray-700">{item.label}</span>
+                <span className="font-bold text-gray-800">{item.value}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all flex items-center justify-end px-2"
+                  style={{
+                    width: `${porcentaje}%`,
+                    backgroundColor: color,
+                  }}
+                >
+                  {item.value > 0 && (
+                    <span className="text-xs font-bold text-white">
+                      {item.value}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <span className="text-xs font-bold text-gray-700 w-8 text-right">
-              {item.value}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -8100,7 +8112,7 @@ ${courseReportData.stats.avgProgress >= 70
             onClick={() => setShowAIChat(true)}
             className="fixed bottom-6 right-6 z-50 group"
           >
-            <div className="relative w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 cursor-pointer flex items-center justify-center">
+            <div className="relative w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 cursor-pointer flex items-center justify-center">
               <div className="absolute inset-0 rounded-full bg-white opacity-20 animate-ping"></div>
               <MessageCircle className="w-7 h-7 text-white" strokeWidth={1.5} />
             </div>
@@ -8114,8 +8126,8 @@ ${courseReportData.stats.avgProgress >= 70
         {showAIChat && (
           <div className="fixed bottom-6 right-6 z-50 w-80 h-[520px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 animate-fadeInUp">
 
-            {/* Cabecera con botón cerrar */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center justify-between">
+            {/* Cabecera con botón cerrar - AHORA AZUL */}
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-lg backdrop-blur-sm">
                   🤖
@@ -8124,7 +8136,7 @@ ${courseReportData.stats.avgProgress >= 70
                   <h3 className="text-white font-bold text-base">Asistente IA</h3>
                   <div className="flex items-center gap-1 mt-0.5">
                     <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] text-indigo-100">Conectado</span>
+                    <span className="text-[10px] text-blue-100">Conectado</span>
                   </div>
                 </div>
               </div>
@@ -8146,25 +8158,25 @@ ${courseReportData.stats.avgProgress >= 70
             <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center px-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-2xl mb-2">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center text-2xl mb-2">
                     💬
                   </div>
                   <h4 className="font-bold text-gray-800 text-sm">¡Hola! Soy tu asistente</h4>
                   <p className="text-xs text-gray-500 mt-1">Pregúntame sobre estadísticas, recomendaciones o cómo usar la plataforma.</p>
                   <div className="grid grid-cols-2 gap-1 w-full mt-4">
-                    <button onClick={() => handleAIChat("¿Cuál es el estado general del sistema?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📊 Estado</button>
-                    <button onClick={() => handleAIChat("Dame recomendaciones para mejorar el compromiso")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">💡 Recomendaciones</button>
-                    <button onClick={() => handleAIChat("¿Qué cursos son los más populares?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📈 Popularidad</button>
-                    <button onClick={() => handleAIChat("¿Cómo puedo generar un quiz con IA?")} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">❓ Ayuda</button>
+                    <button onClick={() => handleAIChat("¿Cuál es el estado general del sistema?")} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📊 Estado</button>
+                    <button onClick={() => handleAIChat("Dame recomendaciones para mejorar el compromiso")} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">💡 Recomendaciones</button>
+                    <button onClick={() => handleAIChat("¿Qué cursos son los más populares?")} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">📈 Popularidad</button>
+                    <button onClick={() => handleAIChat("¿Cómo puedo generar un quiz con IA?")} className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg transition">❓ Ayuda</button>
                   </div>
                 </div>
               ) : (
                 <>
                   {chatMessages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs ${msg.role === "user" ? "bg-indigo-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm"}`}>
+                      <div className={`max-w-[85%] px-3 py-1.5 rounded-xl text-xs ${msg.role === "user" ? "bg-blue-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none shadow-sm"}`}>
                         {msg.content}
-                        <div className={`text-[9px] mt-1 ${msg.role === "user" ? "text-indigo-200" : "text-gray-400"}`}>
+                        <div className={`text-[9px] mt-1 ${msg.role === "user" ? "text-blue-200" : "text-gray-400"}`}>
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
@@ -8173,9 +8185,9 @@ ${courseReportData.stats.avgProgress >= 70
                   {chatLoading && (
                     <div className="flex justify-start">
                       <div className="bg-white border border-gray-200 rounded-xl rounded-bl-none px-3 py-1.5 flex gap-1">
-                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
                       </div>
                     </div>
                   )}
@@ -8193,12 +8205,12 @@ ${courseReportData.stats.avgProgress >= 70
                   onKeyPress={(e) => e.key === "Enter" && !chatLoading && handleAIChat(chatInput)}
                   placeholder="Escribe tu pregunta..."
                   disabled={chatLoading}
-                  className="flex-1 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:opacity-50 text-xs"
+                  className="flex-1 px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50 text-xs"
                 />
                 <button
                   onClick={() => handleAIChat(chatInput)}
                   disabled={chatLoading || !chatInput.trim()}
-                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white p-1.5 rounded-lg transition-all"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white p-1.5 rounded-lg transition-all"
                 >
                   <Send className="w-4 h-4" />
                 </button>
