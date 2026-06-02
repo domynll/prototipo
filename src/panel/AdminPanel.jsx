@@ -13,6 +13,26 @@ import * as pdfjsLib from 'pdfjs-dist';
 import KarinMascot from "../KarinMascot";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url,).href;
+// Agrega esta función al inicio de tu componente EnhancedAdminPanel
+const fixMobileTouch = () => {
+  if (typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    // Corregir todos los botones
+    setTimeout(() => {
+      document.querySelectorAll('button, .cursor-pointer').forEach(btn => {
+        if (!btn.hasAttribute('data-touch-fixed')) {
+          btn.setAttribute('data-touch-fixed', 'true');
+          btn.style.touchAction = 'manipulation';
+
+          // Forzar que los clics funcionen
+          btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            setTimeout(() => btn.click(), 10);
+          }, { passive: false });
+        }
+      });
+    }, 100);
+  }
+};
 
 // Componente de Gráfica de Barras Horizontales
 const ExcelHorizontalBarChart = ({ title, data, colors }) => {
@@ -540,6 +560,8 @@ export default function EnhancedAdminPanel() {
     preguntas: [],
   });
 
+
+
   const [currentQuestion, setCurrentQuestion] = useState({
     tipo: "multiple",
     pregunta: "",
@@ -844,6 +866,7 @@ export default function EnhancedAdminPanel() {
       return {};
     }
   };
+
 
   // 2. Exportar a Excel
   const exportReportToExcel = () => {
@@ -1176,6 +1199,10 @@ export default function EnhancedAdminPanel() {
     };
     initializeData();
   }, [currentUser, initialLoad]);
+
+  useEffect(() => {
+    fixMobileTouch();
+  }, []);
 
   useEffect(() => {
     const initializeData = async () => {
