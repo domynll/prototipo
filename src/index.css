@@ -165,294 +165,155 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ============================================
-   RESPONSIVE PROFESIONAL - DIDACTIKAPP
+   SOLO PARA CELULARES (max-width: 768px)
    ============================================ */
 
-/* Reset y mejoras generales */
-* {
-  box-sizing: border-box;
-}
-
-/* Vista móvil (menos de 768px) */
 @media (max-width: 768px) {
   
-  /* ===== CONTENEDOR PRINCIPAL ===== */
-  main, .max-w-7xl {
-    padding: 8px !important;
-    margin: 0 auto !important;
+  /* Contenedor principal - más espacio */
+  main {
+    padding: 12px !important;
   }
   
-  /* ===== HEADER RESPONSIVE ===== */
-  header {
-    padding: 8px 12px !important;
+  /* Tarjetas - más redondeadas y con sombra suave */
+  .bg-white.rounded-lg, 
+  .bg-white.rounded-xl,
+  .bg-white.rounded-2xl {
+    border-radius: 20px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
   }
   
-  header .flex.justify-between {
+  /* Títulos más pequeños pero legibles */
+  h2.text-xl {
+    font-size: 18px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  /* Grid de métricas - 2 columnas bonitas */
+  .grid-cols-2.md\:grid-cols-4 {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Tarjetas de métricas - compactas */
+  .bg-white.border-2.rounded-lg.p-4 {
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+  
+  .bg-white.border-2.rounded-lg.p-4 .text-2xl {
+    font-size: 20px !important;
+  }
+  
+  /* Gráficas y distribución - todo en vertical */
+  .grid-cols-1.lg\:grid-cols-2 {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Progress circles - 2 columnas */
+  .grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Recomendaciones IA - 1 columna */
+  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+    display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
+  }
+  
+  /* Cursos - 1 columna */
+  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  /* Tabla de usuarios - scroll horizontal */
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    border-radius: 16px !important;
+  }
+  
+  table {
+    min-width: 600px !important;
+  }
+  
+  /* Botones - más grandes para dedos */
+  button {
+    min-height: 42px !important;
+    border-radius: 12px !important;
+  }
+  
+  /* Botón flotante - más pequeño y elegante */
+  .fixed.bottom-6.right-6 {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+  
+  .fixed.bottom-6.right-6 .w-14.h-14 {
+    width: 50px !important;
+    height: 50px !important;
+  }
+  
+  /* Ventana de chat - ocupa toda la pantalla casi */
+  .fixed.bottom-6.right-6.z-50.w-80 {
+    width: calc(100% - 24px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    border-radius: 24px !important;
+  }
+  
+  /* Filtros - 1 columna */
+  .grid-cols-1.md\:grid-cols-4 {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  /* Inputs y selects */
+  input, select {
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
+  }
+  
+  /* Header - más compacto */
+  header .px-6 {
+    padding: 10px 12px !important;
   }
   
   header h1.text-2xl {
     font-size: 18px !important;
   }
   
-  header p.text-sm {
-    font-size: 11px !important;
-  }
-  
-  /* ===== TABS DE NAVEGACIÓN ===== */
-  .flex.space-x-6.overflow-x-auto {
+  /* Tabs de navegación */
+  .flex.space-x-6 {
     gap: 8px !important;
-    padding-bottom: 8px !important;
   }
   
   .flex.space-x-6 button {
-    padding: 6px 8px !important;
     font-size: 12px !important;
-    white-space: nowrap !important;
+    padding: 6px 0 !important;
   }
   
-  /* ===== MÉTRICAS (4 tarjetas) ===== */
-  .grid-cols-2.md\:grid-cols-4 {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-  
-  /* ===== TARJETAS DE MÉTRICAS ===== */
-  .bg-white.border-2.rounded-lg.p-4 {
-    padding: 12px !important;
-  }
-  
-  .bg-white.border-2.rounded-lg.p-4 .text-2xl {
-    font-size: 18px !important;
-  }
-  
-  .bg-white.border-2.rounded-lg.p-4 p.text-xs {
-    font-size: 10px !important;
-  }
-  
-  /* ===== GRÁFICAS ===== */
-  .grid-cols-1.lg\:grid-cols-2 {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-  }
-  
-  /* BarChart y ProgressCircles */
-  .grid-cols-1.lg\:grid-cols-2 > div:first-child {
-    order: 1 !important;
-  }
-  
-  .grid-cols-1.lg\:grid-cols-2 > div:last-child .grid-cols-2 {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-  
-  /* ===== RECOMENDACIONES IA ===== */
-  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  
-  /* ===== ANÁLISIS DE CURSOS ===== */
-  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-  
-  /* Tarjetas de curso */
-  .rounded-xl.p-5 {
-    padding: 12px !important;
-  }
-  
-  .rounded-xl.p-5 .w-12.h-12 {
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 14px !important;
-  }
-  
-  .rounded-xl.p-5 h4 {
-    font-size: 14px !important;
-  }
-  
-  /* ===== SECCIÓN ACTIVIDAD RECIENTE ===== */
-  .grid-cols-1.lg\:grid-cols-2.gap-6 {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-  }
-  
-  /* ===== TABLA DE USUARIOS ===== */
-  .overflow-x-auto {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    margin: 0 -8px !important;
-    padding: 0 8px !important;
-  }
-  
-  table {
-    min-width: 650px !important;
-    font-size: 12px !important;
-  }
-  
-  th, td {
-    padding: 8px 8px !important;
-  }
-  
-  /* Badges de roles */
-  .px-2.py-1.text-xs {
-    font-size: 9px !important;
-    padding: 2px 6px !important;
-  }
-  
-  /* ===== FILTROS ===== */
-  .grid-cols-1.md\:grid-cols-4 {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  
-  /* ===== BOTONES ===== */
-  button {
-    min-height: 40px !important;
-    font-size: 13px !important;
-  }
-  
-  /* Botón flotante chat */
-  .fixed.bottom-6.right-6 {
-    bottom: 12px !important;
-    right: 12px !important;
-  }
-  
-  .fixed.bottom-6.right-6 .w-14.h-14 {
-    width: 48px !important;
-    height: 48px !important;
-  }
-  
-  /* ===== MODALES ===== */
-  .fixed.inset-0 .rounded-3xl,
-  .fixed.inset-0 .rounded-2xl {
-    margin: 12px !important;
-    width: calc(100% - 24px) !important;
-    max-height: calc(100vh - 24px) !important;
-  }
-  
-  /* ===== EDITOR DE QUIZ ===== */
-  .grid-cols-1.md\:grid-cols-3.gap-4 {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-  
-  /* Opciones de respuesta en quiz */
-  .grid-cols-1.md\:grid-cols-2.gap-4 {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-  
-  /* ===== CHAT FLOTANTE ===== */
-  .fixed.bottom-6.right-6.z-50.w-80 {
-    width: calc(100vw - 24px) !important;
-    left: 12px !important;
-    right: 12px !important;
-    bottom: 12px !important;
-    max-width: none !important;
-    height: 500px !important;
-  }
-  
-  /* ===== DASHBOARD AJUSTES ===== */
-  .bg-gradient-to-br.from-indigo-900.to-blue-950 {
-    padding: 16px !important;
-  }
-  
-  .bg-gradient-to-br.from-indigo-900.to-blue-950 .text-lg {
-    font-size: 14px !important;
-  }
-  
-  /* ===== GRUPOS ===== */
-  .grid-cols-2.md\:grid-cols-4.gap-3 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  
-  /* ===== LOGROS ===== */
-  .grid-cols-2.md\:grid-cols-3.lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  
-  /* ===== FOOTER ===== */
+  /* Footer */
   footer .max-w-7xl {
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 6px !important;
     text-align: center !important;
   }
   
-  footer .flex.items-center.gap-4 {
-    justify-content: center !important;
+  /* Modales */
+  .fixed.inset-0 .rounded-3xl,
+  .fixed.inset-0 .rounded-2xl {
+    margin: 16px !important;
+    width: calc(100% - 32px) !important;
+    border-radius: 24px !important;
   }
 }
-
-/* ===== TABLET (768px - 1024px) ===== */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  
-  .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  
-  .grid-cols-2.md\:grid-cols-3.lg\:grid-cols-4 {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
-}
-
-/* ===== MEJORAS GENERALES ===== */
-
-/* Inputs más grandes en móvil (evita zoom) */
-@media (max-width: 768px) {
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-}
-
-/* Touch targets mejorados */
-button, a, [role="button"] {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Scroll suave */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Transiciones suaves */
-* {
-  transition: all 0.2s ease;
-}
-
-/* Tooltips en móvil - más pequeños */
-@media (max-width: 768px) {
-  .group .absolute {
-    font-size: 10px !important;
-    padding: 4px 8px !important;
-    white-space: normal !important;
-    max-width: 200px !important;
-  }
-}
-
-/* Modales mejorados */
-@media (max-width: 768px) {
-  .fixed.inset-0 {
-    padding: 8px !important;
-  }
-  
-  .fixed.inset-0 > div {
-    border-radius: 16px !important;
-  }
-}   
