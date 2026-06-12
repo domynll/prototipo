@@ -37,22 +37,25 @@ El sistema incorpora el algoritmo ADA (Análisis Didáctico Adaptativo), encarga
 ## Tecnologías Utilizadas
 
 ### Frontend
+
 - React
 - Vite
 - JavaScript
 - Tailwind CSS
 
 ### Backend
+
 - Supabase
 - PostgreSQL
 
 ### Inteligencia Artificial
+
 - Algoritmo ADA
 - Sistema de retroalimentación adaptativa
 
 ## Estructura General del Sistema
 
-### Módulos principales
+### Módulos Principales
 
 - Usuarios
 - Cursos
@@ -61,14 +64,14 @@ El sistema incorpora el algoritmo ADA (Análisis Didáctico Adaptativo), encarga
 - Progreso estudiantil
 - Logros e insignias
 - Biblioteca digital
-- Foros
-- Mentorías
+- Foros de discusión
+- Mentorías académicas
 
 ## Base de Datos
 
 La aplicación utiliza PostgreSQL mediante Supabase.
 
-Principales entidades:
+### Principales Entidades
 
 - usuarios
 - cursos
@@ -82,22 +85,51 @@ Principales entidades:
 - publicaciones_foro
 - mentorias
 
-## Instalación
+## Configuración
 
-Clonar el repositorio:
+Crear un archivo `.env.local` en la raíz del proyecto con la siguiente configuración:
 
-```bash
-git clone URL_DEL_REPOSITORIO
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://ebrilatmfufeqmndemag.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicmlsYXRtZnVmZXFtbmRlbWFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MjcwODAsImV4cCI6MjA3MjUwMzA4MH0.-sHj7O2rL69EpvB2AY-kh8U__jOPy6Ip-MDTKFq-H7Y
 ```
 
-Instalar dependencias:
+## Instalación
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/domynll/prototipo.git
+```
+
+### 2. Ingresar a la carpeta del proyecto
+
+```bash
+cd prototipo
+```
+
+### 3. Instalar dependencias
 
 ```bash
 npm install
 ```
 
-Ejecutar el proyecto:
+### 4. Ejecutar el proyecto
 
 ```bash
 npm run dev
+```
+
+### 5. Abrir en el navegador
+
+```text
+http://localhost:5173
+```
+
+## Repositorio Oficial
+
+Repositorio GitHub:
+
+```text
+https://github.com/domynll/prototipo
 ```
