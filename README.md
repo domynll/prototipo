@@ -1,71 +1,80 @@
 # DidaktikApp
 
-Aplicación móvil interactiva para la enseñanza de la didáctica en carreras docentes mediante simulaciones, evaluación adaptativa y planificación pedagógica.
+Aplicación web interactiva para la enseñanza de la didáctica en carreras docentes mediante simulaciones, evaluación adaptativa y planificación pedagógica.
 
 ## Descripción
 
-DidaktikApp es una plataforma educativa desarrollada como proyecto de titulación que busca fortalecer las competencias didácticas de estudiantes de carreras docentes a través de experiencias interactivas, simulaciones pedagógicas y retroalimentación personalizada.
+DidaktikApp es una plataforma educativa desarrollada como proyecto de titulación que busca fortalecer las competencias didácticas de estudiantes de carreras docentes a través de experiencias interactivas, simulaciones pedagógicas, evaluaciones adaptativas y retroalimentación personalizada.
 
-## Objetivo
+La aplicación integra recursos educativos digitales, seguimiento del progreso académico y herramientas tecnológicas que facilitan el proceso de enseñanza-aprendizaje.
 
-Desarrollar una aplicación móvil interactiva que contribuya al aprendizaje de la didáctica mediante recursos educativos, simulaciones y evaluación adaptativa.
+## Objetivo General
+
+Desarrollar una aplicación interactiva que contribuya al aprendizaje de la didáctica mediante recursos educativos, simulaciones y evaluación adaptativa para estudiantes de carreras docentes.
 
 ## Funcionalidades
 
 - Registro e inicio de sesión de usuarios.
+- Gestión de perfiles académicos.
 - Simulaciones de escenarios educativos.
 - Evaluaciones interactivas.
 - Retroalimentación adaptativa.
-- Sistema de progreso académico.
-- Gamificación mediante puntos e insignias.
+- Seguimiento del progreso académico.
+- Sistema de puntos e insignias.
 - Biblioteca de recursos educativos.
-- Foros de discusión.
-- Mentorías académicas.
-- Seguimiento del desempeño estudiantil.
+- Foros de discusión académica.
+- Mentorías educativas.
+- Estadísticas de desempeño.
+- Recomendaciones personalizadas de aprendizaje.
 
 ## Algoritmo ADA
 
 El sistema incorpora el algoritmo ADA (Análisis Didáctico Adaptativo), encargado de:
 
-- Analizar respuestas del estudiante.
-- Detectar fortalezas.
+- Analizar respuestas de los estudiantes.
+- Detectar fortalezas académicas.
 - Identificar áreas de mejora.
 - Generar recomendaciones personalizadas.
 - Elaborar planes de acción adaptativos.
-- Ajustar la retroalimentación según el desempeño.
+- Ajustar la retroalimentación según el desempeño obtenido.
 
 ## Tecnologías Utilizadas
 
 ### Frontend
 
-- React
-- Vite
+- React 19
+- Vite 6
 - JavaScript
+- HTML5
+- CSS3
 - Tailwind CSS
+- React Router DOM
+- Framer Motion
 
-### Backend
+### Backend y Base de Datos
 
 - Supabase
 - PostgreSQL
 
-### Inteligencia Artificial
+### Librerías Complementarias
 
-- Algoritmo ADA
-- Sistema de retroalimentación adaptativa
+- Lucide React
+- PDF.js
+- Lottie React
 
-## Estructura General del Sistema
+## Arquitectura General
 
 ### Módulos Principales
 
 - Usuarios
 - Cursos
-- Recursos
+- Recursos educativos
 - Evaluaciones
 - Progreso estudiantil
 - Logros e insignias
 - Biblioteca digital
-- Foros de discusión
-- Mentorías académicas
+- Foros académicos
+- Mentorías educativas
 
 ## Base de Datos
 
@@ -85,14 +94,23 @@ La aplicación utiliza PostgreSQL mediante Supabase.
 - publicaciones_foro
 - mentorias
 
-## Configuración
+## Respaldo de Base de Datos
 
-Crear un archivo `.env.local` en la raíz del proyecto con la siguiente configuración:
+El proyecto incluye un archivo de respaldo:
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://ebrilatmfufeqmndemag.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicmlsYXRtZnVmZXFtbmRlbWFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MjcwODAsImV4cCI6MjA3MjUwMzA4MH0.-sHj7O2rL69EpvB2AY-kh8U__jOPy6Ip-MDTKFq-H7Y
+```text
+respaldo.sql
 ```
+
+Este archivo contiene la estructura y/o información necesaria para restaurar la base de datos utilizada por el sistema.
+
+## Requisitos Previos
+
+Antes de ejecutar el proyecto asegúrese de tener instalado:
+
+- Node.js 18 o superior
+- npm
+- Git
 
 ## Instalación
 
@@ -102,7 +120,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 git clone https://github.com/domynll/prototipo.git
 ```
 
-### 2. Ingresar a la carpeta del proyecto
+### 2. Ingresar al directorio del proyecto
 
 ```bash
 cd prototipo
@@ -114,21 +132,95 @@ cd prototipo
 npm install
 ```
 
-### 4. Ejecutar el proyecto
+### 4. Configurar variables de entorno
+
+Crear un archivo llamado:
+
+```text
+.env.local
+```
+
+Agregar la siguiente configuración:
+
+```env
+VITE_SUPABASE_URL=https://ebrilatmfufeqmndemag.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVicmlsYXRtZnVmZXFtbmRlbWFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5MjcwODAsImV4cCI6MjA3MjUwMzA4MH0.-sHj7O2rL69EpvB2AY-kh8U__jOPy6Ip-MDTKFq-H7Y
+```
+
+### 5. Ejecutar el proyecto
 
 ```bash
 npm run dev
 ```
 
-### 5. Abrir en el navegador
+### 6. Abrir la aplicación
 
 ```text
 http://localhost:5173
 ```
 
+## Scripts Disponibles
+
+### Ejecutar entorno de desarrollo
+
+```bash
+npm run dev
+```
+
+### Generar versión de producción
+
+```bash
+npm run build
+```
+
+### Visualizar versión de producción
+
+```bash
+npm run preview
+```
+
+### Ejecutar análisis de código
+
+```bash
+npm run lint
+```
+
+## Estructura del Proyecto
+
+```text
+prototipo/
+│
+├── public/
+├── src/
+│
+├── .gitignore
+├── README.md
+├── eslint.config.js
+├── index.html
+├── package.json
+├── package-lock.json
+├── postcss.config.cjs
+├── tailwind.config.cjs
+├── vite.config.js
+├── respaldo.sql
+│
+└── .env.local
+```
+
+## Dependencias Principales
+
+- React
+- React DOM
+- React Router DOM
+- Supabase
+- Framer Motion
+- Lucide React
+- PDF.js
+- Lottie React
+
 ## Repositorio Oficial
 
-Repositorio GitHub:
+GitHub:
 
 ```text
 https://github.com/domynll/prototipo
