@@ -3311,7 +3311,7 @@ Responde EXACTAMENTE con este formato JSON:
       console.log("📤 Enviando solicitud a Groq API...");
 
       // Intentar con diferentes modelos en orden
-      const models = ["mixtral-8x7b-32768", "llama-3.1-8b-instant", "gemma2-9b-it"];
+      const models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "gemma2-9b-it"];
       let lastError = null;
       let data = null;
 
@@ -7194,7 +7194,7 @@ ${courseReportData.stats.avgProgress >= 70
             "Authorization": `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
+            model: "llama-3.3-70b-versatile",
             messages: [
               {
                 role: "system",
